@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#080808">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>SPENT</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@300;400;500;700&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:#080808;}
+:root{
+  --bg:#080808;--s1:#111111;--s2:#181818;--s3:#1e1e1e;--s4:#242424;
+  --border:#2a2a2a;--border2:#333;
+  --red:#ff3d00;--orange:#ff8c00;--green:#39d98a;--blue:#00c8ff;--yellow:#ffd600;--purple:#c084fc;
+  --text:#f5f5f5;--text2:#d0d0d0;--text3:#a8a8a8;--dim:#444;--muted:#888;--faint:#2a2a2a;
+  --font-d:'Bebas Neue',sans-serif;
+  --font-m:'JetBrains Mono',monospace;
+  --font-b:'Barlow Condensed',sans-serif;
+}
+#root{height:100%;display:flex;flex-direction:column;overflow:hidden;}
+::-webkit-scrollbar{width:2px;height:2px;}
+::-webkit-scrollbar-thumb{background:var(--dim);}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback,useMemo} = React;
+
+const CATS = [
+  {id:'groceries',  label:'Groceries',   icon:'🛒', color:'#ff8c00'},
+  {id:'transport',  label:'Transport',   icon:'🚌', color:'#00c8ff'},
+  {id:'gym',        label:'Gym',         icon:'💪', color:'#ff3d00'},
+  {id:'shopping',   label:'Shopping',    icon:'🛍️', color:'#c084fc'},
+  {id:'bills',      label:'Bills',       icon:'📄', color:'#ffd600'},
+  {id:'dining',     label:'Dining Out',  icon:'🍽️', color:'#39d98a'},
+  {id:'entertain',  label:'Entertain',   icon:'🎮', color:'#00c8ff'},
+  {id:'health',     label:'Health',      icon:'💊', color:'#ff6b6b'},
+  {id:'other',      label:'Other',       icon:'📦', color:'#888'},
+];
+const CAT = Object.fromEntries(CATS.map(c=>[c.id,c]));
+
+const fmt = n => `£${Number(n).toFixed(2)}`;
+const fmtShort = n => n >= 1000 ? `£${(n/1000).toFixed(1)}k` : `£${Number(n).toFixed(0)}`;
+const today = () => new Date().toISOString().slice(0,10);
+const monthKey = d => d.slice(0,7);
+const weekOfYear = d => {
+  const dt = new Date(d);
+  const jan1 = new Date(dt.getFullYear(),0,1);
+  return `${dt.getFullYear()}-W${String(Math.ceil(((dt-jan1)/86400000+jan1.getDay()+1)/7)).padStart(2,'0')}`;
+};
+const dayName = d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(d).getDay()];
+const monthName = m => ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(m.split('-')[1])-1];
+
+function loadStore() {
+  try { const r=localStorage.getItem('spent_v2'); if(r) return JSON.parse(r); } catch(e){}
+  return { expenses:[], weekBudget:200, monthBudget:800 };
+}
+function loadShiftsIncome() {
+  // Pull weekly earnings from shifts data for income vs spend crossover
+  try {
+    const s=JSON.parse(localStorage.getItem('shifts_v4')||'null');
+    if(!s||!s.shifts) return {weekIncome:0,monthIncome:0,rate:12.21};
+    const now=new Date();
+    const day=now.getDay();
+    const mon=new Date(now);
+    mon.setDate(now.getDate()-(day===0?6:day-1));
+    const wDates=[];
+    for(let i=0;i<7;i++){const d=new Date(mon);d.setDate(mon.getDate()+i);wDates.push(d.toISOString().slice(0,10));}
+    const mKey=now.toISOString().slice(0,7);
+    const rate=s.hourlyRate||12.21;
+    const weekIncome=s.shifts.filter(x=>wDates.includes(x.date)).reduce((a,x)=>a+x.hours*rate,0);
+    const monthIncome=s.shifts.filter(x=>x.date.startsWith(mKey)).reduce((a,x)=>a+x.hours*rate,0);
+    return{weekIncome,monthIncome,rate};
+  } catch(e){return{weekIncome:0,monthIncome:0,rate:12.21};}
+}
+function saveStore(s) {
+  try { localStorage.setItem('spent_v2', JSON.stringify(s)); } catch(e){}
+}
+let _id = Date.now();
+const uid = () => String(++_id);
+
+const CSS = `
+  @keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+  @keyframes popIn{from{transform:scale(0.93);opacity:0}to{transform:scale(1);opacity:1}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+  @keyframes flashGreen{0%{border-color:var(--green);background:rgba(57,217,138,0.06)}100%{border-color:var(--border);background:var(--s1)}}
+  @keyframes toastIn{from{transform:translateY(20px) translateX(-50%);opacity:0}to{transform:translateY(0) translateX(-50%);opacity:1}}
+  @keyframes toastOut{from{opacity:1}to{opacity:0}}
+  @keyframes slideLeft{from{transform:translateX(0)}to{transform:translateX(-70px)}}
+  @keyframes revealDelete{from{opacity:0}to{opacity:1}}
+
+  .app{display:flex;flex-direction:column;height:100vh;height:100dvh;background:var(--bg);overflow:hidden;}
+
+  /* TOP BAR */
+  .topbar{background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;z-index:10;
+    padding-top:env(safe-area-inset-top,0);}
+  .topbar-inner{display:flex;align-items:center;justify-content:space-between;padding:0.65rem 1rem;}
+  .app-title{font-family:var(--font-d);font-size:1.8rem;letter-spacing:0.08em;line-height:1;color:var(--text);}
+  .app-title span{color:var(--red);}
+  .topbar-right{display:flex;align-items:center;gap:0.5rem;}
+  .settings-btn{background:var(--s2);border:1px solid var(--border2);color:var(--text3);
+    font-family:var(--font-m);font-size:0.65rem;padding:0.3rem 0.65rem;cursor:pointer;
+    display:flex;align-items:center;gap:0.35rem;letter-spacing:0.06em;transition:all 0.15s;}
+  .settings-btn:active{border-color:var(--red);color:var(--red);}
+
+  /* SCREEN */
+  .screen{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(72px + env(safe-area-inset-bottom,0));}
+
+  /* BOTTOM NAV */
+  .bnav{position:fixed;bottom:0;left:0;right:0;background:var(--s1);border-top:1px solid var(--border);
+    display:flex;z-index:10;padding-bottom:env(safe-area-inset-bottom,0);}
+  .bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:0.6rem 0.25rem;
+    cursor:pointer;border:none;background:none;color:var(--text3);
+    font-family:var(--font-m);font-size:0.55rem;letter-spacing:0.06em;gap:0.2rem;transition:color 0.2s;}
+  .bnav-item.active{color:var(--red);}
+  .bnav-icon{font-size:1.1rem;line-height:1;}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:calc(80px + env(safe-area-inset-bottom,0));left:50%;transform:translateX(-50%);
+    background:var(--s3);border:1px solid var(--green);color:var(--green);
+    font-family:var(--font-m);font-size:0.68rem;letter-spacing:0.06em;
+    padding:0.55rem 1.1rem;z-index:200;white-space:nowrap;border-radius:2px;}
+  .toast.show{animation:toastIn 0.2s ease forwards;}
+  .toast.hide{animation:toastOut 0.3s ease forwards;}
+  .toast-err{border-color:var(--red);color:var(--red);}
+
+  /* ── ADD SCREEN ── */
+  .add-wrap{padding:1rem 0.85rem 0;animation:slideUp 0.2s ease;}
+  .amount-block{background:var(--s1);border:1px solid var(--border);padding:1.25rem 1rem;margin-bottom:0.75rem;transition:border-color 0.3s,background 0.3s;}
+  .amount-block.flash{animation:flashGreen 0.6s ease forwards;}
+  .amount-label{font-family:var(--font-m);font-size:0.62rem;color:var(--text3);letter-spacing:0.1em;margin-bottom:0.5rem;}
+  .amount-row{display:flex;align-items:center;gap:0.5rem;}
+  .amount-symbol{font-family:var(--font-d);font-size:2.8rem;color:var(--red);line-height:1;}
+  .amount-input{flex:1;font-family:var(--font-d);font-size:2.8rem;background:transparent;
+    border:none;color:var(--text);letter-spacing:0.04em;line-height:1;width:100%;
+    border-bottom:2px solid var(--border2);}
+  .amount-input:focus{outline:none;border-bottom-color:var(--red);}
+  .amount-input::placeholder{color:var(--dim);}
+
+  .field-label{font-family:var(--font-m);font-size:0.62rem;color:var(--text3);letter-spacing:0.08em;margin-bottom:0.45rem;}
+  .field-block{background:var(--s1);border:1px solid var(--border);padding:0.85rem 1rem;margin-bottom:0.6rem;}
+
+  .cat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0.4rem;}
+  .cat-btn{display:flex;flex-direction:column;align-items:center;padding:0.7rem 0.4rem;
+    border:1px solid var(--border2);background:var(--s2);cursor:pointer;transition:all 0.15s;gap:0.25rem;}
+  .cat-btn.sel{background:var(--s3);}
+  .cat-btn-icon{font-size:1.3rem;line-height:1;}
+  .cat-btn-lbl{font-family:var(--font-m);font-size:0.58rem;color:var(--text3);letter-spacing:0.04em;}
+
+  .note-input{width:100%;background:transparent;border:none;color:var(--text);
+    font-family:var(--font-b);font-size:1.05rem;font-weight:400;
+    border-bottom:1px solid var(--border2);}
+  .note-input:focus{outline:none;border-bottom-color:var(--muted);}
+  .note-input::placeholder{color:var(--dim);}
+
+  .date-input{background:var(--s3);border:1px solid var(--border2);color:var(--text);
+    font-family:var(--font-m);font-size:0.8rem;padding:0.4rem 0.6rem;width:100%;}
+  .date-input:focus{outline:none;border-color:var(--red);}
+
+  .add-btn{width:100%;font-family:var(--font-d);font-size:1.5rem;letter-spacing:0.12em;
+    padding:0.9rem;border:none;cursor:pointer;background:var(--red);color:#fff;
+    transition:all 0.15s;margin-top:0.25rem;}
+  .add-btn:active{transform:scale(0.98);background:#cc3000;}
+  .add-btn:disabled{background:var(--dim);color:var(--muted);cursor:default;}
+  .add-btn.success{background:var(--green);color:#000;}
+
+  /* QUICK AMOUNTS */
+  .quick-row{display:flex;gap:0.4rem;margin-bottom:0.6rem;}
+  .quick-btn{flex:1;font-family:var(--font-m);font-size:0.68rem;padding:0.5rem 0;
+    border:1px solid var(--border2);background:var(--s2);color:var(--text2);cursor:pointer;
+    transition:all 0.15s;text-align:center;}
+  .quick-btn:active{border-color:var(--red);color:var(--red);}
+
+  /* ── SWIPE-TO-DELETE EXP ITEM ── */
+  .exp-swipe-outer{position:relative;overflow:hidden;}
+  .exp-delete-reveal{position:absolute;right:0;top:0;bottom:0;width:70px;
+    background:var(--red);display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:1.2rem;cursor:pointer;animation:revealDelete 0.15s ease;
+    border-bottom:1px solid rgba(255,255,255,0.08);}
+  .exp-item{display:flex;align-items:center;gap:0.75rem;padding:0.75rem 0;
+    border-bottom:1px solid var(--border);animation:slideUp 0.15s ease;
+    background:var(--bg);transition:transform 0.25s cubic-bezier(0.25,0.46,0.45,0.94);
+    position:relative;cursor:pointer;user-select:none;}
+  .exp-item.swiped{transform:translateX(-70px);}
+  .exp-item:last-child{border-bottom:none;}
+  .exp-icon{width:38px;height:38px;display:flex;align-items:center;justify-content:center;
+    font-size:1.15rem;background:var(--s2);border:1px solid var(--border2);flex-shrink:0;}
+  .exp-info{flex:1;min-width:0;}
+  .exp-cat{font-family:var(--font-b);font-weight:700;font-size:1rem;color:var(--text);}
+  .exp-note{font-family:var(--font-m);font-size:0.6rem;color:var(--text3);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+  .exp-date{font-family:var(--font-m);font-size:0.55rem;color:var(--muted);}
+  .exp-amt{font-family:var(--font-d);font-size:1.3rem;color:var(--text);flex-shrink:0;}
+  .del-btn{background:none;border:none;color:var(--dim);cursor:pointer;font-size:1rem;
+    padding:0.3rem 0.4rem;transition:color 0.15s;flex-shrink:0;}
+  .del-btn:active{color:var(--red);}
+  .empty-state{text-align:center;padding:3rem 1rem;}
+  .empty-state-icon{font-size:2.5rem;margin-bottom:0.75rem;}
+  .empty-state-txt{font-family:var(--font-m);font-size:0.65rem;color:var(--text3);letter-spacing:0.06em;margin-bottom:1rem;}
+  .empty-state-cta{display:inline-block;font-family:var(--font-d);font-size:1rem;letter-spacing:0.1em;
+    padding:0.5rem 1.2rem;background:var(--red);color:#fff;cursor:pointer;border:none;}
+
+  /* ── EXPENSES SCREEN ── */
+  .exp-wrap{padding:0.85rem 0.85rem 0;animation:slideUp 0.2s ease;}
+  .today-hero{background:var(--s1);border:1px solid var(--border);padding:1rem;margin-bottom:0.75rem;
+    border-left:3px solid var(--red);}
+  .today-lbl{font-family:var(--font-m);font-size:0.62rem;color:var(--text3);letter-spacing:0.1em;margin-bottom:0.2rem;}
+  .today-amt{font-family:var(--font-d);font-size:2.4rem;color:var(--text);letter-spacing:0.04em;line-height:1;}
+  .today-count{font-family:var(--font-m);font-size:0.62rem;color:var(--text3);margin-top:0.2rem;}
+
+  .week-strip{display:flex;gap:0.3rem;margin-bottom:0.75rem;overflow-x:auto;scrollbar-width:none;}
+  .week-strip::-webkit-scrollbar{display:none;}
+  .wday-pill{flex-shrink:0;background:var(--s1);border:1px solid var(--border);
+    padding:0.5rem 0.6rem;text-align:center;min-width:52px;cursor:pointer;transition:all 0.15s;}
+  .wday-pill.active-day{border-color:var(--red);}
+  .wday-pill-day{font-family:var(--font-d);font-size:0.95rem;color:var(--text2);}
+  .wday-pill-amt{font-family:var(--font-m);font-size:0.52rem;color:var(--text3);margin-top:2px;}
+  .wday-pill.active-day .wday-pill-day{color:var(--text);}
+  .wday-pill.active-day .wday-pill-amt{color:var(--orange);}
+
+  .section-hd{font-family:var(--font-m);font-size:0.6rem;color:var(--text3);letter-spacing:0.1em;
+    padding:0.5rem 0 0.4rem;border-top:1px solid var(--border);margin-top:0.25rem;}
+
+  /* ── ANALYTICS SCREEN ── */
+  .ana-wrap{padding:0.85rem 0.85rem 0;animation:slideUp 0.2s ease;}
+  .stat-row{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.6rem;}
+  .stat-card{background:var(--s1);border:1px solid var(--border);padding:0.85rem 0.85rem;}
+  .stat-val{font-family:var(--font-d);font-size:1.8rem;letter-spacing:0.04em;line-height:1;color:var(--text);}
+  .stat-lbl{font-family:var(--font-m);font-size:0.58rem;color:var(--text3);margin-top:0.25rem;letter-spacing:0.06em;}
+  .stat-sub{font-family:var(--font-m);font-size:0.62rem;margin-top:0.2rem;}
+
+  .chart-card{background:var(--s1);border:1px solid var(--border);padding:1rem;margin-bottom:0.6rem;}
+  .chart-title{font-family:var(--font-d);font-size:1rem;letter-spacing:0.06em;color:var(--text2);margin-bottom:0.85rem;}
+
+  .bar-chart{display:flex;align-items:flex-end;gap:0.35rem;height:100px;}
+  .bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:0.3rem;height:100%;}
+  .bar-col{width:100%;display:flex;align-items:flex-end;flex:1;}
+  .bar-fill{width:100%;transition:height 0.4s cubic-bezier(0.4,0,0.2,1);min-height:2px;}
+  .bar-lbl{font-family:var(--font-m);font-size:0.52rem;color:var(--text3);}
+  .bar-amt{font-family:var(--font-m);font-size:0.5rem;color:var(--text2);}
+
+  .donut-wrap{display:flex;gap:1rem;align-items:center;}
+  .donut-svg{flex-shrink:0;}
+  .donut-legend{flex:1;display:flex;flex-direction:column;gap:0.45rem;}
+  .legend-row{display:flex;align-items:center;gap:0.5rem;}
+  .legend-dot{width:8px;height:8px;border-radius:1px;flex-shrink:0;}
+  .legend-lbl{font-family:var(--font-b);font-size:0.9rem;font-weight:600;color:var(--text2);flex:1;}
+  .legend-amt{font-family:var(--font-m);font-size:0.63rem;color:var(--text3);}
+
+  /* ── HISTORY SCREEN ── */
+  .hist-wrap{padding:0.85rem 0.85rem 0;animation:slideUp 0.2s ease;}
+  .screen-title{font-family:var(--font-d);font-size:1.8rem;letter-spacing:0.06em;margin-bottom:0.2rem;color:var(--text);}
+  .screen-sub{font-family:var(--font-m);font-size:0.62rem;color:var(--text3);margin-bottom:1rem;}
+  .week-hist-card{background:var(--s1);border:1px solid var(--border);margin-bottom:0.6rem;overflow:hidden;}
+  .whc-head{display:flex;justify-content:space-between;align-items:center;
+    padding:0.75rem 1rem;background:var(--s2);border-bottom:1px solid var(--border);cursor:pointer;}
+  .whc-title{font-family:var(--font-d);font-size:1.2rem;letter-spacing:0.06em;color:var(--text);}
+  .whc-right{text-align:right;}
+  .whc-amt{font-family:var(--font-d);font-size:1.2rem;color:var(--text);}
+  .whc-count{font-family:var(--font-m);font-size:0.58rem;color:var(--text3);}
+  .whc-body{padding:0.75rem 1rem;}
+  .whc-day-row{display:flex;justify-content:space-between;align-items:center;
+    padding:0.35rem 0;border-bottom:1px solid var(--border);}
+  .whc-day-row:last-child{border-bottom:none;}
+  .whc-day-lbl{font-family:var(--font-m);font-size:0.67rem;color:var(--text2);}
+  .whc-day-amt{font-family:var(--font-d);font-size:0.95rem;color:var(--text);}
+
+  .cmp-selects{display:flex;gap:0.5rem;margin-bottom:1rem;align-items:center;}
+  .cmp-select{flex:1;background:var(--s2);border:1px solid var(--border2);
+    color:var(--text);font-family:var(--font-m);font-size:0.65rem;padding:0.45rem 0.5rem;}
+  .cmp-select:focus{outline:none;border-color:var(--red);}
+  .cmp-vs{font-family:var(--font-d);font-size:1.1rem;color:var(--text3);}
+  .cmp-table{width:100%;border-collapse:collapse;font-family:var(--font-m);font-size:0.65rem;}
+  .cmp-table th{background:var(--s2);padding:0.5rem;text-align:left;
+    border-bottom:1px solid var(--border);color:var(--text3);font-size:0.57rem;letter-spacing:0.06em;font-weight:400;}
+  .cmp-table td{padding:0.5rem;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text2);}
+  .cmp-table tr:last-child td{border-bottom:none;}
+  .up{color:var(--red);} .dn{color:var(--green);} .eq{color:var(--muted);}
+
+  /* ── MONTHLY SCREEN ── */
+  .mon-wrap{padding:0.85rem 0.85rem 0;animation:slideUp 0.2s ease;}
+  .month-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;}
+  .month-title{font-family:var(--font-d);font-size:1.6rem;letter-spacing:0.06em;color:var(--text);}
+  .month-nav-btn{background:var(--s2);border:1px solid var(--border2);color:var(--text2);
+    font-size:1rem;padding:0.4rem 0.8rem;cursor:pointer;transition:all 0.15s;}
+  .month-nav-btn:active{border-color:var(--red);color:var(--red);}
+
+  .month-hero{background:var(--s1);border:1px solid var(--border);padding:1rem;margin-bottom:0.6rem;
+    border-left:3px solid var(--orange);}
+  .month-total-lbl{font-family:var(--font-m);font-size:0.62rem;color:var(--text3);letter-spacing:0.1em;margin-bottom:0.2rem;}
+  .month-total{font-family:var(--font-d);font-size:2.6rem;color:var(--text);letter-spacing:0.04em;line-height:1;}
+  .month-budget-bar{margin-top:0.75rem;}
+  .budget-bar-track{height:5px;background:var(--dim);position:relative;}
+  .budget-bar-fill{height:100%;transition:width 0.5s cubic-bezier(0.4,0,0.2,1);}
+  .budget-bar-labels{display:flex;justify-content:space-between;margin-top:0.35rem;}
+  .bbl{font-family:var(--font-m);font-size:0.58rem;color:var(--text3);}
+
+  .day-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:0.6rem;}
+  .day-cell{aspect-ratio:1;background:var(--s1);border:1px solid var(--border);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    cursor:pointer;transition:all 0.15s;position:relative;}
+  .day-cell:active{border-color:var(--red);}
+  .day-cell.today-cell{border-color:var(--orange);}
+  .day-cell.sel-cell{border-color:var(--red);background:var(--s3);}
+  .day-cell.empty-cell{background:transparent;border-color:transparent;cursor:default;}
+  .day-cell-num{font-family:var(--font-d);font-size:0.9rem;color:var(--text3);line-height:1;}
+  .day-cell.has-spend .day-cell-num{color:var(--text);}
+  .day-cell-dot{width:4px;height:4px;border-radius:50%;margin-top:2px;}
+  .day-hdr{font-family:var(--font-m);font-size:0.52rem;color:var(--text3);text-align:center;
+    padding:0.2rem 0;letter-spacing:0.04em;}
+
+  .month-cat-section{background:var(--s1);border:1px solid var(--border);padding:1rem;margin-bottom:0.6rem;}
+  .mcs-title{font-family:var(--font-d);font-size:1rem;letter-spacing:0.06em;color:var(--text2);margin-bottom:0.75rem;}
+  .mcs-row{display:flex;align-items:center;gap:0.6rem;margin-bottom:0.5rem;}
+  .mcs-icon{font-size:1rem;width:24px;text-align:center;}
+  .mcs-bar-wrap{flex:1;height:6px;background:var(--dim);}
+  .mcs-bar{height:100%;transition:width 0.4s ease;}
+  .mcs-amt{font-family:var(--font-m);font-size:0.67rem;color:var(--text2);min-width:50px;text-align:right;}
+  .mcs-lbl{font-family:var(--font-b);font-weight:600;font-size:0.85rem;color:var(--text2);min-width:70px;}
+
+  .daily-list{background:var(--s1);border:1px solid var(--border);margin-bottom:0.6rem;overflow:hidden;}
+  .dl-head{display:flex;justify-content:space-between;padding:0.75rem 1rem;
+    background:var(--s2);border-bottom:1px solid var(--border);}
+  .dl-date{font-family:var(--font-d);font-size:1rem;letter-spacing:0.06em;color:var(--text);}
+  .dl-total{font-family:var(--font-d);font-size:1rem;color:var(--orange);}
+  .dl-body{padding:0 1rem;}
+
+  /* BUDGET MODAL */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;
+    display:flex;align-items:center;justify-content:center;padding:1.25rem;}
+  .modal{background:var(--s1);border:1px solid var(--border2);padding:1.5rem;
+    width:100%;max-width:340px;animation:popIn 0.2s ease;}
+  .modal-title{font-family:var(--font-d);font-size:1.6rem;letter-spacing:0.06em;margin-bottom:0.25rem;color:var(--text);}
+  .modal-sub{font-family:var(--font-m);font-size:0.6rem;color:var(--text3);letter-spacing:0.06em;margin-bottom:0.75rem;}
+  .modal-lbl{font-family:var(--font-m);font-size:0.62rem;color:var(--text3);letter-spacing:0.08em;margin-bottom:0.4rem;margin-top:0.85rem;}
+  .modal-input{width:100%;background:var(--s3);border:1px solid var(--border2);
+    color:var(--text);font-family:var(--font-d);font-size:1.4rem;padding:0.6rem 0.75rem;}
+  .modal-input:focus{outline:none;border-color:var(--red);}
+  .modal-btns{display:flex;gap:0.5rem;margin-top:1.25rem;}
+  .modal-btn{flex:1;font-family:var(--font-d);font-size:1rem;letter-spacing:0.08em;
+    padding:0.65rem;border:1px solid var(--border2);background:var(--s2);color:var(--text);cursor:pointer;}
+  .modal-btn.primary{background:var(--red);border-color:var(--red);color:#fff;}
+  .modal-btn:active{opacity:0.8;}
+
+  /* EDIT MODAL */
+  .edit-field{margin-bottom:0.75rem;}
+  .edit-cat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0.35rem;margin-top:0.35rem;}
+  .edit-cat-btn{display:flex;align-items:center;gap:0.4rem;padding:0.45rem 0.5rem;
+    border:1px solid var(--border2);background:var(--s2);cursor:pointer;transition:all 0.12s;}
+  .edit-cat-btn.sel{background:var(--s3);}
+  .edit-cat-lbl{font-family:var(--font-m);font-size:0.56rem;color:var(--text2);}
+
+  /* WARNING */
+  .budget-warn{display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.85rem;
+    background:rgba(255,61,0,0.08);border:1px solid rgba(255,61,0,0.3);margin-bottom:0.6rem;
+    animation:pulse 2s infinite;}
+  .warn-icon{font-size:1rem;}
+  .warn-txt{font-family:var(--font-m);font-size:0.63rem;color:#ff7a5c;letter-spacing:0.04em;}
+
+  /* EXPORT */
+  .export-btn{display:flex;align-items:center;gap:0.4rem;font-family:var(--font-m);font-size:0.62rem;
+    padding:0.4rem 0.75rem;border:1px solid var(--border2);background:var(--s2);color:var(--text2);
+    cursor:pointer;transition:all 0.15s;letter-spacing:0.04em;}
+  .export-btn:active{border-color:var(--green);color:var(--green);}
+
+  .tab-row{display:flex;gap:0;margin-bottom:0.75rem;border:1px solid var(--border);}
+  .tab-btn{flex:1;font-family:var(--font-m);font-size:0.6rem;padding:0.55rem;
+    border:none;background:var(--s1);color:var(--text3);cursor:pointer;letter-spacing:0.06em;
+    transition:all 0.15s;}
+  .tab-btn.active-tab{background:var(--s2);color:var(--text);}
+`;
+
+/* ── SWIPEABLE EXP ITEM ── */
+function SwipeExpItem({e, onDelete, onEdit}) {
+  const [swiped, setSwiped] = useState(false);
+  const startX = useRef(null);
+  const itemRef = useRef(null);
+
+  function onTouchStart(ev) { startX.current = ev.touches[0].clientX; }
+  function onTouchEnd(ev) {
+    if (startX.current === null) return;
+    const dx = startX.current - ev.changedTouches[0].clientX;
+    if (dx > 50) setSwiped(true);
+    else if (dx < -20) setSwiped(false);
+    startX.current = null;
+  }
+  function handleClick() {
+    if (swiped) { setSwiped(false); return; }
+    onEdit(e);
+  }
+
+  return (
+    <div className="exp-swipe-outer">
+      {swiped && (
+        <div className="exp-delete-reveal" onClick={()=>onDelete(e.id)}>🗑️</div>
+      )}
+      <div
+        ref={itemRef}
+        className={`exp-item${swiped?' swiped':''}`}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onClick={handleClick}
+      >
+        <div className="exp-icon" style={{borderColor:CAT[e.cat]?.color+'44'}}>{CAT[e.cat]?.icon}</div>
+        <div className="exp-info">
+          <div className="exp-cat">{CAT[e.cat]?.label}{e.recurring&&<span style={{fontFamily:'var(--font-m)',fontSize:'0.48rem',color:'var(--yellow)',border:'1px solid rgba(255,214,0,0.4)',padding:'0.05rem 0.3rem',marginLeft:'0.4rem',borderRadius:'2px',letterSpacing:'0.04em'}}>↻ REC</span>}</div>
+          {e.note && <div className="exp-note">{e.note}</div>}
+        </div>
+        <div className="exp-amt">{fmt(e.amount)}</div>
+        <button className="del-btn" onClick={ev=>{ev.stopPropagation();onDelete(e.id);}}>✕</button>
+      </div>
+    </div>
+  );
+}
+
+/* ── DONUT CHART ── */
+function DonutChart({data, size=120}) {
+  const total = data.reduce((a,b)=>a+b.val,0);
+  if (!total) return (
+    <div style={{width:size,height:size,background:'var(--s2)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+      <span style={{fontFamily:'var(--font-m)',fontSize:'0.55rem',color:'var(--text3)'}}>NO DATA</span>
+    </div>
+  );
+  let offset = 0;
+  const r = 40, cx = 60, cy = 60, stroke = 18;
+  const circ = 2*Math.PI*r;
+  const slices = data.map(d => {
+    const pct = d.val/total;
+    const dash = pct*circ;
+    const s = {offset, dash, pct};
+    offset += dash;
+    return s;
+  });
+  return (
+    <svg width={size} height={size} viewBox="0 0 120 120" className="donut-svg" style={{flexShrink:0}}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--dim)" strokeWidth={stroke}/>
+      {data.map((d,i) => (
+        <circle key={i} cx={cx} cy={cy} r={r} fill="none"
+          stroke={d.color} strokeWidth={stroke}
+          strokeDasharray={`${slices[i].dash} ${circ-slices[i].dash}`}
+          strokeDashoffset={-slices[i].offset}
+          transform="rotate(-90 60 60)"
+          opacity={0.9}
+        />
+      ))}
+      <text x={cx} y={cy-4} textAnchor="middle" fill="#f5f5f5" fontFamily="'Bebas Neue'" fontSize="13">{fmtShort(total)}</text>
+      <text x={cx} y={cy+10} textAnchor="middle" fill="#888" fontFamily="'JetBrains Mono'" fontSize="6">TOTAL</text>
+    </svg>
+  );
+}
+
+/* ── MAIN APP ── */
+function App() {
+  const [store, setStore] = useState(()=>loadStore());
+  const [tab, setTab] = useState('add');
+  const [histTab, setHistTab] = useState('weeks');
+  // add form
+  const [amount, setAmount] = useState('');
+  const [cat, setCat] = useState('groceries');
+  const [note, setNote] = useState('');
+  const [date, setDate] = useState(today());
+  const [addFlash, setAddFlash] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
+  // income crossover
+  const [shiftsData] = useState(()=>loadShiftsIncome());
+  // filters
+  const [selectedDay, setSelectedDay] = useState(today());
+  // monthly
+  const [viewMonth, setViewMonth] = useState(today().slice(0,7));
+  const [selMonthDay, setSelMonthDay] = useState(null);
+  const [showAllMonthDays, setShowAllMonthDays] = useState(false);
+  // compare
+  const [cmpA, setCmpA] = useState('');
+  const [cmpB, setCmpB] = useState('');
+  // budget modal
+  const [showBudget, setShowBudget] = useState(false);
+  const [bwInput, setBwInput] = useState('');
+  const [bmInput, setBmInput] = useState('');
+  // history expand
+  const [expandedWeek, setExpandedWeek] = useState(null);
+  // toast
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+  // edit modal
+  const [editExp, setEditExp] = useState(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editCat, setEditCat] = useState('');
+  const [editNote, setEditNote] = useState('');
+  const [editDate, setEditDate] = useState('');
+
+  function showToast(msg, isErr=false) {
+    clearTimeout(toastTimer.current);
+    setToast({msg, err:isErr});
+    toastTimer.current = setTimeout(()=>setToast(null), 2000);
+  }
+
+  const update = useCallback(fn => {
+    setStore(prev => {
+      const next = {...prev, expenses:[...prev.expenses]};
+      fn(next);
+      saveStore(next);
+      return next;
+    });
+  }, []);
+
+  function addExpense() {
+    if (!amount || isNaN(parseFloat(amount))) return;
+    const exp = { id:uid(), amount:parseFloat(amount), cat, note, date, recurring:isRecurring };
+    update(s => { s.expenses = [exp, ...s.expenses]; });
+    setAmount(''); setNote('');
+    setAddFlash(true);
+    setTimeout(()=>setAddFlash(false), 800);
+    showToast(`✓ ${fmt(exp.amount)} added to ${CAT[cat]?.label}${isRecurring?' (recurring)':''}`);
+  }
+
+  function delExpense(id) {
+    const exp = store.expenses.find(e=>e.id===id);
+    update(s => { s.expenses = s.expenses.filter(e=>e.id!==id); });
+    showToast(`Deleted ${exp ? fmt(exp.amount) : 'expense'}`);
+  }
+
+  function openEdit(exp) {
+    setEditExp(exp);
+    setEditAmount(String(exp.amount));
+    setEditCat(exp.cat);
+    setEditNote(exp.note||'');
+    setEditDate(exp.date);
+  }
+
+  function saveEdit() {
+    if (!editAmount || isNaN(parseFloat(editAmount))) return;
+    update(s => {
+      s.expenses = s.expenses.map(e => e.id===editExp.id
+        ? {...e, amount:parseFloat(editAmount), cat:editCat, note:editNote, date:editDate}
+        : e
+      );
+    });
+    setEditExp(null);
+    showToast('✓ Expense updated');
+  }
+
+  function saveBudget() {
+    if (bwInput && isNaN(parseFloat(bwInput))) return;
+    if (bmInput && isNaN(parseFloat(bmInput))) return;
+    update(s => {
+      if (bwInput) s.weekBudget = parseFloat(bwInput);
+      if (bmInput) s.monthBudget = parseFloat(bmInput);
+    });
+    setShowBudget(false);
+    showToast('✓ Budgets saved');
+  }
+
+  function exportCSV() {
+    const rows = [['Date','Category','Amount','Note']];
+    store.expenses.forEach(e => rows.push([e.date, CAT[e.cat]?.label||e.cat, e.amount.toFixed(2), e.note||'']));
+    const csv = rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download='spent-expenses.csv'; a.click();
+    URL.revokeObjectURL(url);
+    showToast('✓ CSV downloaded');
+  }
+
+  const expenses = store.expenses;
+
+  const todayExps = useMemo(()=>expenses.filter(e=>e.date===today()),[expenses]);
+  const todayTotal = useMemo(()=>todayExps.reduce((a,e)=>a+e.amount,0),[todayExps]);
+
+  const last7 = useMemo(()=>{
+    const days=[];
+    for(let i=6;i>=0;i--){
+      const d=new Date(); d.setDate(d.getDate()-i);
+      days.push(d.toISOString().slice(0,10));
+    }
+    return days;
+  },[]);
+
+  const dayTotals = useMemo(()=>{
+    const m={};
+    expenses.forEach(e=>{ m[e.date]=(m[e.date]||0)+e.amount; });
+    return m;
+  },[expenses]);
+
+  const weekTotal = useMemo(()=>last7.reduce((a,d)=>a+(dayTotals[d]||0),0),[last7,dayTotals]);
+  const selectedDayExps = useMemo(()=>expenses.filter(e=>e.date===selectedDay).sort((a,b)=>b.id.localeCompare(a.id)),[expenses,selectedDay]);
+  const weekPct = Math.min(100, (weekTotal/store.weekBudget)*100);
+  const weekOver = weekTotal > store.weekBudget;
+
+  const weekCatTotals = useMemo(()=>{
+    const m={};
+    last7.forEach(d=>{ expenses.filter(e=>e.date===d).forEach(e=>{ m[e.cat]=(m[e.cat]||0)+e.amount; }); });
+    return m;
+  },[expenses,last7]);
+
+  const allWeeks = useMemo(()=>{
+    const m={};
+    expenses.forEach(e=>{
+      const wk=weekOfYear(e.date);
+      if(!m[wk]) m[wk]={week:wk,total:0,count:0,days:{}};
+      m[wk].total+=e.amount; m[wk].count++;
+      m[wk].days[e.date]=(m[wk].days[e.date]||0)+e.amount;
+    });
+    return Object.values(m).sort((a,b)=>b.week.localeCompare(a.week));
+  },[expenses]);
+
+  const weekKeys = allWeeks.map(w=>w.week);
+
+  const monthExps = useMemo(()=>expenses.filter(e=>e.date.startsWith(viewMonth)),[expenses,viewMonth]);
+  const monthTotal = useMemo(()=>monthExps.reduce((a,e)=>a+e.amount,0),[monthExps]);
+  const monthPct = Math.min(100,(monthTotal/store.monthBudget)*100);
+  const monthOver = monthTotal > store.monthBudget;
+
+  const monthCatTotals = useMemo(()=>{
+    const m={};
+    monthExps.forEach(e=>{ m[e.cat]=(m[e.cat]||0)+e.amount; });
+    return m;
+  },[monthExps]);
+
+  const monthDayTotals = useMemo(()=>{
+    const m={};
+    monthExps.forEach(e=>{ m[e.date]=(m[e.date]||0)+e.amount; });
+    return m;
+  },[monthExps]);
+
+  const calDays = useMemo(()=>{
+    const [y,mo]=viewMonth.split('-').map(Number);
+    const first=new Date(y,mo-1,1).getDay();
+    const days=new Date(y,mo,0).getDate();
+    const grid=[];
+    for(let i=0;i<first;i++) grid.push(null);
+    for(let d=1;d<=days;d++) grid.push(`${viewMonth}-${String(d).padStart(2,'0')}`);
+    return grid;
+  },[viewMonth]);
+
+  const maxDaySpend = useMemo(()=>Math.max(1,...Object.values(monthDayTotals)),[monthDayTotals]);
+
+  function changeMonth(dir) {
+    const [y,m]=viewMonth.split('-').map(Number);
+    const d=new Date(y,m-1+dir,1);
+    setViewMonth(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+    setSelMonthDay(null);
+    setShowAllMonthDays(false);
+  }
+
+  const selMonthDayExps = selMonthDay ? expenses.filter(e=>e.date===selMonthDay) : [];
+
+  const monthDaysGrouped = useMemo(()=>{
+    const days=Object.keys(monthDayTotals).sort((a,b)=>b.localeCompare(a));
+    return days.map(d=>({ date:d, total:monthDayTotals[d], exps:expenses.filter(e=>e.date===d) }));
+  },[monthDayTotals,expenses]);
+
+  const cmpAData = allWeeks.find(w=>w.week===cmpA);
+  const cmpBData = allWeeks.find(w=>w.week===cmpB);
+  const avgDailyMonth = monthExps.length ? monthTotal / Object.keys(monthDayTotals).length : 0;
+
+  const visibleMonthDays = showAllMonthDays ? monthDaysGrouped : monthDaysGrouped.slice(0,10);
+
+  return (
+    <>
+      <style>{CSS}</style>
+      <div className="app">
+
+        {/* TOP BAR */}
+        <div className="topbar">
+          <div className="topbar-inner">
+            <div style={{display:'flex',alignItems:'center',gap:'0.6rem'}}>
+              <a href="index.html" style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:'var(--muted)',border:'1px solid var(--border2)',background:'var(--s2)',padding:'0.28rem 0.55rem',textDecoration:'none',letterSpacing:'0.06em',lineHeight:1,display:'flex',alignItems:'center',gap:'0.3rem'}}>← HUB</a>
+              <div className="app-title">SP<span>E</span>NT</div>
+            </div>
+            <div className="topbar-right">
+              <button className="export-btn" onClick={exportCSV}>↓ CSV</button>
+              <button className="settings-btn" onClick={()=>{setBwInput(String(store.weekBudget));setBmInput(String(store.monthBudget));setShowBudget(true);}}>
+                ⚙ BUDGET
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* TOAST */}
+        {toast && (
+          <div className={`toast${toast.err?' toast-err':''} show`}>{toast.msg}</div>
+        )}
+
+        {/* SCREENS */}
+        {tab==='add' && (
+          <div className="screen">
+            <div className="add-wrap">
+              {weekOver && <div className="budget-warn"><span className="warn-icon">⚠️</span><span className="warn-txt">WEEK BUDGET EXCEEDED — {fmt(weekTotal)} / {fmt(store.weekBudget)}</span></div>}
+              {monthOver && <div className="budget-warn"><span className="warn-icon">🚨</span><span className="warn-txt">MONTH BUDGET EXCEEDED — {fmt(monthTotal)} / {fmt(store.monthBudget)}</span></div>}
+
+              <div className={`amount-block${addFlash?' flash':''}`}>
+                <div className="amount-label">AMOUNT</div>
+                <div className="amount-row">
+                  <div className="amount-symbol">£</div>
+                  <input className="amount-input" type="number" inputMode="decimal"
+                    placeholder="0.00" value={amount} onChange={e=>setAmount(e.target.value)}
+                    onKeyDown={e=>e.key==='Enter'&&addExpense()}
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div className="quick-row">
+                {[5,10,20,50].map(v=>(
+                  <div key={v} className="quick-btn" onClick={()=>setAmount(String(v))}>£{v}</div>
+                ))}
+              </div>
+
+              <div className="field-block">
+                <div className="field-label">CATEGORY</div>
+                <div className="cat-grid">
+                  {CATS.map(c=>(
+                    <div key={c.id} className={`cat-btn ${cat===c.id?'sel':''}`}
+                      style={cat===c.id?{borderColor:c.color}:{}}
+                      onClick={()=>setCat(c.id)}>
+                      <span className="cat-btn-icon">{c.icon}</span>
+                      <span className="cat-btn-lbl" style={cat===c.id?{color:c.color}:{}}>{c.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="field-block">
+                <div className="field-label">NOTE (OPTIONAL)</div>
+                <input className="note-input" type="text" placeholder="what was it for..."
+                  value={note} onChange={e=>setNote(e.target.value)}
+                  onKeyDown={e=>e.key==='Enter'&&addExpense()}
+                />
+              </div>
+
+              <div className="field-block">
+                <div className="field-label">DATE</div>
+                <input className="date-input" type="date" value={date} onChange={e=>setDate(e.target.value)}/>
+              </div>
+
+              {/* Recurring toggle */}
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',background:'var(--s1)',border:'1px solid var(--border)',padding:'0.75rem 1rem',marginBottom:'0.6rem'}}>
+                <div>
+                  <div style={{fontFamily:'var(--font-m)',fontSize:'0.62rem',color:'var(--text3)',letterSpacing:'0.08em'}}>RECURRING MONTHLY</div>
+                  <div style={{fontFamily:'var(--font-m)',fontSize:'0.55rem',color:'var(--muted)',marginTop:'2px'}}>Bills, subscriptions, rent etc.</div>
+                </div>
+                <div
+                  onClick={()=>setIsRecurring(v=>!v)}
+                  style={{width:'44px',height:'24px',borderRadius:'12px',background:isRecurring?'var(--yellow)':'var(--dim)',position:'relative',cursor:'pointer',transition:'background 0.2s',flexShrink:0}}
+                >
+                  <div style={{position:'absolute',top:'3px',left:isRecurring?'23px':'3px',width:'18px',height:'18px',borderRadius:'50%',background:'#fff',transition:'left 0.2s'}}/>
+                </div>
+              </div>
+
+              <button className={`add-btn${addFlash?' success':''}`} disabled={!amount||isNaN(parseFloat(amount))} onClick={addExpense}>
+                {addFlash ? '✓ ADDED!' : 'ADD EXPENSE'}
+              </button>
+
+              {/* Income vs Spend crossover */}
+              {(shiftsData.weekIncome>0||shiftsData.monthIncome>0)&&<div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--green)',padding:'0.85rem 1rem',marginTop:'0.75rem'}}>
+                <div style={{fontFamily:'var(--font-m)',fontSize:'0.58rem',color:'var(--green)',letterSpacing:'0.1em',marginBottom:'0.5rem'}}>INCOME VS SPEND · FROM SHIFTS</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem'}}>
+                  <div>
+                    <div style={{fontFamily:'var(--font-m)',fontSize:'0.52rem',color:'var(--text3)',letterSpacing:'0.06em',marginBottom:'2px'}}>THIS WEEK</div>
+                    <div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:shiftsData.weekIncome>=weekTotal?'var(--green)':'var(--red)'}}>{fmt(shiftsData.weekIncome-weekTotal)}</div>
+                    <div style={{fontFamily:'var(--font-m)',fontSize:'0.5rem',color:'var(--muted)'}}>+{fmt(shiftsData.weekIncome)} −{fmt(weekTotal)}</div>
+                  </div>
+                  <div>
+                    <div style={{fontFamily:'var(--font-m)',fontSize:'0.52rem',color:'var(--text3)',letterSpacing:'0.06em',marginBottom:'2px'}}>THIS MONTH</div>
+                    <div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:shiftsData.monthIncome>=monthTotal?'var(--green)':'var(--red)'}}>{fmt(shiftsData.monthIncome-monthTotal)}</div>
+                    <div style={{fontFamily:'var(--font-m)',fontSize:'0.5rem',color:'var(--muted)'}}>+{fmt(shiftsData.monthIncome)} −{fmt(monthTotal)}</div>
+                  </div>
+                </div>
+              </div>}
+
+              <div style={{display:'flex',justifyContent:'space-between',padding:'1rem 0 0.5rem',borderTop:'1px solid var(--border)',marginTop:shiftsData.weekIncome>0?'0.5rem':'1rem'}}>
+                <div>
+                  <div style={{fontFamily:'var(--font-m)',fontSize:'0.58rem',color:'var(--text3)',letterSpacing:'0.08em'}}>TODAY</div>
+                  <div style={{fontFamily:'var(--font-d)',fontSize:'1.4rem',color:'var(--text)'}}>{fmt(todayTotal)}</div>
+                  <div style={{fontFamily:'var(--font-m)',fontSize:'0.55rem',color:'var(--text3)'}}>{todayExps.length} transactions</div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontFamily:'var(--font-m)',fontSize:'0.58rem',color:'var(--text3)',letterSpacing:'0.08em'}}>THIS WEEK</div>
+                  <div style={{fontFamily:'var(--font-d)',fontSize:'1.4rem',color:weekOver?'var(--red)':'var(--text)'}}>{fmt(weekTotal)}</div>
+                  <div style={{fontFamily:'var(--font-m)',fontSize:'0.55rem',color:weekOver?'var(--red)':'var(--text3)'}}>{weekOver?'over budget':`${fmt(store.weekBudget-weekTotal)} left`}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab==='expenses' && (
+          <div className="screen">
+            <div className="exp-wrap">
+              <div className="today-hero">
+                <div className="today-lbl">TODAY'S TOTAL</div>
+                <div className="today-amt">{fmt(todayTotal)}</div>
+                <div className="today-count">{todayExps.length} transactions</div>
+              </div>
+
+              <div className="week-strip">
+                {last7.map(d=>(
+                  <div key={d} className={`wday-pill ${selectedDay===d?'active-day':''}`} onClick={()=>setSelectedDay(d)}>
+                    <div className="wday-pill-day">{dayName(d)}</div>
+                    <div className="wday-pill-amt">{dayTotals[d]?fmtShort(dayTotals[d]):'—'}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{background:'var(--s1)',border:'1px solid var(--border)',padding:'0.75rem 1rem',marginBottom:'0.6rem'}}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.45rem'}}>
+                  <span style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:'var(--text3)',letterSpacing:'0.08em'}}>WEEK BUDGET</span>
+                  <span style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:weekOver?'var(--red)':'var(--text2)'}}>{fmt(weekTotal)} / {fmt(store.weekBudget)}</span>
+                </div>
+                <div className="budget-bar-track">
+                  <div className="budget-bar-fill" style={{width:weekPct+'%',background:weekPct>90?'var(--red)':weekPct>70?'var(--orange)':'var(--green)'}}/>
+                </div>
+              </div>
+
+              <div className="section-hd">{selectedDay===today()?'TODAY':selectedDay} · {fmt(dayTotals[selectedDay]||0)}</div>
+              {selectedDayExps.length===0 ? (
+                <div className="empty-state">
+                  <div className="empty-state-icon">💸</div>
+                  <div className="empty-state-txt">NO EXPENSES{selectedDay===today()?' TODAY':` ON ${selectedDay}`}</div>
+                  {selectedDay===today() && <button className="empty-state-cta" onClick={()=>setTab('add')}>ADD ONE →</button>}
+                </div>
+              ) : (
+                selectedDayExps.map(e=>(
+                  <SwipeExpItem key={e.id} e={e} onDelete={delExpense} onEdit={openEdit}/>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {tab==='analytics' && (
+          <div className="screen">
+            <div className="ana-wrap">
+              {expenses.length===0 ? (
+                <div className="empty-state" style={{paddingTop:'4rem'}}>
+                  <div className="empty-state-icon">📊</div>
+                  <div className="empty-state-txt">NO DATA YET — ADD YOUR FIRST EXPENSE</div>
+                  <button className="empty-state-cta" onClick={()=>setTab('add')}>ADD EXPENSE →</button>
+                </div>
+              ) : (
+                <>
+                  <div className="stat-row">
+                    <div className="stat-card">
+                      <div className="stat-val">{fmt(weekTotal)}</div>
+                      <div className="stat-lbl">THIS WEEK</div>
+                      <div className="stat-sub" style={{color:weekOver?'var(--red)':'var(--text3)'}}>
+                        {weekOver?`${fmt(weekTotal-store.weekBudget)} over`:`${fmt(store.weekBudget-weekTotal)} left`}
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-val">{fmt(todayTotal)}</div>
+                      <div className="stat-lbl">TODAY</div>
+                      <div className="stat-sub" style={{color:'var(--text3)'}}>{todayExps.length} items</div>
+                    </div>
+                  </div>
+                  <div className="stat-row">
+                    <div className="stat-card">
+                      <div className="stat-val" style={{fontSize:'1.4rem'}}>{weekTotal>0?fmt(weekTotal/7):'£0'}</div>
+                      <div className="stat-lbl">DAILY AVG</div>
+                      <div className="stat-sub" style={{color:'var(--text3)'}}>this week</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-val" style={{fontSize:'1.4rem'}}>
+                        {(()=>{ const top=Object.entries(weekCatTotals).sort((a,b)=>b[1]-a[1])[0]; return top?CAT[top[0]]?.icon:'—'; })()}
+                      </div>
+                      <div className="stat-lbl">TOP CAT</div>
+                      <div className="stat-sub" style={{color:'var(--text3)'}}>
+                        {(()=>{ const top=Object.entries(weekCatTotals).sort((a,b)=>b[1]-a[1])[0]; return top?CAT[top[0]]?.label:''; })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Daily average spending streak */}
+                  <div className="chart-card" style={{marginBottom:'0.6rem'}}>
+                    <div className="chart-title">DAILY SPEND · LAST 7 DAYS</div>
+                    <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.5rem'}}>
+                      <div style={{fontFamily:'var(--font-d)',fontSize:'1.4rem',color:'var(--orange)'}}>{weekTotal>0?fmt(weekTotal/7):'£0'}</div>
+                      <div style={{fontFamily:'var(--font-m)',fontSize:'0.55rem',color:'var(--text3)'}}>avg/day this week</div>
+                    </div>
+                    <div style={{display:'flex',gap:'4px'}}>
+                      {last7.map(d=>{
+                        const amt=dayTotals[d]||0;
+                        const maxA=Math.max(1,...last7.map(x=>dayTotals[x]||0));
+                        const h=Math.max(6,Math.round((amt/maxA)*48));
+                        const isT=d===today();
+                        return(
+                          <div key={d} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'3px'}}>
+                            {amt>0&&<div style={{fontFamily:'var(--font-m)',fontSize:'0.44rem',color:isT?'var(--red)':'var(--text3)'}}>{amt>=100?'£'+(amt/100|0)*100:'£'+Math.round(amt)}</div>}
+                            <div style={{width:'100%',height:h+'px',background:isT?'var(--red)':amt>0?'var(--orange)':'var(--dim)',borderRadius:'2px',transition:'height 0.3s'}}/>
+                            <div style={{fontFamily:'var(--font-m)',fontSize:'0.46rem',color:isT?'var(--red)':'var(--text3)'}}>{['Su','Mo','Tu','We','Th','Fr','Sa'][new Date(d).getDay()]}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Income vs Spend crossover */}
+                  {(shiftsData.weekIncome>0||shiftsData.monthIncome>0)&&(
+                    <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--green)',padding:'1rem',marginBottom:'0.6rem'}}>
+                      <div style={{fontFamily:'var(--font-m)',fontSize:'0.58rem',color:'var(--green)',letterSpacing:'0.1em',marginBottom:'0.65rem'}}>INCOME VS SPEND · SHIFTS DATA</div>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem',marginBottom:'0.6rem'}}>
+                        {[
+                          {lbl:'WEEK NET',val:shiftsData.weekIncome-weekTotal,inc:shiftsData.weekIncome,exp:weekTotal},
+                          {lbl:'MONTH NET',val:shiftsData.monthIncome-monthTotal,inc:shiftsData.monthIncome,exp:monthTotal},
+                        ].map(({lbl,val,inc,exp})=>(
+                          <div key={lbl} style={{background:'var(--s2)',border:'1px solid var(--border2)',padding:'0.75rem'}}>
+                            <div style={{fontFamily:'var(--font-m)',fontSize:'0.52rem',color:'var(--text3)',letterSpacing:'0.06em',marginBottom:'3px'}}>{lbl}</div>
+                            <div style={{fontFamily:'var(--font-d)',fontSize:'1.4rem',color:val>=0?'var(--green)':'var(--red)'}}>{val>=0?'+':''}{fmt(val)}</div>
+                            <div style={{fontFamily:'var(--font-m)',fontSize:'0.5rem',color:'var(--muted)',marginTop:'2px'}}>in {fmt(inc)} · out {fmt(exp)}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Spend/Income bar */}
+                      {shiftsData.weekIncome>0&&(()=>{
+                        const pct=Math.min(100,(weekTotal/shiftsData.weekIncome)*100);
+                        return(
+                          <div>
+                            <div style={{display:'flex',justifyContent:'space-between',fontFamily:'var(--font-m)',fontSize:'0.52rem',color:'var(--text3)',marginBottom:'4px'}}>
+                              <span>SPENT {Math.round(pct)}% of week income</span>
+                              <span>{fmt(weekTotal)} / {fmt(shiftsData.weekIncome)}</span>
+                            </div>
+                            <div style={{height:'5px',background:'var(--dim)',borderRadius:'2px'}}>
+                              <div style={{height:'100%',width:pct+'%',background:pct>90?'var(--red)':pct>65?'var(--orange)':'var(--green)',borderRadius:'2px',transition:'width 0.4s'}}/>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  <div className="chart-card">
+                    <div className="chart-title">LAST 7 DAYS</div>
+                    <div className="bar-chart">
+                      {last7.map(d=>{
+                        const amt=dayTotals[d]||0;
+                        const maxAmt=Math.max(1,...last7.map(x=>dayTotals[x]||0));
+                        const h=Math.max(4,(amt/maxAmt)*80);
+                        return (
+                          <div key={d} className="bar-wrap">
+                            <div className="bar-amt">{amt>0?fmtShort(amt):''}</div>
+                            <div className="bar-col">
+                              <div className="bar-fill" style={{height:h+'px',background:d===today()?'var(--red)':d===selectedDay?'var(--orange)':'var(--dim)'}}/>
+                            </div>
+                            <div className="bar-lbl">{dayName(d)}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="chart-card">
+                    <div className="chart-title">BY CATEGORY</div>
+                    <div className="donut-wrap">
+                      <DonutChart size={120} data={CATS.filter(c=>weekCatTotals[c.id]>0).map(c=>({label:c.label,val:weekCatTotals[c.id],color:c.color}))}/>
+                      <div className="donut-legend">
+                        {CATS.filter(c=>weekCatTotals[c.id]>0).sort((a,b)=>weekCatTotals[b.id]-weekCatTotals[a.id]).slice(0,6).map(c=>(
+                          <div key={c.id} className="legend-row">
+                            <div className="legend-dot" style={{background:c.color}}/>
+                            <div className="legend-lbl">{c.icon} {c.label}</div>
+                            <div className="legend-amt">{fmt(weekCatTotals[c.id])}</div>
+                          </div>
+                        ))}
+                        {Object.values(weekCatTotals).every(v=>!v) && <div style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:'var(--text3)'}}>NO DATA THIS WEEK</div>}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {tab==='history' && (
+          <div className="screen">
+            <div className="hist-wrap">
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'0.75rem'}}>
+                <div>
+                  <div className="screen-title">HISTORY</div>
+                  <div className="screen-sub">{expenses.length} total expenses</div>
+                </div>
+              </div>
+
+              <div className="tab-row">
+                <button className={`tab-btn ${histTab==='weeks'?'active-tab':''}`} onClick={()=>setHistTab('weeks')}>WEEKS</button>
+                <button className={`tab-btn ${histTab==='compare'?'active-tab':''}`} onClick={()=>setHistTab('compare')}>COMPARE</button>
+              </div>
+
+              {histTab==='weeks' && (
+                <>
+                  {allWeeks.length===0 && (
+                    <div className="empty-state">
+                      <div className="empty-state-icon">📅</div>
+                      <div className="empty-state-txt">NO HISTORY YET</div>
+                      <button className="empty-state-cta" onClick={()=>setTab('add')}>ADD FIRST EXPENSE →</button>
+                    </div>
+                  )}
+                  {allWeeks.map(w=>(
+                    <div key={w.week} className="week-hist-card">
+                      <div className="whc-head" onClick={()=>setExpandedWeek(expandedWeek===w.week?null:w.week)}>
+                        <div className="whc-title">{w.week} {expandedWeek===w.week?'▲':'▼'}</div>
+                        <div className="whc-right">
+                          <div className="whc-amt">{fmt(w.total)}</div>
+                          <div className="whc-count">{w.count} expenses</div>
+                        </div>
+                      </div>
+                      {expandedWeek===w.week && (
+                        <div className="whc-body">
+                          {Object.entries(w.days).sort((a,b)=>b[0].localeCompare(a[0])).map(([d,t])=>(
+                            <div key={d} className="whc-day-row">
+                              <div className="whc-day-lbl">{d} {dayName(d)}</div>
+                              <div className="whc-day-amt">{fmt(t)}</div>
+                            </div>
+                          ))}
+                          <div style={{marginTop:'0.5rem',paddingTop:'0.5rem',borderTop:'1px solid var(--border)',display:'flex',justifyContent:'flex-end'}}>
+                            <span style={{fontFamily:'var(--font-d)',fontSize:'1rem',color:'var(--orange)'}}>TOTAL: {fmt(w.total)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {histTab==='compare' && (
+                <>
+                  <div className="cmp-selects">
+                    <select className="cmp-select" value={cmpA} onChange={e=>setCmpA(e.target.value)}>
+                      <option value="">SELECT WEEK</option>
+                      {weekKeys.map(k=><option key={k} value={k}>{k}</option>)}
+                    </select>
+                    <div className="cmp-vs">VS</div>
+                    <select className="cmp-select" value={cmpB} onChange={e=>setCmpB(e.target.value)}>
+                      <option value="">SELECT WEEK</option>
+                      {weekKeys.filter(k=>k!==cmpA).map(k=><option key={k} value={k}>{k}</option>)}
+                    </select>
+                  </div>
+                  {cmpAData && cmpBData ? (
+                    <table className="cmp-table">
+                      <thead>
+                        <tr>
+                          <th>CATEGORY</th>
+                          <th>{cmpA}</th>
+                          <th>{cmpB}</th>
+                          <th>DIFF</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {CATS.map(c=>{
+                          const a=expenses.filter(e=>e.cat===c.id&&Object.keys(cmpAData.days).includes(e.date)).reduce((s,e)=>s+e.amount,0);
+                          const b=expenses.filter(e=>e.cat===c.id&&Object.keys(cmpBData.days).includes(e.date)).reduce((s,e)=>s+e.amount,0);
+                          if(!a&&!b) return null;
+                          const diff=b-a;
+                          return (
+                            <tr key={c.id}>
+                              <td style={{fontFamily:'var(--font-b)',fontWeight:600,fontSize:'0.85rem',color:'var(--text)'}}>{c.icon} {c.label}</td>
+                              <td>{a>0?fmt(a):'—'}</td>
+                              <td>{b>0?fmt(b):'—'}</td>
+                              <td className={diff>0?'up':diff<0?'dn':'eq'}>{diff>0?`+${fmt(diff)}`:diff<0?fmt(diff):'—'}</td>
+                            </tr>
+                          );
+                        })}
+                        <tr style={{background:'var(--s2)'}}>
+                          <td style={{fontFamily:'var(--font-d)',fontSize:'0.9rem',letterSpacing:'0.06em',color:'var(--text)'}}>TOTAL</td>
+                          <td style={{fontFamily:'var(--font-d)',fontSize:'0.9rem',color:'var(--text)'}}>{fmt(cmpAData.total)}</td>
+                          <td style={{fontFamily:'var(--font-d)',fontSize:'0.9rem',color:'var(--text)'}}>{fmt(cmpBData.total)}</td>
+                          <td className={cmpBData.total-cmpAData.total>0?'up':'dn'} style={{fontFamily:'var(--font-d)',fontSize:'0.9rem'}}>
+                            {cmpBData.total>cmpAData.total?'+':''}{fmt(cmpBData.total-cmpAData.total)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="empty-state">
+                      <div className="empty-state-icon">⚖️</div>
+                      <div className="empty-state-txt">SELECT TWO WEEKS TO COMPARE</div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {tab==='monthly' && (
+          <div className="screen">
+            <div className="mon-wrap">
+              <div className="month-nav">
+                <button className="month-nav-btn" onClick={()=>changeMonth(-1)}>◀</button>
+                <div className="month-title">{monthName(viewMonth)} {viewMonth.split('-')[0]}</div>
+                <button className="month-nav-btn" onClick={()=>changeMonth(1)}>▶</button>
+              </div>
+
+              <div className="month-hero">
+                <div className="month-total-lbl">TOTAL SPENT</div>
+                <div className="month-total">{fmt(monthTotal)}</div>
+                <div style={{display:'flex',gap:'2rem',marginTop:'0.5rem'}}>
+                  <div>
+                    <div style={{fontFamily:'var(--font-m)',fontSize:'0.58rem',color:'var(--text3)',letterSpacing:'0.08em'}}>DAILY AVG</div>
+                    <div style={{fontFamily:'var(--font-d)',fontSize:'1rem',color:'var(--text2)'}}>{fmt(avgDailyMonth)}</div>
+                  </div>
+                  <div>
+                    <div style={{fontFamily:'var(--font-m)',fontSize:'0.58rem',color:'var(--text3)',letterSpacing:'0.08em'}}>TRANSACTIONS</div>
+                    <div style={{fontFamily:'var(--font-d)',fontSize:'1rem',color:'var(--text2)'}}>{monthExps.length}</div>
+                  </div>
+                  <div>
+                    <div style={{fontFamily:'var(--font-m)',fontSize:'0.58rem',color:'var(--text3)',letterSpacing:'0.08em'}}>BUDGET</div>
+                    <div style={{fontFamily:'var(--font-d)',fontSize:'1rem',color:monthOver?'var(--red)':'var(--text2)'}}>{fmt(store.monthBudget)}</div>
+                  </div>
+                </div>
+                <div className="month-budget-bar">
+                  <div className="budget-bar-track">
+                    <div className="budget-bar-fill" style={{width:monthPct+'%',background:monthPct>90?'var(--red)':monthPct>70?'var(--orange)':'var(--green)'}}/>
+                  </div>
+                  <div className="budget-bar-labels">
+                    <span className="bbl">{fmt(monthTotal)} spent</span>
+                    <span className="bbl" style={{color:monthOver?'var(--red)':'var(--text3)'}}>
+                      {monthOver?`${fmt(monthTotal-store.monthBudget)} over budget`:`${fmt(store.monthBudget-monthTotal)} remaining`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Calendar */}
+              <div style={{background:'var(--s1)',border:'1px solid var(--border)',padding:'0.75rem',marginBottom:'0.6rem'}}>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',marginBottom:'0.25rem'}}>
+                  {['SUN','MON','TUE','WED','THU','FRI','SAT'].map(d=>(
+                    <div key={d} className="day-hdr">{d}</div>
+                  ))}
+                </div>
+                <div className="day-grid">
+                  {calDays.map((d,i)=>{
+                    if (!d) return <div key={i} className="day-cell empty-cell"/>;
+                    const amt=monthDayTotals[d]||0;
+                    const isToday=d===today();
+                    const isSel=selMonthDay===d;
+                    const intensity=amt>0?Math.max(0.15,Math.min(1,amt/maxDaySpend)):0;
+                    return (
+                      <div key={d} className={`day-cell ${isToday?'today-cell':''} ${amt>0?'has-spend':''} ${isSel?'sel-cell':''}`}
+                        onClick={()=>setSelMonthDay(isSel?null:d)}
+                        style={amt>0&&!isSel?{borderColor:`rgba(255,140,0,${intensity*0.8})`}:{}}
+                      >
+                        <div className="day-cell-num">{parseInt(d.split('-')[2])}</div>
+                        {amt>0&&<div className="day-cell-dot" style={{background:`rgba(255,140,0,${0.4+intensity*0.6})`}}/>}
+                      </div>
+                    );
+                  })}
+                </div>
+                {selMonthDay && (
+                  <div style={{marginTop:'0.75rem',borderTop:'1px solid var(--border)',paddingTop:'0.75rem'}}>
+                    <div style={{fontFamily:'var(--font-d)',fontSize:'1rem',letterSpacing:'0.06em',marginBottom:'0.5rem',color:'var(--orange)'}}>
+                      {selMonthDay} · {fmt(monthDayTotals[selMonthDay]||0)}
+                    </div>
+                    {selMonthDayExps.map(e=>(
+                      <SwipeExpItem key={e.id} e={e} onDelete={delExpense} onEdit={openEdit}/>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Category breakdown */}
+              <div className="month-cat-section">
+                <div className="mcs-title">BY CATEGORY</div>
+                {CATS.filter(c=>monthCatTotals[c.id]>0).sort((a,b)=>monthCatTotals[b.id]-monthCatTotals[a.id]).map(c=>{
+                  const pct=(monthCatTotals[c.id]/monthTotal)*100;
+                  return (
+                    <div key={c.id} className="mcs-row">
+                      <span className="mcs-icon">{c.icon}</span>
+                      <span className="mcs-lbl">{c.label}</span>
+                      <div className="mcs-bar-wrap">
+                        <div className="mcs-bar" style={{width:pct+'%',background:c.color}}/>
+                      </div>
+                      <span className="mcs-amt">{fmt(monthCatTotals[c.id])}</span>
+                    </div>
+                  );
+                })}
+                {monthExps.length===0&&(
+                  <div style={{fontFamily:'var(--font-m)',fontSize:'0.62rem',color:'var(--text3)'}}>NO EXPENSES THIS MONTH</div>
+                )}
+              </div>
+
+              {/* Daily list — now shows ALL days with a "show more" */}
+              {visibleMonthDays.map(({date:d,total:t,exps:es})=>(
+                <div key={d} className="daily-list">
+                  <div className="dl-head">
+                    <div className="dl-date">{d} {dayName(d)}</div>
+                    <div className="dl-total">{fmt(t)}</div>
+                  </div>
+                  <div className="dl-body">
+                    {es.map(e=>(
+                      <SwipeExpItem key={e.id} e={e} onDelete={delExpense} onEdit={openEdit}/>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {monthDaysGrouped.length > 10 && !showAllMonthDays && (
+                <button onClick={()=>setShowAllMonthDays(true)}
+                  style={{width:'100%',fontFamily:'var(--font-m)',fontSize:'0.65rem',padding:'0.65rem',
+                    border:'1px solid var(--border2)',background:'var(--s2)',color:'var(--text2)',cursor:'pointer',
+                    letterSpacing:'0.06em',marginBottom:'0.6rem'}}>
+                  SHOW ALL {monthDaysGrouped.length} DAYS ▼
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* BOTTOM NAV */}
+        <div className="bnav">
+          {[
+            {id:'add',icon:'➕',label:'ADD'},
+            {id:'expenses',icon:'📋',label:'EXPENSES'},
+            {id:'analytics',icon:'📊',label:'ANALYTICS'},
+            {id:'history',icon:'📅',label:'HISTORY'},
+            {id:'monthly',icon:'🗓️',label:'MONTHLY'},
+          ].map(n=>(
+            <button key={n.id} className={`bnav-item ${tab===n.id?'active':''}`} onClick={()=>setTab(n.id)}>
+              <span className="bnav-icon">{n.icon}</span>
+              {n.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* BUDGET MODAL */}
+      {showBudget && (
+        <div className="modal-overlay" onClick={()=>setShowBudget(false)}>
+          <div className="modal" onClick={e=>e.stopPropagation()}>
+            <div className="modal-title">SET BUDGETS</div>
+            <div className="modal-sub">LEAVE BLANK TO KEEP CURRENT</div>
+            <div className="modal-lbl">WEEKLY BUDGET (£) — CURRENT: {fmt(store.weekBudget)}</div>
+            <input className="modal-input" type="number" inputMode="decimal" value={bwInput} onChange={e=>setBwInput(e.target.value)} placeholder={store.weekBudget}/>
+            <div className="modal-lbl">MONTHLY BUDGET (£) — CURRENT: {fmt(store.monthBudget)}</div>
+            <input className="modal-input" type="number" inputMode="decimal" value={bmInput} onChange={e=>setBmInput(e.target.value)} placeholder={store.monthBudget}/>
+            <div className="modal-btns">
+              <button className="modal-btn" onClick={()=>setShowBudget(false)}>CANCEL</button>
+              <button className="modal-btn primary" onClick={saveBudget}>SAVE</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT EXPENSE MODAL */}
+      {editExp && (
+        <div className="modal-overlay" onClick={()=>setEditExp(null)}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh',overflowY:'auto'}}>
+            <div className="modal-title">EDIT EXPENSE</div>
+            <div className="edit-field">
+              <div className="modal-lbl">AMOUNT (£)</div>
+              <input className="modal-input" type="number" inputMode="decimal" value={editAmount} onChange={e=>setEditAmount(e.target.value)}/>
+            </div>
+            <div className="edit-field">
+              <div className="modal-lbl">CATEGORY</div>
+              <div className="edit-cat-grid">
+                {CATS.map(c=>(
+                  <div key={c.id} className={`edit-cat-btn ${editCat===c.id?'sel':''}`}
+                    style={editCat===c.id?{borderColor:c.color}:{}}
+                    onClick={()=>setEditCat(c.id)}>
+                    <span>{c.icon}</span>
+                    <span className="edit-cat-lbl" style={editCat===c.id?{color:c.color}:{}}>{c.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="edit-field">
+              <div className="modal-lbl">NOTE</div>
+              <input className="modal-input" style={{fontFamily:'var(--font-b)',fontSize:'1rem'}} type="text" value={editNote} onChange={e=>setEditNote(e.target.value)} placeholder="optional note"/>
+            </div>
+            <div className="edit-field">
+              <div className="modal-lbl">DATE</div>
+              <input className="modal-input date-input" type="date" value={editDate} onChange={e=>setEditDate(e.target.value)}/>
+            </div>
+            <div className="modal-btns">
+              <button className="modal-btn" onClick={()=>setEditExp(null)}>CANCEL</button>
+              <button className="modal-btn primary" onClick={saveEdit}>SAVE</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
