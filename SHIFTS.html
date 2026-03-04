@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#08080f">
+<meta name="theme-color" content="#2b2b2b">
 <title>SHIFTS</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@300;400;500;700&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -11,13 +11,13 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;overflow:hidden;background:#08080f;}
+html,body{height:100%;overflow:hidden;background:#2b2b2b;}
 :root{
-  --bg:#08080f;--s1:#0f0f1a;--s2:#14141f;--s3:#1c1c2a;
-  --border:#2e2e45;--border2:#3a3a52;
-  --accent:#00e5ff;--gold:#ffd600;--green:#3dffa0;--red:#ff4455;
+  --bg:#2b2b2b;--s1:#333333;--s2:#3d3d3d;--s3:#474747;
+  --border:#555555;--border2:#606060;
+  --accent:#29e6ff;--gold:#ffd600;--green:#b2ff59;--red:#ff5555;
   --orange:#ff8c00;--purple:#c084fc;--pink:#f472b6;--sky:#38bdf8;
-  --text:#f0f0ff;--text2:#c8c8ee;--dim:#252538;--muted:#8888b8;
+  --text:#e8e8e8;--text2:#cccccc;--dim:#4a4a4a;--muted:#aaaaaa;
   --font-d:'Bebas Neue',sans-serif;
   --font-m:'JetBrains Mono',monospace;
   --font-b:'Barlow Condensed',sans-serif;
@@ -671,14 +671,25 @@ function App(){
           <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--muted)',letterSpacing:'.08em'}}>NO SHIFTS THIS WEEK</div>
           <div style={{fontFamily:'var(--font-m)',fontSize:'.62rem',color:'var(--dim)',marginTop:'.35rem',letterSpacing:'.06em'}}>TAP A DAY TO LOG ONE</div>
         </div>}
-        {wDates.map(d=>{
+        {[...wDates].sort((a,b)=>{
+          // Today first, future next in order, past days at bottom
+          const aP=a<TODAY,bP=b<TODAY;
+          if(aP&&!bP)return 1;
+          if(!aP&&bP)return -1;
+          return a.localeCompare(b);
+        }).map(d=>{
           const ds=wByDay[d]||[],dh=ds.reduce((a,s)=>a+s.hours,0),has=ds.length>0,isT=d===TODAY,isFut=d>TODAY,isPast=d<TODAY;
           return<div key={d} className={`db${isT?' td':''}`}>
             <div className="dbh" style={{cursor:'pointer'}} onClick={()=>setEditShift({date:d,start:'',end:'',loc:'TR',note:''})}>
               <div style={{display:'flex',alignItems:'center',gap:'.4rem'}}>
-                <span className="dbh-d" style={isPast?{color:'var(--muted)'}:{}}>{dayName(d)} <span className="dbh-n" style={isPast?{color:'var(--muted)'}:{}}>{d.slice(8)}</span></span>
+                <span className="dbh-d" style={{color:isT?'var(--accent)':isPast?'#666':'#38bdf8',letterSpacing:'.04em'}}>
+                  {dayName(d)}
+                </span>
+                <span style={{fontFamily:'var(--font-m)',fontSize:'.72rem',color:isT?'var(--accent)':isPast?'#555':'#2090c0',marginLeft:'.1rem'}}>
+                  {d.slice(8)} {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+d.slice(5,7)-1]}
+                </span>
                 {isT&&<span className="tdtag">TODAY</span>}
-                {isFut&&!isT&&<span style={{fontFamily:'var(--font-m)',fontSize:'.48rem',background:'rgba(255,214,0,.12)',color:'var(--gold)',padding:'.1rem .32rem',borderRadius:'3px',letterSpacing:'.06em'}}>UPCOMING</span>}
+
               </div>
               {has&&<div className="dbh-t">{fmtH(dh)}</div>}
             </div>

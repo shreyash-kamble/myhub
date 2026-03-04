@@ -134,21 +134,21 @@ function loadStats(){
     }
   }catch(e){}
 
-  // SHIFTS
+  // SHIFTS — always show next upcoming shift
   try{
     const s=JSON.parse(localStorage.getItem('shifts_v4')||'null');
     if(s&&s.shifts){
-      const ws=s.shifts.filter(x=>wDates.includes(x.date));
-      const wh=ws.reduce((a,x)=>a+x.hours,0);
-      const rate=s.hourlyRate||12.21;
+      const today=new Date().toISOString().slice(0,10);
       const el=document.getElementById('shifts-live');
-      if(wh>0){
-        el.textContent=fmtH(wh)+' · £'+(wh*rate).toFixed(0)+' gross this week';
+      const next=s.shifts.filter(x=>x.date>=today).sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start))[0];
+      if(next){
+        const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        const dow=days[new Date(next.date).getDay()];
+        const dd=+next.date.slice(8);
+        const mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+next.date.slice(5,7)-1];
+        const label=next.date===today?'Today':'Next';
+        el.textContent=label+': '+dow+' '+dd+' '+mon+' @ '+next.start+' · '+next.loc;
         el.style.display='inline-block';
-      } else {
-        const today=new Date().toISOString().slice(0,10);
-        const next=s.shifts.filter(x=>x.date>today).sort((a,b)=>a.date.localeCompare(b.date))[0];
-        if(next){el.textContent='Next: '+next.date.slice(5)+' @ '+next.start+' · '+next.loc;el.style.display='inline-block';}
       }
     }
   }catch(e){}

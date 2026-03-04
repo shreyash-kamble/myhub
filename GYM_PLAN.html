@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#080808">
+<meta name="theme-color" content="#2b2b2b">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,14 +14,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;overflow:hidden;background:#080808;}
+html,body{height:100%;overflow:hidden;background:#2b2b2b;}
 :root{
-  --bg:#080808;--s1:#111114;--s2:#18181c;--s3:#202026;
-  --border:#2a2a32;--border2:#363640;
-  --push:#ff5722;--pull:#00e5ff;--legs:#b2ff59;--abs:#ffd600;
-  --text:#f0f0f0;--dim:#505058;--muted:#a0a0b0;--faint:#555560;
-  --label:#c8c8d8;--note:#909098;
-  --green:#b2ff59;--red:#ff5722;
+  --bg:#2b2b2b;--s1:#333333;--s2:#3d3d3d;--s3:#474747;
+  --border:#555555;--border2:#606060;
+  --push:#ff6b3d;--pull:#29e6ff;--legs:#b2ff59;--abs:#ffd600;
+  --text:#e8e8e8;--dim:#888888;--muted:#aaaaaa;--faint:#777777;
+  --label:#cccccc;--note:#999999;
+  --green:#b2ff59;--red:#ff6b3d;
   --font-display:'Bebas Neue',sans-serif;
   --font-mono:'JetBrains Mono',monospace;
   --font-body:'Barlow Condensed',sans-serif;
@@ -108,8 +108,8 @@ const DAYS = [
 ];
 
 const TYPE_COLOR={push:'var(--push)',pull:'var(--pull)',legs:'var(--legs)',abs:'var(--abs)'};
-const TYPE_HEX={push:'#ff5722',pull:'#00e5ff',legs:'#b2ff59',abs:'#ffd600'};
-const TYPE_BG={push:'rgba(255,87,34,0.08)',pull:'rgba(0,229,255,0.06)',legs:'rgba(178,255,89,0.06)',abs:'rgba(255,214,0,0.07)'};
+const TYPE_HEX={push:'#ff6b3d',pull:'#29e6ff',legs:'#b2ff59',abs:'#ffd600'};
+const TYPE_BG={push:'rgba(255,107,61,0.08)',pull:'rgba(41,230,255,0.07)',legs:'rgba(178,255,89,0.07)',abs:'rgba(255,214,0,0.08)'};
 
 function mkWeekData(){
   return DAYS.map(d=>({
@@ -291,7 +291,7 @@ const CSS=`
 .ex-card{margin:0 0.75rem 0.6rem;border:1px solid var(--border);background:var(--s1);overflow:hidden;border-radius:8px;transition:all 0.2s;}
 .ex-card.is-done{border-color:rgba(178,255,89,0.25);background:rgba(178,255,89,0.02);}
 .ex-card-head{padding:0.6rem 0.85rem 0.5rem;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:0.5rem;}
-.ex-card-name{font-family:var(--font-body);font-weight:700;font-size:1.1rem;color:#fff;line-height:1.2;}
+.ex-card-name{font-family:var(--font-body);font-weight:700;font-size:1.1rem;color:#e8e8e8;line-height:1.2;}
 .ex-card-meta{display:flex;gap:0.4rem;align-items:center;margin-top:4px;flex-wrap:wrap;}
 
 /* SETS BADGE — split into two chips */
@@ -332,12 +332,12 @@ const CSS=`
 .stepper-wrap:focus-within{border-color:var(--push);}
 .step-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.9rem;width:22px;height:36px;display:flex;align-items:center;justify-content:center;transition:color 0.15s;flex-shrink:0;padding:0;}
 .step-btn:active{color:var(--push);}
-.set-field{background:transparent;border:none;color:#fff;font-family:var(--font-mono);font-size:0.88rem;font-weight:500;width:100%;text-align:center;padding:0;height:36px;-webkit-appearance:none;outline:none;}
-.set-field::placeholder{color:#505060;}
+.set-field{background:transparent;border:none;color:#e8e8e8;font-family:var(--font-mono);font-size:0.88rem;font-weight:500;width:100%;text-align:center;padding:0;height:36px;-webkit-appearance:none;outline:none;}
+.set-field::placeholder{color:#666666;}
 
 /* CHECK BTN — bigger tap target */
 .check-btn{width:36px;height:36px;border:1.5px solid #585868;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.85rem;color:transparent;transition:all 0.2s;flex-shrink:0;border-radius:5px;}
-.check-btn.checked{background:var(--legs);border-color:var(--legs);color:#000;font-weight:700;}
+.check-btn.checked{background:#2979ff;border-color:#2979ff;color:#fff;font-weight:700;}
 
 /* TIMER BTN */
 .timer-btn{width:36px;height:36px;background:none;border:none;cursor:pointer;font-size:1rem;opacity:0.8;transition:opacity 0.15s;padding:0;display:flex;align-items:center;justify-content:center;color:#fff;}
@@ -345,9 +345,9 @@ const CSS=`
 
 /* NOTES */
 .notes-row{padding:0.35rem 0.85rem;}
-.notes-field{width:100%;background:transparent;border:none;border-top:1px solid var(--border);color:#b8b8c8;font-family:var(--font-mono);font-size:0.62rem;padding:0.35rem 0;resize:none;height:26px;transition:color 0.15s;}
+.notes-field{width:100%;background:transparent;border:none;border-top:1px solid var(--border);color:#aaaaaa;font-family:var(--font-mono);font-size:0.62rem;padding:0.35rem 0;resize:none;height:26px;transition:color 0.15s;}
 .notes-field:focus{outline:none;color:var(--text);}
-.notes-field::placeholder{color:#585868;}
+.notes-field::placeholder{color:#666666;}
 
 /* FINISH */
 .finish-wrap{padding:1rem 0.75rem 0.5rem;}
@@ -377,14 +377,14 @@ const CSS=`
 .cond-opt-dur{font-family:var(--font-mono);font-size:0.62rem;color:#b8b8c8;}
 
 /* REST TIMER */
-.timer-overlay{position:fixed;top:calc(env(safe-area-inset-top,0) + 56px);right:0.75rem;z-index:50;background:#18181e;border:1px solid var(--push);border-left:3px solid var(--push);padding:0.85rem 1rem;min-width:160px;animation:slideUp 0.2s ease;border-radius:8px;box-shadow:0 6px 30px rgba(0,0,0,0.8);}
-.timer-label{font-family:var(--font-mono);font-size:0.58rem;color:#c8c8d8;margin-bottom:0.2rem;letter-spacing:0.1em;}
-.timer-display{font-family:var(--font-display);font-size:3rem;line-height:1;color:#fff;letter-spacing:0.04em;}
+.timer-overlay{position:fixed;top:calc(env(safe-area-inset-top,0) + 56px);right:0.75rem;z-index:50;background:#333333;border:1px solid var(--push);border-left:3px solid var(--push);padding:0.85rem 1rem;min-width:160px;animation:slideUp 0.2s ease;border-radius:8px;box-shadow:0 6px 30px rgba(0,0,0,0.5);}
+.timer-label{font-family:var(--font-mono);font-size:0.58rem;color:#aaaaaa;margin-bottom:0.2rem;letter-spacing:0.1em;}
+.timer-display{font-family:var(--font-display);font-size:3rem;line-height:1;color:#e8e8e8;letter-spacing:0.04em;}
 .timer-display.done{color:var(--legs);animation:pulse 0.7s infinite,timerPulse 0.7s infinite;}
 .timer-presets{display:flex;gap:0.3rem;margin-top:0.5rem;}
 .timer-preset-btn{flex:1;font-family:var(--font-mono);font-size:0.6rem;padding:0.3rem 0;border:1px solid var(--border2);background:var(--s2);color:#d0d0e0;cursor:pointer;border-radius:3px;transition:all 0.15s;}
 .timer-preset-btn:active{border-color:var(--push);color:var(--push);}
-.timer-close{position:absolute;top:0.4rem;right:0.5rem;background:none;border:none;color:#b0b0c0;cursor:pointer;font-size:1rem;}
+.timer-close{position:absolute;top:0.4rem;right:0.5rem;background:none;border:none;color:#888888;cursor:pointer;font-size:1rem;}
 
 /* HISTORY */
 .history-wrap{padding:1rem 0.75rem;}
@@ -405,9 +405,9 @@ const CSS=`
 /* COMPARE */
 .compare-wrap{padding:1rem 0.75rem;}
 .compare-sel{display:flex;align-items:center;gap:0.6rem;margin-bottom:1rem;flex-wrap:wrap;}
-.compare-sel select{flex:1;min-width:90px;background:var(--s3);border:1px solid var(--border2);color:#e8e8f0;font-family:var(--font-mono);font-size:0.7rem;letter-spacing:0.06em;padding:0.5rem 1.8rem 0.5rem 0.65rem;cursor:pointer;outline:none;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a0a0b0'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 0.6rem center;border-radius:4px;}
+.compare-sel select{flex:1;min-width:90px;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:0.7rem;letter-spacing:0.06em;padding:0.5rem 1.8rem 0.5rem 0.65rem;cursor:pointer;outline:none;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a0a0b0'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 0.6rem center;border-radius:4px;}
 .compare-sel select:focus{border-color:var(--push);}
-.compare-sel select option{background:#1e1e26;color:#e8e8f0;}
+.compare-sel select option{background:#3d3d3d;color:#e8e8e8;}
 .compare-table{width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:0.7rem;}
 .compare-table th{padding:0.5rem 0.65rem;text-align:left;background:var(--s2);border-bottom:1px solid var(--border2);color:#d0d0e0;letter-spacing:0.06em;font-size:0.6rem;}
 .compare-table td{padding:0.48rem 0.65rem;border-bottom:1px solid var(--border);color:#d8d8e8;}
@@ -439,8 +439,8 @@ const CSS=`
 .modal-body{flex:1;overflow-y:auto;padding:0.75rem;}
 
 /* DIALOG */
-.dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;z-index:300;padding:1rem;}
-.dialog{background:var(--s2);border:1px solid var(--border2);max-width:380px;width:100%;padding:1.5rem;border-radius:10px;}
+.dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:300;padding:1rem;}
+.dialog{background:#333333;border:1px solid #555555;max-width:380px;width:100%;padding:1.5rem;border-radius:10px;}
 .dialog-title{font-family:var(--font-display);font-size:1.6rem;letter-spacing:0.06em;margin-bottom:0.75rem;color:var(--text);}
 .dialog-body{font-family:var(--font-body);font-size:0.95rem;color:#c8c8d8;line-height:1.6;margin-bottom:1.25rem;}
 .dialog-btns{display:flex;gap:0.5rem;}
@@ -452,7 +452,7 @@ const CSS=`
 .section-divider{font-family:var(--font-mono);font-size:0.58rem;letter-spacing:0.1em;color:#b0b0c0;padding:0.5rem 0.85rem;border-bottom:1px solid var(--border);}
 
 /* TOAST */
-.toast{position:fixed;top:72px;left:50%;transform:translateX(-50%);background:var(--s3);border:1px solid var(--legs);color:var(--legs);font-family:var(--font-mono);font-size:0.65rem;padding:0.5rem 1rem;border-radius:20px;z-index:500;animation:slideUp 0.2s ease;white-space:nowrap;pointer-events:none;letter-spacing:0.06em;}
+.toast{position:fixed;top:72px;left:50%;transform:translateX(-50%);background:#333333;border:1px solid var(--green);color:var(--green);font-family:var(--font-mono);font-size:0.65rem;padding:0.5rem 1rem;border-radius:20px;z-index:500;animation:slideUp 0.2s ease;white-space:nowrap;pointer-events:none;letter-spacing:0.06em;box-shadow:0 2px 12px rgba(0,0,0,0.1);}
 `;
 
 // ── TOAST ─────────────────────────────────────────────────────────
@@ -581,6 +581,8 @@ function DraggableTimer({timer}){
 // ── APP ────────────────────────────────────────────────────────────
 function App(){
   const[store,setStore]=useState(loadStore);
+  const storeRef=useRef(null);
+  storeRef.current=store;
   const[tab,setTab]=useState('workout');
   const[dayIdx,setDayIdx]=useState(()=>{
     const s=loadStore();
@@ -669,13 +671,23 @@ function App(){
   },[week,dayIdx,update]);
 
   const toggleSet=useCallback((ei,si)=>{
+    const freshStore=storeRef.current;
+    const freshWeek=freshStore.currentWeek;
+    const wasAlreadyDone=freshStore.weeks[freshWeek]?.[dayIdx]?.sets[ei]?.[si]?.done;
+    const exSets=freshStore.weeks[freshWeek]?.[dayIdx]?.sets[ei]||[];
+    const isLastSetOfExercise=si===exSets.length-1;
     update(s=>{
-      const set=s.weeks[week][dayIdx].sets[ei][si];
+      const set=s.weeks[freshWeek][dayIdx].sets[ei][si];
       set.done=!set.done;
     });
-    const compoundEx=['Barbell Bench Press','Overhead Barbell Press','Incline Barbell Press','Back Squats','Front Squats / Hack Squats','Deadlifts','Romanian Deadlifts','Barbell Rows','T-Bar Row / Chest-Supported Row','Weighted Pull-Ups / Lat Pulldown','Leg Press','Hip Thrusts'];
-    timer.start(day.type==='abs'?60:compoundEx.includes(day.exercises[ei]?.name)?180:90);
-  },[week,dayIdx,update,timer,day]);
+    // Start timer only when marking AS done AND it is NOT the last set of this exercise
+    if(!wasAlreadyDone&&!isLastSetOfExercise){
+      const compoundEx=['Barbell Bench Press','Overhead Barbell Press','Incline Barbell Press','Back Squats','Front Squats / Hack Squats','Deadlifts','Romanian Deadlifts','Barbell Rows','T-Bar Row / Chest-Supported Row','Weighted Pull-Ups / Lat Pulldown','Leg Press','Hip Thrusts'];
+      const dayType=DAYS[dayIdx].type;
+      const exName=DAYS[dayIdx].exercises[ei]?.name;
+      timer.start(dayType==='abs'?60:compoundEx.includes(exName)?180:90);
+    }
+  },[dayIdx,update,timer]);
 
   const updateNote=useCallback((ei,val)=>{
     update(s=>{s.weeks[week][dayIdx].notes[ei]=val;});
@@ -827,21 +839,39 @@ function App(){
                   </div>
                 );})}
               </div>
-              <div className="swipe-hint">← swipe →</div>
+              <div className="swipe-hint" style={{display:'none'}}>← swipe →</div>
             </div>
 
             <div className="workout-wrap">
               {/* Hero */}
               <div className="day-hero" style={{background:TYPE_BG[day.type]}}>
-                <div className="day-hero-row">
-                  <div className="day-hero-title" style={{color}}>{day.label}</div>
-                  <div className="type-badge" style={{color,background:`rgba(0,0,0,0.3)`,border:`1px solid ${hex}40`}}>{day.sub}</div>
-                  {dayData.done&&<div style={{marginLeft:'auto',fontFamily:'var(--font-mono)',fontSize:'0.62rem',color:'var(--legs)',fontWeight:700}}>✓ DONE</div>}
+                <div style={{display:'flex',alignItems:'stretch',gap:'0.5rem'}}>
+                  {/* Left: PUSH + STRENGTH + focus */}
+                  <div style={{display:'flex',flexDirection:'column',justifyContent:'center',gap:'0.18rem'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:'0.5rem'}}>
+                      <div className="day-hero-title" style={{color}}>{day.label}</div>
+                      <div className="type-badge" style={{color,background:`rgba(0,0,0,0.3)`,border:`1px solid ${hex}40`}}>{day.sub}</div>
+                      {dayData.done&&<div style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',color:'var(--legs)',fontWeight:700}}>✓ DONE</div>}
+                    </div>
+                    <div className="day-focus">{day.focus}</div>
+                  </div>
+                  {/* Right: 3 boxes pushed to edge */}
+                  <div style={{marginLeft:'auto',display:'flex',gap:'0.3rem',alignItems:'stretch',flexShrink:0}}>
+                    {[
+                      {val:`${weekData.filter(d=>d.done).length}/7`,lbl:'DAYS DONE',clr:hex,bdr:`${hex}40`},
+                      {val:`${Math.round(totalVolume)}`,lbl:'VOL KG',clr:'var(--pull)',bdr:'rgba(41,230,255,0.3)'},
+                      {val:pbs[day.exercises[0]?.name]>0?`${pbs[day.exercises[0].name]}kg`:'—',lbl:'TOP PB',clr:'var(--legs)',bdr:'rgba(198,255,107,0.3)'},
+                    ].map(({val,lbl,clr,bdr})=>(
+                      <div key={lbl} style={{width:'58px',background:'var(--s2)',border:`1px solid ${bdr}`,borderRadius:'6px',padding:'0.35rem 0.25rem',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'2px'}}>
+                        <div style={{fontFamily:'var(--font-display)',fontSize:'1.05rem',color:clr,letterSpacing:'0.03em',lineHeight:1}}>{val}</div>
+                        <div style={{fontFamily:'var(--font-mono)',fontSize:'0.4rem',color:'var(--muted)',letterSpacing:'0.05em',textAlign:'center'}}>{lbl}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="day-focus">{day.focus}</div>
               </div>
 
-              {/* Progress + live stats */}
+              {/* Progress */}
               <div className="progress-row">
                 <div className="progress-track">
                   <div className="progress-fill" style={{width:`${totalSets?doneSets/totalSets*100:0}%`,background:hex}}/>
@@ -849,35 +879,7 @@ function App(){
                 <div className="progress-txt">{doneSets}/{totalSets} SETS</div>
               </div>
 
-              {/* Summary bar */}
-              <div className="summary-bar">
-                <div className="summary-chip">
-                  <div className="sv" style={{color:hex}}>{weekData.filter(d=>d.done).length}/7</div>
-                  <div className="sl">DAYS DONE</div>
-                </div>
-                <div className="summary-chip">
-                  <div className="sv" style={{color:'var(--pull)'}}>{Math.round(totalVolume)}</div>
-                  <div className="sl">VOL (KG)</div>
-                </div>
-                {prevWeekSets&&<div className="summary-chip" style={{borderTop:`2px solid var(--pull)`}}>
-                  <div className="sv" style={{color:'var(--pull)',fontSize:'0.85rem'}}>WK{week-1}</div>
-                  <div className="sl">PREV DATA</div>
-                </div>}
-                <div className="summary-chip">
-                  <div className="sv" style={{color:'var(--legs)'}}>{pbs[day.exercises[0]?.name]>0?pbs[day.exercises[0].name]+'kg':'—'}</div>
-                  <div className="sl">TOP PB</div>
-                </div>
-              </div>
-
-              {/* Next set banner */}
-              {nextIncomplete&&!dayData.done&&(
-                <div className="next-set-banner" onClick={()=>{
-                  document.getElementById(`set-${dayIdx}-${nextIncomplete.ei}-${nextIncomplete.si}`)?.scrollIntoView({behavior:'smooth',block:'center'});
-                }}>
-                  <div className="nsb-txt">NEXT → {nextIncomplete.name} · S{nextIncomplete.si+1}</div>
-                  <div className="nsb-arrow">↓</div>
-                </div>
-              )}
+              {/* Next set banner removed */}
 
               {/* Exercises */}
               {day.exercises.map((ex,ei)=>{
@@ -925,21 +927,24 @@ function App(){
                     <div className="sets-table">
                       {sets.map((s,si)=>{
                         const prThisSet=isPR(ex.name,s.kg);
+                        // Working set = not done; use day color for border. Done = green bg.
+                        const rowBg=s.done?'rgba(198,255,107,0.05)':'transparent';
+                        const rowBorder=s.done?'rgba(198,255,107,0.15)':hex+'22';
                         return(
                           <div key={si} id={`set-${dayIdx}-${ei}-${si}`}
-                            className={`set-row ${s.done?'set-done-row':''} ${prThisSet&&s.kg?'pr-row':''}`}
-                            style={{gridTemplateColumns:'28px 1fr 1fr 40px 44px'}}
+                            className={`set-row ${prThisSet&&s.kg?'pr-row':''}`}
+                            style={{gridTemplateColumns:'28px 1fr 1fr 40px 44px',background:rowBg,borderBottomColor:rowBorder}}
                           >
-                            <div className="set-num">S{si+1}</div>
+                            <div className="set-num" style={{color:s.done?'var(--legs)':hex}}>S{si+1}</div>
                             {/* KG stepper */}
-                            <div className={`stepper-wrap ${s.kg?'has-val':''}`}>
+                            <div className={`stepper-wrap ${s.kg?'has-val':''}`} style={{borderColor:s.done?'rgba(198,255,107,0.3)':s.kg?hex+'55':'var(--border2)'}}>
                               <button className="step-btn" onMouseDown={e=>{e.preventDefault();updateSet(ei,si,'kg',String(Math.max(0,(parseFloat(s.kg)||0)-2.5)));}}>−</button>
                               <input className="set-field" type="number" inputMode="decimal" placeholder="kg"
                                 value={s.kg} onChange={e=>updateSet(ei,si,'kg',e.target.value)}/>
                               <button className="step-btn" onMouseDown={e=>{e.preventDefault();updateSet(ei,si,'kg',String((parseFloat(s.kg)||0)+2.5));}}>+</button>
                             </div>
                             {/* Reps stepper */}
-                            <div className={`stepper-wrap ${s.reps?'has-val':''}`}>
+                            <div className={`stepper-wrap ${s.reps?'has-val':''}`} style={{borderColor:s.done?'rgba(198,255,107,0.3)':s.reps?hex+'55':'var(--border2)'}}>
                               <button className="step-btn" onMouseDown={e=>{e.preventDefault();updateSet(ei,si,'reps',String(Math.max(0,(parseInt(s.reps)||0)-1)));}}>−</button>
                               <input className="set-field" type="number" inputMode="numeric" placeholder="reps"
                                 value={s.reps} onChange={e=>updateSet(ei,si,'reps',e.target.value)}/>
@@ -950,7 +955,7 @@ function App(){
                               const secs=day.type==='abs'?60:compound.includes(ex.name)?180:90;
                               timer.start(secs);
                             }}>⏱</button>
-                            <div className={`check-btn ${s.done?'checked':''}`} onClick={()=>toggleSet(ei,si)}>✓</div>
+                            <div className={`check-btn ${s.done?'checked':''}`} style={s.done?{}:{borderColor:hex+'88'}} onClick={()=>toggleSet(ei,si)}>✓</div>
                           </div>
                         );
                       })}
