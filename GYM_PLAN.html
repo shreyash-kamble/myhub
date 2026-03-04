@@ -589,6 +589,7 @@ function App(){
   const[histDetail,setHistDetail]=useState(null);
   const[toast,setToast]=useState(null);
   const[copied,setCopied]=useState(false);
+  const[showCopyConfirm,setShowCopyConfirm]=useState(false);
   const timer=useTimer();
   const swipeRef=useRef(null);
   const swipeStartX=useRef(null);
@@ -704,23 +705,42 @@ function App(){
   const copyLastWeek=useCallback(()=>{
     const prevWeek=week-1;
     if(!store.weeks[prevWeek]){showToast('NO PREVIOUS WEEK DATA');return;}
+    setShowCopyConfirm(true);
+  },[store,week,showToast]);
+
+  const confirmCopyLastWeek=useCallback(()=>{
+    const prevWeek=week-1;
     const prev=store.weeks[prevWeek];
     update(s=>{
       const curr=s.weeks[week][dayIdx];
       const prevDay=prev[dayIdx];
       curr.sets=prevDay.sets.map(setArr=>setArr.map(set=>({kg:set.kg,reps:set.reps,done:false})));
     });
+    setShowCopyConfirm(false);
     setCopied(true);
     showToast('✓ LAST WEEK WEIGHTS COPIED');
     setTimeout(()=>setCopied(false),2000);
   },[store,week,dayIdx,update,showToast]);
 
   // ── SWIPE BETWEEN DAYS ────────────────────────────────────────
-  const handleTouchStart=useCallback(e=>{swipeStartX.current=e.touches[0].clientX;},[]);
+  const swipeStartY=useRef(null);
+  const swipeLocked=useRef(false);
+  const swipeTime=useRef(null);
+  const handleTouchStart=useCallback(e=>{
+    swipeStartX.current=e.touches[0].clientX;
+    swipeStartY.current=e.touches[0].clientY;
+    swipeLocked.current=false;
+    swipeTime.current=Date.now();
+  },[]);
   const handleTouchEnd=useCallback(e=>{
     if(swipeStartX.current===null)return;
     const dx=e.changedTouches[0].clientX-swipeStartX.current;
-    if(Math.abs(dx)>60){
+    const dy=e.changedTouches[0].clientY-swipeStartY.current;
+    const dt=Date.now()-swipeTime.current;
+    const velocity=Math.abs(dx)/dt; // px/ms
+    // Ignore if mostly vertical or not enough movement/velocity
+    if(Math.abs(dy)>Math.abs(dx)*0.8){swipeStartX.current=null;return;}
+    if(Math.abs(dx)>40||velocity>0.3){
       if(dx<0)setDayIdx(i=>Math.min(i+1,DAYS.length-1));
       else setDayIdx(i=>Math.max(i-1,0));
     }
@@ -890,24 +910,20 @@ function App(){
                     })()}
 
                     {/* Set headers */}
-                    <div className="set-header" style={{gridTemplateColumns:'28px 1fr 1fr 36px 48px 40px 44px'}}>
+                    <div className="set-header" style={{gridTemplateColumns:'28px 1fr 1fr 40px 44px'}}>
                       <div className="set-header-lbl" style={{textAlign:'left'}}>#</div>
                       <div className="set-header-lbl">KG</div>
                       <div className="set-header-lbl">REPS</div>
-                      <div className="set-header-lbl" style={{fontSize:'0.44rem',color:'var(--pull)'}}>PREV</div>
-                      <div className="set-header-lbl" style={{fontSize:'0.44rem',color:'var(--abs)'}}>e1RM</div>
                       <div className="set-header-lbl">⏱</div>
                       <div className="set-header-lbl">✓</div>
                     </div>
                     <div className="sets-table">
                       {sets.map((s,si)=>{
                         const prThisSet=isPR(ex.name,s.kg);
-                        const prevSet=prevWeekSets?.[ei]?.[si];
-                        const prevKg=prevSet?.kg?parseFloat(prevSet.kg):0;
                         return(
                           <div key={si} id={`set-${dayIdx}-${ei}-${si}`}
                             className={`set-row ${s.done?'set-done-row':''} ${prThisSet&&s.kg?'pr-row':''}`}
-                            style={{gridTemplateColumns:'28px 1fr 1fr 36px 48px 40px 44px'}}
+                            style={{gridTemplateColumns:'28px 1fr 1fr 40px 44px'}}
                           >
                             <div className="set-num">S{si+1}</div>
                             {/* KG stepper */}
@@ -923,14 +939,6 @@ function App(){
                               <input className="set-field" type="number" inputMode="numeric" placeholder="reps"
                                 value={s.reps} onChange={e=>updateSet(ei,si,'reps',e.target.value)}/>
                               <button className="step-btn" onMouseDown={e=>{e.preventDefault();updateSet(ei,si,'reps',String((parseInt(s.reps)||0)+1));}}>+</button>
-                            </div>
-                            {/* Prev week kg */}
-                            <div style={{fontFamily:'var(--font-mono)',fontSize:'0.55rem',color:prevKg>0?'var(--pull)':'var(--dim)',textAlign:'center',lineHeight:1.2}}>
-                              {prevKg>0?prevKg+'kg':'—'}
-                            </div>
-                            {/* e1RM */}
-                            <div style={{fontFamily:'var(--font-mono)',fontSize:'0.55rem',color:(s.kg&&s.reps)?'var(--abs)':'var(--dim)',textAlign:'center',lineHeight:1.2}}>
-                              {(s.kg&&s.reps)?calc1RM(s.kg,s.reps)+'kg':'—'}
                             </div>
                             <button className="timer-btn" title={ex.sets<=3&&!['Barbell Bench Press','Overhead Barbell Press','Back Squats','Deadlifts','Romanian Deadlifts'].includes(ex.name)?'60s isolation':'compound: 3min'} onClick={()=>{
                               const compound=['Barbell Bench Press','Overhead Barbell Press','Incline Barbell Press','Back Squats','Front Squats / Hack Squats','Deadlifts','Romanian Deadlifts','Barbell Rows','T-Bar Row / Chest-Supported Row','Weighted Pull-Ups / Lat Pulldown','Leg Press','Hip Thrusts'];
@@ -1115,6 +1123,22 @@ function App(){
 
       {/* TOAST */}
       {toast&&<Toast msg={toast}/>}
+
+      {/* COPY CONFIRM DIALOG */}
+      {showCopyConfirm&&(
+        <div className="dialog-overlay">
+          <div className="dialog">
+            <div className="dialog-title">↑ COPY WEEK {week-1}?</div>
+            <div className="dialog-body">
+              This will overwrite your current weights for {day.label} {day.sub} with last week's values. Sets will be marked incomplete.
+            </div>
+            <div className="dialog-btns">
+              <button className="dialog-btn" onClick={()=>setShowCopyConfirm(false)}>CANCEL</button>
+              <button className="dialog-btn danger" onClick={confirmCopyLastWeek}>COPY ▶</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* WEEK RESET DIALOG */}
       {showReset&&(
