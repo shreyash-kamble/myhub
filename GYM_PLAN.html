@@ -50,6 +50,7 @@ const DAYS = [
     {name:'Dumbbell Lateral Raises',sets:4,rep:'12–15'},
     {name:'Weighted Dips',sets:3,rep:'8–10'},
     {name:'Cable Triceps Pushdowns',sets:3,rep:'12–15'},
+    {name:'Band Pull-Aparts',sets:3,rep:'20',note:'shoulder health'},
   ]},
   {id:'pull1',name:'DAY 2',type:'pull',label:'PULL',sub:'STRENGTH',focus:'Back thickness & raw pulling power',
    exercises:[
@@ -65,6 +66,7 @@ const DAYS = [
     {name:'Back Squats',sets:5,rep:'5'},
     {name:'Romanian Deadlifts',sets:4,rep:'8'},
     {name:'Leg Press',sets:3,rep:'10–12'},
+    {name:'Leg Extensions',sets:3,rep:'12–15'},
     {name:'Seated Hamstring Curls',sets:3,rep:'12'},
     {name:'Standing Calf Raises',sets:4,rep:'12–15'},
   ]},
@@ -76,6 +78,7 @@ const DAYS = [
     {name:'Cable / Pec-Deck Flys',sets:3,rep:'12–15'},
     {name:'Lateral Raise Dropsets',sets:3,rep:'3 rounds',dropset:true},
     {name:'Overhead Cable Triceps Extensions',sets:3,rep:'12–15'},
+    {name:'Band Pull-Aparts',sets:3,rep:'20',note:'shoulder health'},
   ]},
   {id:'pull2',name:'DAY 5',type:'pull',label:'PULL',sub:'HYPERTROPHY',focus:'Back width, detail & arm pump',
    exercises:[
@@ -94,12 +97,13 @@ const DAYS = [
     {name:'Leg Extensions (2-sec pause)',sets:3,rep:'12–15'},
     {name:'Seated Calf Raises',sets:4,rep:'15–20'},
   ]},
-  {id:'abs',name:'DAY 7',type:'abs',label:'ABS',sub:'CONDITIONING',focus:'Core definition & fat loss',isAbs:true,
+  {id:'abs',name:'DAY 7',type:'abs',label:'ABS',sub:'RECOVERY',focus:'Active recovery, core & mobility',isAbs:true,
    exercises:[
-    {name:'Hanging Leg Raises',sets:4,rep:'12–15'},
-    {name:'Cable Crunch',sets:4,rep:'15'},
-    {name:'Ab-Wheel Rollouts',sets:4,rep:'10–12'},
-    {name:'Weighted Russian Twists',sets:4,rep:'20'},
+    {name:'Hanging Leg Raises',sets:3,rep:'12–15'},
+    {name:'Cable Crunch',sets:3,rep:'15'},
+    {name:'Ab-Wheel Rollouts',sets:3,rep:'10–12'},
+    {name:'Weighted Russian Twists',sets:3,rep:'20'},
+    {name:'Dead Hangs / Shoulder Mobility',sets:3,rep:'30–60s'},
   ]},
 ];
 
@@ -109,13 +113,34 @@ const TYPE_BG={push:'rgba(255,87,34,0.08)',pull:'rgba(0,229,255,0.06)',legs:'rgb
 
 function mkWeekData(){
   return DAYS.map(d=>({
-    done:false,startTime:null,endTime:null,conditioning:null,
-    sets:d.exercises.map(ex=>Array.from({length:ex.sets},()=>({kg:'',reps:'',done:false,bw:false}))),
+    done:false,conditioning:null,
+    sets:d.exercises.map(ex=>Array.from({length:ex.sets},()=>({kg:'',reps:'',done:false}))),
     notes:d.exercises.map(()=>''),
   }));
 }
 function loadStore(){
-  try{const r=localStorage.getItem('pplbeast_v3');if(r)return JSON.parse(r);}catch(e){}
+  try{
+    const r=localStorage.getItem('pplbeast_v3');
+    if(r){
+      const parsed=JSON.parse(r);
+      // Migrate: ensure every day has sets/notes for all current exercises
+      const fresh=mkWeekData();
+      Object.keys(parsed.weeks).forEach(wn=>{
+        const wd=parsed.weeks[wn];
+        fresh.forEach((freshDay,di)=>{
+          if(!wd[di])return;
+          freshDay.sets.forEach((freshExSets,ei)=>{
+            if(!wd[di].sets[ei]){
+              wd[di].sets[ei]=freshExSets;
+              wd[di].notes=wd[di].notes||[];
+              if(!wd[di].notes[ei])wd[di].notes[ei]='';
+            }
+          });
+        });
+      });
+      return parsed;
+    }
+  }catch(e){}
   return{currentWeek:1,weeks:{1:mkWeekData()}};
 }
 function saveStore(d){try{localStorage.setItem('pplbeast_v3',JSON.stringify(d));}catch(e){}}
@@ -153,14 +178,20 @@ function useTimer(){
     setSeconds(s);
     setDone(false);
     setVisible(true);
-    // If already running, bump restartKey to force effect re-run
     setRunning(true);
     setRestartKey(k=>k+1);
   },[]);
 
+  const reset=useCallback(()=>{
+    clearInterval(ref.current);
+    setRunning(false);
+    setDone(false);
+    setSeconds(pendingSecs.current);
+  },[]);
+
   const close=useCallback(()=>{clearInterval(ref.current);setRunning(false);setVisible(false);setDone(false);},[]);
   const fmt=(s)=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
-  return{seconds,running,visible,done,start,close,fmt};
+  return{seconds,running,visible,done,start,close,reset,fmt};
 }
 
 // ── SPARKLINE ─────────────────────────────────────────────────────
@@ -284,12 +315,12 @@ const CSS=`
 .qf-chip{flex-shrink:0;font-family:var(--font-mono);font-size:0.6rem;padding:0.25rem 0.5rem;border:1px solid var(--border2);background:var(--s3);color:#d0d0e0;cursor:pointer;border-radius:3px;transition:all 0.15s;}
 .qf-chip:active{border-color:var(--push);color:var(--push);transform:scale(0.94);}
 
-.set-header{display:grid;grid-template-columns:32px 1fr 1fr 36px 40px 44px;gap:0.3rem;padding:0.22rem 0.85rem;background:var(--s2);border-bottom:1px solid var(--border);}
+.set-header{display:grid;grid-template-columns:28px 1fr 1fr 36px 48px 40px 44px;gap:0.3rem;padding:0.22rem 0.85rem;background:var(--s2);border-bottom:1px solid var(--border);}
 .set-header-lbl{font-family:var(--font-mono);font-size:0.55rem;color:var(--label);text-align:center;}
 
 /* SET ROWS */
 .sets-table{width:100%;}
-.set-row{display:grid;grid-template-columns:32px 1fr 1fr 36px 40px 44px;gap:0.3rem;padding:0.3rem 0.85rem;border-bottom:1px solid var(--border);align-items:center;transition:background 0.2s;}
+.set-row{display:grid;grid-template-columns:28px 1fr 1fr 36px 48px 40px 44px;gap:0.3rem;padding:0.3rem 0.85rem;border-bottom:1px solid var(--border);align-items:center;transition:background 0.2s;}
 .set-row:last-child{border-bottom:none;}
 .set-row.set-done-row{background:rgba(178,255,89,0.04);}
 .set-row.pr-row{animation:prFlash 1.2s ease;}
@@ -456,6 +487,46 @@ function SparkRow({exName,store,weekNums,dayIdx,exIdx,color}){
   );
 }
 
+// ── 1RM ESTIMATOR (Epley formula) ─────────────────────────────────
+function calc1RM(kg,reps){
+  const k=parseFloat(kg)||0, r=parseInt(reps)||0;
+  if(!k||!r||r===1)return k||0;
+  return Math.round(k*(1+r/30));
+}
+
+// ── PLATE CALCULATOR ──────────────────────────────────────────────
+// Bar = 20kg Olympic. Shows plates per side.
+const PLATES=[25,20,15,10,5,2.5,1.25];
+function calcPlates(totalKg){
+  const bar=20;
+  let remaining=(totalKg-bar)/2;
+  if(remaining<=0)return [];
+  const result=[];
+  for(const p of PLATES){
+    const count=Math.floor(remaining/p+0.001);
+    if(count>0){result.push({p,count});remaining-=count*p;}
+  }
+  return result;
+}
+function PlateCalc({kg}){
+  const k=parseFloat(kg)||0;
+  if(k<20)return null;
+  const plates=calcPlates(k);
+  if(!plates.length)return null;
+  const COLORS={25:'#e53935',20:'#1e88e5',15:'#ffb300',10:'#43a047',5:'#8e24aa',2.5:'#6d4c41',1.25:'#546e7a'};
+  return(
+    <div style={{display:'flex',alignItems:'center',gap:'3px',padding:'0.25rem 0.85rem',background:'rgba(0,0,0,0.25)',borderBottom:'1px solid var(--border)',flexWrap:'wrap'}}>
+      <span style={{fontFamily:'var(--font-mono)',fontSize:'0.45rem',color:'var(--dim)',marginRight:'3px',flexShrink:0}}>🏋 PLATES/SIDE:</span>
+      {plates.map(({p,count})=>(
+        <span key={p} style={{fontFamily:'var(--font-mono)',fontSize:'0.55rem',padding:'0.1rem 0.35rem',borderRadius:'3px',background:COLORS[p]||'#444',color:'#fff',fontWeight:700}}>
+          {count>1?`${count}×`:''}
+          {p}kg
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ── DRAGGABLE TIMER ───────────────────────────────────────────────
 function DraggableTimer({timer}){
   const ref=useRef(null);
@@ -499,7 +570,7 @@ function DraggableTimer({timer}){
       <div className="timer-label">REST TIMER {timer.done?'— GO!':''}</div>
       <div className={`timer-display ${timer.done?'done':''}`}>{timer.fmt(timer.seconds)}</div>
       <div className="timer-presets">
-        {[[60,'1m'],[90,'90s'],[120,'2m'],[180,'3m']].map(([s,l])=>(
+        {[[60,'1m'],[90,'90s'],[120,'2m'],[180,'3m'],[300,'5m']].map(([s,l])=>(
           <button key={s} className="timer-preset-btn" onClick={()=>timer.start(s)}>{l}</button>
         ))}
       </div>
@@ -513,8 +584,8 @@ function App(){
   const[tab,setTab]=useState('workout');
   const[dayIdx,setDayIdx]=useState(0);
   const[showReset,setShowReset]=useState(false);
-  const[compareA,setCompareA]=useState(1);
-  const[compareB,setCompareB]=useState(null);
+  const[compareA,setCompareA]=useState(()=>store.currentWeek);
+  const[compareB,setCompareB]=useState(()=>store.currentWeek>1?store.currentWeek-1:null);
   const[histDetail,setHistDetail]=useState(null);
   const[toast,setToast]=useState(null);
   const[copied,setCopied]=useState(false);
@@ -595,10 +666,9 @@ function App(){
     update(s=>{
       const set=s.weeks[week][dayIdx].sets[ei][si];
       set.done=!set.done;
-      if(!s.weeks[week][dayIdx].startTime)s.weeks[week][dayIdx].startTime=new Date().toISOString();
     });
-    // Auto-start rest timer — default 2 min
-    timer.start(day.type==='abs'?60:120);
+    const compoundEx=['Barbell Bench Press','Overhead Barbell Press','Incline Barbell Press','Back Squats','Front Squats / Hack Squats','Deadlifts','Romanian Deadlifts','Barbell Rows','T-Bar Row / Chest-Supported Row','Weighted Pull-Ups / Lat Pulldown','Leg Press','Hip Thrusts'];
+    timer.start(day.type==='abs'?60:compoundEx.includes(day.exercises[ei]?.name)?180:90);
   },[week,dayIdx,update,timer,day]);
 
   const updateNote=useCallback((ei,val)=>{
@@ -609,8 +679,6 @@ function App(){
     update(s=>{
       const d=s.weeks[week][dayIdx];
       d.done=!d.done;
-      if(d.done){d.endTime=new Date().toISOString();if(!d.startTime)d.startTime=d.endTime;}
-      else d.endTime=null;
     });
   },[week,dayIdx,update]);
 
@@ -679,29 +747,6 @@ function App(){
       return b+(s.done?kg*reps:0);
     },0);
   },0);
-  const startTime=dayData?.startTime;
-  const endTime=dayData?.endTime;
-
-  // Live session elapsed timer — freezes at endTime when day is marked done
-  const[liveElapsed,setLiveElapsed]=useState(0);
-  const[liveElapsedSecs,setLiveElapsedSecs]=useState(0);
-  useEffect(()=>{
-    if(!startTime){setLiveElapsed(0);setLiveElapsedSecs(0);return;}
-    const getMs=()=>{
-      const end=dayData?.done&&endTime?new Date(endTime).getTime():Date.now();
-      return Math.max(0,end-new Date(startTime).getTime());
-    };
-    const apply=()=>{
-      const ms=getMs();
-      setLiveElapsed(Math.floor(ms/60000));
-      setLiveElapsedSecs(Math.floor((ms%60000)/1000));
-    };
-    apply();
-    if(dayData?.done)return; // frozen — no interval needed
-    const id=setInterval(apply,1000);
-    return()=>clearInterval(id);
-  },[startTime,endTime,dayData?.done]);
-
   const color=TYPE_COLOR[day.type];
   const hex=TYPE_HEX[day.type];
 
@@ -724,11 +769,6 @@ function App(){
                 <button onClick={()=>changeWeek(1)}>›</button>
               </div>
             </div>
-            {tab==='workout'&&startTime&&(
-              <div style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:dayData.done?'var(--legs)':'var(--abs)',border:`1px solid ${dayData.done?'rgba(178,255,89,0.3)':'rgba(255,214,0,0.3)'}`,background:dayData.done?'rgba(178,255,89,0.06)':'rgba(255,214,0,0.06)',padding:'0.25rem 0.55rem',borderRadius:'4px',letterSpacing:'0.06em',flexShrink:0,animation:dayData.done?'none':'pulse 2s infinite'}}>
-                {dayData.done?'✓':'⏱'} {liveElapsed}:{String(liveElapsedSecs).padStart(2,'0')}
-              </div>
-            )}
             {tab==='workout'&&(
               <button className={`copy-btn ${copied?'copied':''}`} onClick={copyLastWeek}>
                 {copied?'✓ COPIED':'↑ COPY WK'}
@@ -820,7 +860,6 @@ function App(){
                 const allSetsDone=sets.every(s=>s.done)&&sets.length>0;
                 const exPB=pbs[ex.name]||0;
                 const hasPR=sets.some(s=>isPR(ex.name,s.kg));
-                const isBW=sets.length>0&&sets[0].bw;
                 return(
                   <div key={ei} className={`ex-card ${allSetsDone?'is-done':''}`}>
                     <div className="ex-card-head">
@@ -832,30 +871,31 @@ function App(){
                             <span className="ex-sets-reps">{ex.rep} REPS</span>
                           </div>
                           {ex.dropset&&<div className="dropset-tag">DROP</div>}
+                          {ex.note&&<div style={{fontFamily:'var(--font-mono)',fontSize:'0.48rem',color:'var(--pull)',border:'1px solid rgba(0,229,255,0.3)',padding:'0.08rem 0.3rem',borderRadius:'2px',letterSpacing:'0.04em'}}>{ex.note}</div>}
                           {hasPR&&<div className="pr-badge">🏆 NEW PR</div>}
                           {allSetsDone&&<div style={{fontFamily:'var(--font-mono)',fontSize:'0.5rem',color:'var(--legs)',border:'1px solid rgba(178,255,89,0.3)',padding:'0.08rem 0.3rem',borderRadius:'2px'}}>✓ DONE</div>}
                         </div>
                       </div>
-                      <button
-                        onClick={()=>{
-                          update(s=>{
-                            const newBw=!isBW;
-                            s.weeks[week][dayIdx].sets[ei].forEach(set=>{set.bw=newBw;if(newBw)set.kg='';});
-                          });
-                        }}
-                        style={{fontFamily:'var(--font-mono)',fontSize:'0.52rem',padding:'0.25rem 0.5rem',border:`1px solid ${isBW?'rgba(178,255,89,0.6)':'var(--border2)'}`,background:isBW?'rgba(178,255,89,0.1)':'transparent',color:isBW?'var(--legs)':'var(--muted)',cursor:'pointer',borderRadius:'3px',letterSpacing:'0.06em',flexShrink:0,transition:'all 0.15s'}}
-                      >{isBW?'✓ BW':'BW'}</button>
                     </div>
 
                     {/* Sparkline trend */}
                     <SparkRow exName={ex.name} store={store} weekNums={weekNums} dayIdx={dayIdx} exIdx={ei} color={day.type}/>
 
+                    {/* Plate calculator — shown when a kg value exists for barbell exercises */}
+                    {(()=>{
+                      const barbellEx=['Barbell Bench Press','Overhead Barbell Press','Incline Barbell Press','Back Squats','Front Squats / Hack Squats','Deadlifts','Romanian Deadlifts','Barbell Rows'];
+                      if(!barbellEx.includes(ex.name))return null;
+                      const maxKg=Math.max(0,...sets.map(s=>parseFloat(s.kg)||0));
+                      return maxKg>=20?<PlateCalc kg={maxKg}/>:null;
+                    })()}
+
                     {/* Set headers */}
-                    <div className="set-header">
+                    <div className="set-header" style={{gridTemplateColumns:'28px 1fr 1fr 36px 48px 40px 44px'}}>
                       <div className="set-header-lbl" style={{textAlign:'left'}}>#</div>
                       <div className="set-header-lbl">KG</div>
                       <div className="set-header-lbl">REPS</div>
                       <div className="set-header-lbl" style={{fontSize:'0.44rem',color:'var(--pull)'}}>PREV</div>
+                      <div className="set-header-lbl" style={{fontSize:'0.44rem',color:'var(--abs)'}}>e1RM</div>
                       <div className="set-header-lbl">⏱</div>
                       <div className="set-header-lbl">✓</div>
                     </div>
@@ -867,18 +907,14 @@ function App(){
                         return(
                           <div key={si} id={`set-${dayIdx}-${ei}-${si}`}
                             className={`set-row ${s.done?'set-done-row':''} ${prThisSet&&s.kg?'pr-row':''}`}
-                            style={{gridTemplateColumns:'32px 1fr 1fr 36px 40px 44px'}}
+                            style={{gridTemplateColumns:'28px 1fr 1fr 36px 48px 40px 44px'}}
                           >
                             <div className="set-num">S{si+1}</div>
-                            {/* KG stepper — shows BW+kg or plain kg */}
-                            <div className={`stepper-wrap ${s.kg?'has-val':''}`} style={s.bw?{borderColor:'rgba(178,255,89,0.4)'}:{}}>
+                            {/* KG stepper */}
+                            <div className={`stepper-wrap ${s.kg?'has-val':''}`}>
                               <button className="step-btn" onMouseDown={e=>{e.preventDefault();updateSet(ei,si,'kg',String(Math.max(0,(parseFloat(s.kg)||0)-2.5)));}}>−</button>
-                              <div style={{position:'relative',flex:1,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                                {s.bw&&<span style={{fontFamily:'var(--font-mono)',fontSize:'0.42rem',color:'var(--legs)',position:'absolute',top:'2px',left:'50%',transform:'translateX(-50%)',whiteSpace:'nowrap',pointerEvents:'none',letterSpacing:'0.02em'}}>BW+</span>}
-                                <input className="set-field" type="number" inputMode="decimal" placeholder={s.bw?'extra':'kg'}
-                                  value={s.kg} onChange={e=>updateSet(ei,si,'kg',e.target.value)}
-                                  style={s.bw?{paddingTop:'10px',fontSize:'0.78rem',color:'var(--legs)'}:{}}/>
-                              </div>
+                              <input className="set-field" type="number" inputMode="decimal" placeholder="kg"
+                                value={s.kg} onChange={e=>updateSet(ei,si,'kg',e.target.value)}/>
                               <button className="step-btn" onMouseDown={e=>{e.preventDefault();updateSet(ei,si,'kg',String((parseFloat(s.kg)||0)+2.5));}}>+</button>
                             </div>
                             {/* Reps stepper */}
@@ -892,7 +928,15 @@ function App(){
                             <div style={{fontFamily:'var(--font-mono)',fontSize:'0.55rem',color:prevKg>0?'var(--pull)':'var(--dim)',textAlign:'center',lineHeight:1.2}}>
                               {prevKg>0?prevKg+'kg':'—'}
                             </div>
-                            <button className="timer-btn" onClick={()=>timer.start(day.type==='abs'?60:120)}>⏱</button>
+                            {/* e1RM */}
+                            <div style={{fontFamily:'var(--font-mono)',fontSize:'0.55rem',color:(s.kg&&s.reps)?'var(--abs)':'var(--dim)',textAlign:'center',lineHeight:1.2}}>
+                              {(s.kg&&s.reps)?calc1RM(s.kg,s.reps)+'kg':'—'}
+                            </div>
+                            <button className="timer-btn" title={ex.sets<=3&&!['Barbell Bench Press','Overhead Barbell Press','Back Squats','Deadlifts','Romanian Deadlifts'].includes(ex.name)?'60s isolation':'compound: 3min'} onClick={()=>{
+                              const compound=['Barbell Bench Press','Overhead Barbell Press','Incline Barbell Press','Back Squats','Front Squats / Hack Squats','Deadlifts','Romanian Deadlifts','Barbell Rows','T-Bar Row / Chest-Supported Row','Weighted Pull-Ups / Lat Pulldown','Leg Press','Hip Thrusts'];
+                              const secs=day.type==='abs'?60:compound.includes(ex.name)?180:90;
+                              timer.start(secs);
+                            }}>⏱</button>
                             <div className={`check-btn ${s.done?'checked':''}`} onClick={()=>toggleSet(ei,si)}>✓</div>
                           </div>
                         );
@@ -954,11 +998,18 @@ function App(){
               {[...weekNums].reverse().map(wn=>{
                 const wd=store.weeks[wn]||mkWeekData();
                 const doneCount=wd.filter(d=>d.done).length;
+                const weekVol=wd.reduce((a,dayD)=>a+dayD.sets.reduce((b,setArr)=>b+setArr.reduce((c,s)=>{
+                  const kg=parseFloat(s.kg)||0,reps=parseFloat(s.reps)||0;
+                  return c+(s.done?kg*reps:0);
+                },0),0),0);
                 return(
                   <div key={wn} className="week-card">
                     <div className="week-card-head">
                       <div className="week-card-title">WEEK {wn}</div>
-                      <div className="week-card-done">{doneCount}/7 DAYS {wn===week?'· CURRENT':''}</div>
+                      <div style={{display:'flex',gap:'0.6rem',alignItems:'center'}}>
+                        {weekVol>0&&<div style={{fontFamily:'var(--font-mono)',fontSize:'0.55rem',color:'var(--pull)'}}>{Math.round(weekVol).toLocaleString()}kg</div>}
+                        <div className="week-card-done">{doneCount}/7 DAYS {wn===week?'· CURRENT':''}</div>
+                      </div>
                     </div>
                     <div className="week-days-grid">
                       {DAYS.map((d,di)=>{
