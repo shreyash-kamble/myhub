@@ -582,7 +582,12 @@ function DraggableTimer({timer}){
 function App(){
   const[store,setStore]=useState(loadStore);
   const[tab,setTab]=useState('workout');
-  const[dayIdx,setDayIdx]=useState(0);
+  const[dayIdx,setDayIdx]=useState(()=>{
+    const s=loadStore();
+    const wd=s.weeks[s.currentWeek]||mkWeekData();
+    const first=wd.findIndex(d=>!d.done);
+    return first>=0?first:0;
+  });
   const[showReset,setShowReset]=useState(false);
   const[compareA,setCompareA]=useState(()=>store.currentWeek);
   const[compareB,setCompareB]=useState(()=>store.currentWeek>1?store.currentWeek-1:null);
