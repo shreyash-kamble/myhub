@@ -287,7 +287,9 @@ const CSS = `
   .up{color:var(--red);} .dn{color:var(--green);} .eq{color:var(--muted);}
 
   /* ── MONTHLY SCREEN ── */
-  .mon-wrap{padding:0.85rem 0.85rem 0;animation:slideUp 0.2s ease;}
+  @keyframes slideMonthLeft{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+  @keyframes slideMonthRight{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
+  .mon-wrap{padding:0.85rem 0.85rem 0;animation:slideMonthLeft 0.22s ease;}
   .month-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;}
   .month-title{font-family:var(--font-d);font-size:1.6rem;letter-spacing:0.06em;color:var(--text);}
   .month-nav-btn{background:var(--s2);border:1px solid var(--border2);color:var(--text2);
@@ -377,48 +379,97 @@ const CSS = `
     border:none;background:var(--s1);color:var(--text3);cursor:pointer;letter-spacing:0.06em;
     transition:all 0.15s;}
   .tab-btn.active-tab{background:var(--s2);color:var(--text);}
+
+  /* NOTE CHIPS */
+  .note-chips{display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:0.5rem;}
+  .note-chip{font-family:var(--font-m);font-size:0.58rem;padding:0.25rem 0.6rem;
+    border:1px solid var(--border2);background:var(--s3);color:var(--text2);
+    cursor:pointer;border-radius:2px;transition:all 0.12s;letter-spacing:0.02em;}
+  .note-chip:active{border-color:var(--red);color:var(--red);}
+
+  /* SEARCH */
+  .search-input{width:100%;background:var(--s2);border:1px solid var(--border2);
+    color:var(--text);font-family:var(--font-m);font-size:0.75rem;
+    padding:0.55rem 0.85rem;margin-bottom:0.65rem;letter-spacing:0.02em;}
+  .search-input:focus{outline:none;border-color:var(--red);}
+  .search-input::placeholder{color:var(--dim);}
+
+  /* PACE MARKER */
+  .pace-marker{position:absolute;top:-3px;bottom:-3px;width:2px;background:rgba(255,255,255,0.5);border-radius:1px;}
 `;
 
-/* ── SWIPEABLE EXP ITEM ── */
-function SwipeExpItem({e, onDelete, onEdit}) {
-  const [swiped, setSwiped] = useState(false);
+/* ── TAP EXP ITEM — tap = action sheet, swipe = still works ── */
+function TapExpItem({e, onDelete, onEdit}) {
+  const [showActions, setShowActions] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
+  const cat = CAT[e.cat];
   const startX = useRef(null);
-  const itemRef = useRef(null);
+  const didSwipe = useRef(false);
 
-  function onTouchStart(ev) { startX.current = ev.touches[0].clientX; }
+  function onTouchStart(ev) { startX.current = ev.touches[0].clientX; didSwipe.current = false; }
   function onTouchEnd(ev) {
     if (startX.current === null) return;
     const dx = startX.current - ev.changedTouches[0].clientX;
-    if (dx > 50) setSwiped(true);
-    else if (dx < -20) setSwiped(false);
+    if (Math.abs(dx) > 40) { didSwipe.current = true; }
     startX.current = null;
   }
   function handleClick() {
-    if (swiped) { setSwiped(false); return; }
-    onEdit(e);
+    if (didSwipe.current) return;
+    setShowActions(true);
+    setConfirmDel(false);
   }
 
   return (
-    <div className="exp-swipe-outer">
-      {swiped && (
-        <div className="exp-delete-reveal" onClick={()=>onDelete(e.id)}>🗑️</div>
-      )}
+    <>
       <div
-        ref={itemRef}
-        className={`exp-item${swiped?' swiped':''}`}
+        className="exp-item"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
         onClick={handleClick}
+        style={{borderLeft:`3px solid ${cat?.color||'#444'}`,paddingLeft:'0.85rem'}}
       >
-        <div className="exp-icon" style={{borderColor:CAT[e.cat]?.color+'44'}}>{CAT[e.cat]?.icon}</div>
+        <div className="exp-icon" style={{fontSize:'1.35rem',background:'none',border:'none',width:'28px',height:'28px',flexShrink:0}}>{cat?.icon}</div>
         <div className="exp-info">
-          <div className="exp-cat">{CAT[e.cat]?.label}{e.recurring&&<span style={{fontFamily:'var(--font-m)',fontSize:'0.48rem',color:'var(--yellow)',border:'1px solid rgba(255,214,0,0.4)',padding:'0.05rem 0.3rem',marginLeft:'0.4rem',borderRadius:'2px',letterSpacing:'0.04em'}}>↻ REC</span>}</div>
+          <div className="exp-cat" style={{color:cat?.color||'var(--text)'}}>{cat?.label}{e.recurring&&<span style={{fontFamily:'var(--font-m)',fontSize:'0.48rem',color:'var(--yellow)',border:'1px solid rgba(255,214,0,0.4)',padding:'0.05rem 0.3rem',marginLeft:'0.4rem',borderRadius:'2px',letterSpacing:'0.04em'}}>↻ REC</span>}</div>
           {e.note && <div className="exp-note">{e.note}</div>}
+          <div className="exp-date">{e.date=== today()?'TODAY':e.date}</div>
         </div>
-        <div className="exp-amt">{fmt(e.amount)}</div>
-        <button className="del-btn" onClick={ev=>{ev.stopPropagation();onDelete(e.id);}}>✕</button>
+        <div className="exp-amt" style={{color:cat?.color||'var(--text)'}}>{fmt(e.amount)}</div>
       </div>
-    </div>
+
+      {showActions && (
+        <div className="modal-overlay" onClick={()=>{setShowActions(false);setConfirmDel(false);}}>
+          <div className="modal" onClick={ev=>ev.stopPropagation()} style={{padding:'1.25rem'}}>
+            <div style={{display:'flex',alignItems:'center',gap:'0.65rem',marginBottom:'1rem',paddingBottom:'0.85rem',borderBottom:'1px solid var(--border)'}}>
+              <div style={{fontSize:'1.6rem'}}>{cat?.icon}</div>
+              <div>
+                <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',letterSpacing:'0.06em',color:cat?.color||'var(--text)'}}>{cat?.label}</div>
+                <div style={{fontFamily:'var(--font-d)',fontSize:'1.5rem',color:'var(--text)',letterSpacing:'0.04em'}}>{fmt(e.amount)}</div>
+                {e.note&&<div style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:'var(--text3)',marginTop:'2px'}}>{e.note}</div>}
+              </div>
+            </div>
+            {!confirmDel ? (
+              <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
+                <button className="modal-btn" style={{textAlign:'left',padding:'0.75rem 1rem',fontFamily:'var(--font-m)',fontSize:'0.72rem',letterSpacing:'0.04em'}}
+                  onClick={()=>{setShowActions(false);onEdit(e);}}>✏️ EDIT EXPENSE</button>
+                <button className="modal-btn" style={{textAlign:'left',padding:'0.75rem 1rem',fontFamily:'var(--font-m)',fontSize:'0.72rem',letterSpacing:'0.04em',borderColor:'rgba(255,61,0,0.4)',color:'var(--red)'}}
+                  onClick={()=>setConfirmDel(true)}>🗑️ DELETE</button>
+                <button className="modal-btn" style={{textAlign:'center',padding:'0.65rem',fontFamily:'var(--font-m)',fontSize:'0.65rem',color:'var(--text3)'}}
+                  onClick={()=>setShowActions(false)}>CANCEL</button>
+              </div>
+            ) : (
+              <div>
+                <div style={{fontFamily:'var(--font-m)',fontSize:'0.65rem',color:'var(--text3)',letterSpacing:'0.06em',textAlign:'center',marginBottom:'1rem'}}>DELETE THIS EXPENSE?</div>
+                <div style={{display:'flex',gap:'0.5rem'}}>
+                  <button className="modal-btn" onClick={()=>setConfirmDel(false)}>CANCEL</button>
+                  <button className="modal-btn primary" style={{background:'var(--red)',borderColor:'var(--red)'}} onClick={()=>{onDelete(e.id);setShowActions(false);}}>DELETE</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -463,6 +514,7 @@ function App() {
   const [store, setStore] = useState(()=>loadStore());
   const [tab, setTab] = useState('add');
   const [histTab, setHistTab] = useState('weeks');
+  const [searchQ, setSearchQ] = useState('');
   // add form
   const [amount, setAmount] = useState('');
   const [cat, setCat] = useState('groceries');
@@ -478,6 +530,8 @@ function App() {
   const [viewMonth, setViewMonth] = useState(today().slice(0,7));
   const [selMonthDay, setSelMonthDay] = useState(null);
   const [showAllMonthDays, setShowAllMonthDays] = useState(false);
+  const monthSwipeX = useRef(null);
+  const monthSwipeY = useRef(null);
   // compare
   const [cmpA, setCmpA] = useState('');
   const [cmpB, setCmpB] = useState('');
@@ -516,7 +570,7 @@ function App() {
     if (!amount || isNaN(parseFloat(amount))) return;
     const exp = { id:uid(), amount:parseFloat(amount), cat, note, date, recurring:isRecurring };
     update(s => { s.expenses = [exp, ...s.expenses]; });
-    setAmount(''); setNote('');
+    setAmount(''); setNote(''); setDate(today());
     setAddFlash(true);
     setTimeout(()=>setAddFlash(false), 800);
     showToast(`✓ ${fmt(exp.amount)} added to ${CAT[cat]?.label}${isRecurring?' (recurring)':''}`);
@@ -572,6 +626,17 @@ function App() {
   }
 
   const expenses = store.expenses;
+
+  // Note suggestions: recent unique notes for selected category
+  const recentNotes = useMemo(()=>{
+    const seen = new Set();
+    return expenses
+      .filter(e=>e.cat===cat&&e.note)
+      .sort((a,b)=>b.id.localeCompare(a.id))
+      .map(e=>e.note)
+      .filter(n=>{ if(seen.has(n)) return false; seen.add(n); return true; })
+      .slice(0,6);
+  },[expenses,cat]);
 
   const todayExps = useMemo(()=>expenses.filter(e=>e.date===today()),[expenses]);
   const todayTotal = useMemo(()=>todayExps.reduce((a,e)=>a+e.amount,0),[todayExps]);
@@ -644,7 +709,10 @@ function App() {
 
   const maxDaySpend = useMemo(()=>Math.max(1,...Object.values(monthDayTotals)),[monthDayTotals]);
 
+  const [monthAnimDir, setMonthAnimDir] = useState('left');
+
   function changeMonth(dir) {
+    setMonthAnimDir(dir > 0 ? 'left' : 'right');
     const [y,m]=viewMonth.split('-').map(Number);
     const d=new Date(y,m-1+dir,1);
     setViewMonth(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
@@ -678,7 +746,6 @@ function App() {
               <div className="app-title">SP<span>E</span>NT</div>
             </div>
             <div className="topbar-right">
-              <button className="export-btn" onClick={exportCSV}>↓ CSV</button>
               <button className="settings-btn" onClick={()=>{setBwInput(String(store.weekBudget));setBmInput(String(store.monthBudget));setShowBudget(true);}}>
                 ⚙ BUDGET
               </button>
@@ -695,8 +762,6 @@ function App() {
         {tab==='add' && (
           <div className="screen">
             <div className="add-wrap">
-              {weekOver && <div className="budget-warn"><span className="warn-icon">⚠️</span><span className="warn-txt">WEEK BUDGET EXCEEDED — {fmt(weekTotal)} / {fmt(store.weekBudget)}</span></div>}
-              {monthOver && <div className="budget-warn"><span className="warn-icon">🚨</span><span className="warn-txt">MONTH BUDGET EXCEEDED — {fmt(monthTotal)} / {fmt(store.monthBudget)}</span></div>}
 
               <div className={`amount-block${addFlash?' flash':''}`}>
                 <div className="amount-label">AMOUNT</div>
@@ -708,12 +773,7 @@ function App() {
                     autoFocus
                   />
                 </div>
-              </div>
 
-              <div className="quick-row">
-                {[5,10,20,50].map(v=>(
-                  <div key={v} className="quick-btn" onClick={()=>setAmount(String(v))}>£{v}</div>
-                ))}
               </div>
 
               <div className="field-block">
@@ -736,10 +796,17 @@ function App() {
                   value={note} onChange={e=>setNote(e.target.value)}
                   onKeyDown={e=>e.key==='Enter'&&addExpense()}
                 />
+                {recentNotes.length>0&&(
+                  <div className="note-chips">
+                    {recentNotes.map(n=>(
+                      <div key={n} className="note-chip" onClick={()=>setNote(n)}>{n}</div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="field-block">
-                <div className="field-label">DATE</div>
+                <div className="field-label">DATE{date===today()&&<span style={{marginLeft:'0.5rem',color:'var(--orange)',fontSize:'0.58rem'}}>· TODAY</span>}</div>
                 <input className="date-input" type="date" value={date} onChange={e=>setDate(e.target.value)}/>
               </div>
 
@@ -758,38 +825,9 @@ function App() {
               </div>
 
               <button className={`add-btn${addFlash?' success':''}`} disabled={!amount||isNaN(parseFloat(amount))} onClick={addExpense}>
-                {addFlash ? '✓ ADDED!' : 'ADD EXPENSE'}
+                {addFlash ? '✓ ADDED!' : amount && !isNaN(parseFloat(amount)) ? `ADD £${parseFloat(amount).toFixed(2)}` : 'ADD EXPENSE'}
               </button>
 
-              {/* Income vs Spend crossover */}
-              {(shiftsData.weekIncome>0||shiftsData.monthIncome>0)&&<div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--green)',padding:'0.85rem 1rem',marginTop:'0.75rem'}}>
-                <div style={{fontFamily:'var(--font-m)',fontSize:'0.58rem',color:'var(--green)',letterSpacing:'0.1em',marginBottom:'0.5rem'}}>INCOME VS SPEND · FROM SHIFTS</div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem'}}>
-                  <div>
-                    <div style={{fontFamily:'var(--font-m)',fontSize:'0.52rem',color:'var(--text3)',letterSpacing:'0.06em',marginBottom:'2px'}}>THIS WEEK</div>
-                    <div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:shiftsData.weekIncome>=weekTotal?'var(--green)':'var(--red)'}}>{fmt(shiftsData.weekIncome-weekTotal)}</div>
-                    <div style={{fontFamily:'var(--font-m)',fontSize:'0.5rem',color:'var(--muted)'}}>+{fmt(shiftsData.weekIncome)} −{fmt(weekTotal)}</div>
-                  </div>
-                  <div>
-                    <div style={{fontFamily:'var(--font-m)',fontSize:'0.52rem',color:'var(--text3)',letterSpacing:'0.06em',marginBottom:'2px'}}>THIS MONTH</div>
-                    <div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:shiftsData.monthIncome>=monthTotal?'var(--green)':'var(--red)'}}>{fmt(shiftsData.monthIncome-monthTotal)}</div>
-                    <div style={{fontFamily:'var(--font-m)',fontSize:'0.5rem',color:'var(--muted)'}}>+{fmt(shiftsData.monthIncome)} −{fmt(monthTotal)}</div>
-                  </div>
-                </div>
-              </div>}
-
-              <div style={{display:'flex',justifyContent:'space-between',padding:'1rem 0 0.5rem',borderTop:'1px solid var(--border)',marginTop:shiftsData.weekIncome>0?'0.5rem':'1rem'}}>
-                <div>
-                  <div style={{fontFamily:'var(--font-m)',fontSize:'0.58rem',color:'var(--text3)',letterSpacing:'0.08em'}}>TODAY</div>
-                  <div style={{fontFamily:'var(--font-d)',fontSize:'1.4rem',color:'var(--text)'}}>{fmt(todayTotal)}</div>
-                  <div style={{fontFamily:'var(--font-m)',fontSize:'0.55rem',color:'var(--text3)'}}>{todayExps.length} transactions</div>
-                </div>
-                <div style={{textAlign:'right'}}>
-                  <div style={{fontFamily:'var(--font-m)',fontSize:'0.58rem',color:'var(--text3)',letterSpacing:'0.08em'}}>THIS WEEK</div>
-                  <div style={{fontFamily:'var(--font-d)',fontSize:'1.4rem',color:weekOver?'var(--red)':'var(--text)'}}>{fmt(weekTotal)}</div>
-                  <div style={{fontFamily:'var(--font-m)',fontSize:'0.55rem',color:weekOver?'var(--red)':'var(--text3)'}}>{weekOver?'over budget':`${fmt(store.weekBudget-weekTotal)} left`}</div>
-                </div>
-              </div>
             </div>
           </div>
         )}
@@ -797,42 +835,98 @@ function App() {
         {tab==='expenses' && (
           <div className="screen">
             <div className="exp-wrap">
-              <div className="today-hero">
-                <div className="today-lbl">TODAY'S TOTAL</div>
-                <div className="today-amt">{fmt(todayTotal)}</div>
-                <div className="today-count">{todayExps.length} transactions</div>
-              </div>
+              {/* Search */}
+              <input
+                className="search-input"
+                type="text"
+                placeholder="🔍  search by note or category..."
+                value={searchQ}
+                onChange={e=>setSearchQ(e.target.value)}
+              />
 
-              <div className="week-strip">
-                {last7.map(d=>(
-                  <div key={d} className={`wday-pill ${selectedDay===d?'active-day':''}`} onClick={()=>setSelectedDay(d)}>
-                    <div className="wday-pill-day">{dayName(d)}</div>
-                    <div className="wday-pill-amt">{dayTotals[d]?fmtShort(dayTotals[d]):'—'}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{background:'var(--s1)',border:'1px solid var(--border)',padding:'0.75rem 1rem',marginBottom:'0.6rem'}}>
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.45rem'}}>
-                  <span style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:'var(--text3)',letterSpacing:'0.08em'}}>WEEK BUDGET</span>
-                  <span style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:weekOver?'var(--red)':'var(--text2)'}}>{fmt(weekTotal)} / {fmt(store.weekBudget)}</span>
-                </div>
-                <div className="budget-bar-track">
-                  <div className="budget-bar-fill" style={{width:weekPct+'%',background:weekPct>90?'var(--red)':weekPct>70?'var(--orange)':'var(--green)'}}/>
-                </div>
-              </div>
-
-              <div className="section-hd">{selectedDay===today()?'TODAY':selectedDay} · {fmt(dayTotals[selectedDay]||0)}</div>
-              {selectedDayExps.length===0 ? (
-                <div className="empty-state">
-                  <div className="empty-state-icon">💸</div>
-                  <div className="empty-state-txt">NO EXPENSES{selectedDay===today()?' TODAY':` ON ${selectedDay}`}</div>
-                  {selectedDay===today() && <button className="empty-state-cta" onClick={()=>setTab('add')}>ADD ONE →</button>}
-                </div>
+              {searchQ.trim() ? (
+                /* SEARCH RESULTS */
+                (()=>{
+                  const q=searchQ.toLowerCase();
+                  const results=expenses.filter(e=>
+                    (e.note&&e.note.toLowerCase().includes(q))||
+                    CAT[e.cat]?.label.toLowerCase().includes(q)
+                  ).sort((a,b)=>b.date.localeCompare(a.date));
+                  return results.length===0
+                    ? <div className="empty-state"><div className="empty-state-icon">🔍</div><div className="empty-state-txt">NO RESULTS FOR "{searchQ.toUpperCase()}"</div></div>
+                    : <>
+                        <div style={{fontFamily:'var(--font-m)',fontSize:'0.58rem',color:'var(--text3)',letterSpacing:'0.08em',marginBottom:'0.5rem'}}>{results.length} RESULTS</div>
+                        {results.map(e=><TapExpItem key={e.id} e={e} onDelete={delExpense} onEdit={openEdit}/>)}
+                      </>;
+                })()
               ) : (
-                selectedDayExps.map(e=>(
-                  <SwipeExpItem key={e.id} e={e} onDelete={delExpense} onEdit={openEdit}/>
-                ))
+                <>
+                  {/* Today hero */}
+                  <div className="today-hero">
+                    <div className="today-lbl">TODAY'S TOTAL</div>
+                    <div className="today-amt">{fmt(todayTotal)}</div>
+                    <div className="today-count">{todayExps.length} transactions</div>
+                  </div>
+
+                  {/* Week strip */}
+                  <div className="week-strip">
+                    {last7.map(d=>(
+                      <div key={d} className={`wday-pill ${selectedDay===d?'active-day':''}`} onClick={()=>setSelectedDay(d)}>
+                        <div className="wday-pill-day">{dayName(d)}</div>
+                        <div className="wday-pill-amt">{dayTotals[d]?fmtShort(dayTotals[d]):'—'}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Budget bar with pace */}
+                  <div style={{background:'var(--s1)',border:'1px solid var(--border)',padding:'0.75rem 1rem',marginBottom:'0.6rem'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.45rem'}}>
+                      <span style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:'var(--text3)',letterSpacing:'0.08em'}}>WEEK BUDGET</span>
+                      <span style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:weekOver?'var(--red)':'var(--text2)'}}>{fmt(weekTotal)} / {fmt(store.weekBudget)}</span>
+                    </div>
+                    <div className="budget-bar-track" style={{position:'relative'}}>
+                      <div className="budget-bar-fill" style={{width:weekPct+'%',background:weekPct>90?'var(--red)':weekPct>70?'var(--orange)':'var(--green)'}}/>
+                      {(()=>{const dayOfWeek=new Date().getDay()||7;const pacePct=Math.min(100,(dayOfWeek/7)*100);return <div className="pace-marker" style={{left:pacePct+'%'}}/>;})()}
+                    </div>
+                    <div style={{fontFamily:'var(--font-m)',fontSize:'0.52rem',color:'var(--muted)',marginTop:'0.25rem'}}>
+                      {(()=>{const d=new Date().getDay()||7;const expected=(d/7)*store.weekBudget;const diff=weekTotal-expected;return diff>0?`£${diff.toFixed(0)} ahead of pace`:`£${Math.abs(diff).toFixed(0)} under pace`;})()}
+                    </div>
+                  </div>
+
+                  {/* Selected day expenses */}
+                  <div className="section-hd">{selectedDay===today()?'TODAY':selectedDay} · {fmt(dayTotals[selectedDay]||0)}</div>
+                  {selectedDayExps.length===0 ? (
+                    <div className="empty-state">
+                      <div className="empty-state-icon">💸</div>
+                      <div className="empty-state-txt">NO EXPENSES{selectedDay===today()?' TODAY':` ON ${selectedDay}`}</div>
+                      {selectedDay===today() && <button className="empty-state-cta" onClick={()=>setTab('add')}>ADD ONE →</button>}
+                    </div>
+                  ) : (
+                    selectedDayExps.map(e=><TapExpItem key={e.id} e={e} onDelete={delExpense} onEdit={openEdit}/>)
+                  )}
+
+                  {/* Full history below */}
+                  <div style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:'var(--text3)',letterSpacing:'0.1em',padding:'0.75rem 0 0.5rem',borderTop:'1px solid var(--border)',marginTop:'0.5rem'}}>ALL HISTORY · {expenses.length} EXPENSES</div>
+                  {allWeeks.length===0 && <div style={{fontFamily:'var(--font-m)',fontSize:'0.62rem',color:'var(--text3)',padding:'1rem 0'}}>NO HISTORY YET</div>}
+                  {allWeeks.map(w=>(
+                    <div key={w.week} className="week-hist-card">
+                      <div className="whc-head" onClick={()=>setExpandedWeek(expandedWeek===w.week?null:w.week)}>
+                        <div className="whc-title">{w.week} {expandedWeek===w.week?'▲':'▼'}</div>
+                        <div className="whc-right">
+                          <div className="whc-amt">{fmt(w.total)}</div>
+                          <div className="whc-count">{w.count} expenses</div>
+                        </div>
+                      </div>
+                      {expandedWeek===w.week && (
+                        <div className="whc-body">
+                          {expenses.filter(e=>Object.keys(w.days).includes(e.date)).sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id)).map(e=>(
+                            <TapExpItem key={e.id} e={e} onDelete={delExpense} onEdit={openEdit}/>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </>
               )}
             </div>
           </div>
@@ -904,40 +998,6 @@ function App() {
                     </div>
                   </div>
 
-                  {/* Income vs Spend crossover */}
-                  {(shiftsData.weekIncome>0||shiftsData.monthIncome>0)&&(
-                    <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--green)',padding:'1rem',marginBottom:'0.6rem'}}>
-                      <div style={{fontFamily:'var(--font-m)',fontSize:'0.58rem',color:'var(--green)',letterSpacing:'0.1em',marginBottom:'0.65rem'}}>INCOME VS SPEND · SHIFTS DATA</div>
-                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem',marginBottom:'0.6rem'}}>
-                        {[
-                          {lbl:'WEEK NET',val:shiftsData.weekIncome-weekTotal,inc:shiftsData.weekIncome,exp:weekTotal},
-                          {lbl:'MONTH NET',val:shiftsData.monthIncome-monthTotal,inc:shiftsData.monthIncome,exp:monthTotal},
-                        ].map(({lbl,val,inc,exp})=>(
-                          <div key={lbl} style={{background:'var(--s2)',border:'1px solid var(--border2)',padding:'0.75rem'}}>
-                            <div style={{fontFamily:'var(--font-m)',fontSize:'0.52rem',color:'var(--text3)',letterSpacing:'0.06em',marginBottom:'3px'}}>{lbl}</div>
-                            <div style={{fontFamily:'var(--font-d)',fontSize:'1.4rem',color:val>=0?'var(--green)':'var(--red)'}}>{val>=0?'+':''}{fmt(val)}</div>
-                            <div style={{fontFamily:'var(--font-m)',fontSize:'0.5rem',color:'var(--muted)',marginTop:'2px'}}>in {fmt(inc)} · out {fmt(exp)}</div>
-                          </div>
-                        ))}
-                      </div>
-                      {/* Spend/Income bar */}
-                      {shiftsData.weekIncome>0&&(()=>{
-                        const pct=Math.min(100,(weekTotal/shiftsData.weekIncome)*100);
-                        return(
-                          <div>
-                            <div style={{display:'flex',justifyContent:'space-between',fontFamily:'var(--font-m)',fontSize:'0.52rem',color:'var(--text3)',marginBottom:'4px'}}>
-                              <span>SPENT {Math.round(pct)}% of week income</span>
-                              <span>{fmt(weekTotal)} / {fmt(shiftsData.weekIncome)}</span>
-                            </div>
-                            <div style={{height:'5px',background:'var(--dim)',borderRadius:'2px'}}>
-                              <div style={{height:'100%',width:pct+'%',background:pct>90?'var(--red)':pct>65?'var(--orange)':'var(--green)',borderRadius:'2px',transition:'width 0.4s'}}/>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-
                   <div className="chart-card">
                     <div className="chart-title">LAST 7 DAYS</div>
                     <div className="bar-chart">
@@ -980,124 +1040,33 @@ function App() {
           </div>
         )}
 
-        {tab==='history' && (
-          <div className="screen">
-            <div className="hist-wrap">
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'0.75rem'}}>
-                <div>
-                  <div className="screen-title">HISTORY</div>
-                  <div className="screen-sub">{expenses.length} total expenses</div>
-                </div>
-              </div>
-
-              <div className="tab-row">
-                <button className={`tab-btn ${histTab==='weeks'?'active-tab':''}`} onClick={()=>setHistTab('weeks')}>WEEKS</button>
-                <button className={`tab-btn ${histTab==='compare'?'active-tab':''}`} onClick={()=>setHistTab('compare')}>COMPARE</button>
-              </div>
-
-              {histTab==='weeks' && (
-                <>
-                  {allWeeks.length===0 && (
-                    <div className="empty-state">
-                      <div className="empty-state-icon">📅</div>
-                      <div className="empty-state-txt">NO HISTORY YET</div>
-                      <button className="empty-state-cta" onClick={()=>setTab('add')}>ADD FIRST EXPENSE →</button>
-                    </div>
-                  )}
-                  {allWeeks.map(w=>(
-                    <div key={w.week} className="week-hist-card">
-                      <div className="whc-head" onClick={()=>setExpandedWeek(expandedWeek===w.week?null:w.week)}>
-                        <div className="whc-title">{w.week} {expandedWeek===w.week?'▲':'▼'}</div>
-                        <div className="whc-right">
-                          <div className="whc-amt">{fmt(w.total)}</div>
-                          <div className="whc-count">{w.count} expenses</div>
-                        </div>
-                      </div>
-                      {expandedWeek===w.week && (
-                        <div className="whc-body">
-                          {Object.entries(w.days).sort((a,b)=>b[0].localeCompare(a[0])).map(([d,t])=>(
-                            <div key={d} className="whc-day-row">
-                              <div className="whc-day-lbl">{d} {dayName(d)}</div>
-                              <div className="whc-day-amt">{fmt(t)}</div>
-                            </div>
-                          ))}
-                          <div style={{marginTop:'0.5rem',paddingTop:'0.5rem',borderTop:'1px solid var(--border)',display:'flex',justifyContent:'flex-end'}}>
-                            <span style={{fontFamily:'var(--font-d)',fontSize:'1rem',color:'var(--orange)'}}>TOTAL: {fmt(w.total)}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </>
-              )}
-
-              {histTab==='compare' && (
-                <>
-                  <div className="cmp-selects">
-                    <select className="cmp-select" value={cmpA} onChange={e=>setCmpA(e.target.value)}>
-                      <option value="">SELECT WEEK</option>
-                      {weekKeys.map(k=><option key={k} value={k}>{k}</option>)}
-                    </select>
-                    <div className="cmp-vs">VS</div>
-                    <select className="cmp-select" value={cmpB} onChange={e=>setCmpB(e.target.value)}>
-                      <option value="">SELECT WEEK</option>
-                      {weekKeys.filter(k=>k!==cmpA).map(k=><option key={k} value={k}>{k}</option>)}
-                    </select>
-                  </div>
-                  {cmpAData && cmpBData ? (
-                    <table className="cmp-table">
-                      <thead>
-                        <tr>
-                          <th>CATEGORY</th>
-                          <th>{cmpA}</th>
-                          <th>{cmpB}</th>
-                          <th>DIFF</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {CATS.map(c=>{
-                          const a=expenses.filter(e=>e.cat===c.id&&Object.keys(cmpAData.days).includes(e.date)).reduce((s,e)=>s+e.amount,0);
-                          const b=expenses.filter(e=>e.cat===c.id&&Object.keys(cmpBData.days).includes(e.date)).reduce((s,e)=>s+e.amount,0);
-                          if(!a&&!b) return null;
-                          const diff=b-a;
-                          return (
-                            <tr key={c.id}>
-                              <td style={{fontFamily:'var(--font-b)',fontWeight:600,fontSize:'0.85rem',color:'var(--text)'}}>{c.icon} {c.label}</td>
-                              <td>{a>0?fmt(a):'—'}</td>
-                              <td>{b>0?fmt(b):'—'}</td>
-                              <td className={diff>0?'up':diff<0?'dn':'eq'}>{diff>0?`+${fmt(diff)}`:diff<0?fmt(diff):'—'}</td>
-                            </tr>
-                          );
-                        })}
-                        <tr style={{background:'var(--s2)'}}>
-                          <td style={{fontFamily:'var(--font-d)',fontSize:'0.9rem',letterSpacing:'0.06em',color:'var(--text)'}}>TOTAL</td>
-                          <td style={{fontFamily:'var(--font-d)',fontSize:'0.9rem',color:'var(--text)'}}>{fmt(cmpAData.total)}</td>
-                          <td style={{fontFamily:'var(--font-d)',fontSize:'0.9rem',color:'var(--text)'}}>{fmt(cmpBData.total)}</td>
-                          <td className={cmpBData.total-cmpAData.total>0?'up':'dn'} style={{fontFamily:'var(--font-d)',fontSize:'0.9rem'}}>
-                            {cmpBData.total>cmpAData.total?'+':''}{fmt(cmpBData.total-cmpAData.total)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div className="empty-state">
-                      <div className="empty-state-icon">⚖️</div>
-                      <div className="empty-state-txt">SELECT TWO WEEKS TO COMPARE</div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
         {tab==='monthly' && (
-          <div className="screen">
-            <div className="mon-wrap">
+          <div className="screen"
+            onTouchStart={e=>{ monthSwipeX.current=e.touches[0].clientX; monthSwipeY.current=e.touches[0].clientY; }}
+            onTouchEnd={e=>{
+              if(monthSwipeX.current===null) return;
+              const dx=e.changedTouches[0].clientX-monthSwipeX.current;
+              const dy=e.changedTouches[0].clientY-monthSwipeY.current;
+              if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>40){
+                changeMonth(dx<0?1:-1);
+              }
+              monthSwipeX.current=null; monthSwipeY.current=null;
+            }}
+          >
+              <div className="mon-wrap" style={{animation:`${monthAnimDir==='left'?'slideMonthLeft':'slideMonthRight'} 0.22s ease`}}>
               <div className="month-nav">
                 <button className="month-nav-btn" onClick={()=>changeMonth(-1)}>◀</button>
-                <div className="month-title">{monthName(viewMonth)} {viewMonth.split('-')[0]}</div>
-                <button className="month-nav-btn" onClick={()=>changeMonth(1)}>▶</button>
+                <div style={{textAlign:'center'}}>
+                  <div className="month-title">{monthName(viewMonth)} {viewMonth.split('-')[0]}</div>
+                  <div style={{fontFamily:'var(--font-m)',fontSize:'0.5rem',color:'var(--muted)',letterSpacing:'0.06em',marginTop:'1px'}}>swipe to navigate</div>
+                  {viewMonth !== today().slice(0,7) && (
+                    <div onClick={()=>{setMonthAnimDir('right');setViewMonth(today().slice(0,7));setSelMonthDay(null);setShowAllMonthDays(false);}}
+                      style={{fontFamily:'var(--font-m)',fontSize:'0.52rem',color:'var(--orange)',cursor:'pointer',marginTop:'3px',letterSpacing:'0.06em'}}>
+                      ↩ THIS MONTH
+                    </div>
+                  )}
+                </div>
+                <button className="month-nav-btn" onClick={()=>changeMonth(1)} style={{opacity: viewMonth >= today().slice(0,7) ? 0.3 : 1, pointerEvents: viewMonth >= today().slice(0,7) ? 'none' : 'auto'}}>▶</button>
               </div>
 
               <div className="month-hero">
@@ -1144,13 +1113,19 @@ function App() {
                     const isToday=d===today();
                     const isSel=selMonthDay===d;
                     const intensity=amt>0?Math.max(0.15,Math.min(1,amt/maxDaySpend)):0;
+                    const dayExps=monthExps.filter(e=>e.date===d);
+                    const topCats=[...new Set(dayExps.map(e=>e.cat))].slice(0,3);
                     return (
                       <div key={d} className={`day-cell ${isToday?'today-cell':''} ${amt>0?'has-spend':''} ${isSel?'sel-cell':''}`}
                         onClick={()=>setSelMonthDay(isSel?null:d)}
                         style={amt>0&&!isSel?{borderColor:`rgba(255,140,0,${intensity*0.8})`}:{}}
                       >
                         <div className="day-cell-num">{parseInt(d.split('-')[2])}</div>
-                        {amt>0&&<div className="day-cell-dot" style={{background:`rgba(255,140,0,${0.4+intensity*0.6})`}}/>}
+                        <div style={{display:'flex',gap:'1px',marginTop:'2px'}}>
+                          {topCats.map(cid=>(
+                            <div key={cid} style={{width:'5px',height:'5px',borderRadius:'50%',background:CAT[cid]?.color||'#888'}}/>
+                          ))}
+                        </div>
                       </div>
                     );
                   })}
@@ -1161,7 +1136,7 @@ function App() {
                       {selMonthDay} · {fmt(monthDayTotals[selMonthDay]||0)}
                     </div>
                     {selMonthDayExps.map(e=>(
-                      <SwipeExpItem key={e.id} e={e} onDelete={delExpense} onEdit={openEdit}/>
+                      <TapExpItem key={e.id} e={e} onDelete={delExpense} onEdit={openEdit}/>
                     ))}
                   </div>
                 )}
@@ -1197,7 +1172,7 @@ function App() {
                   </div>
                   <div className="dl-body">
                     {es.map(e=>(
-                      <SwipeExpItem key={e.id} e={e} onDelete={delExpense} onEdit={openEdit}/>
+                      <TapExpItem key={e.id} e={e} onDelete={delExpense} onEdit={openEdit}/>
                     ))}
                   </div>
                 </div>
@@ -1220,7 +1195,6 @@ function App() {
             {id:'add',icon:'➕',label:'ADD'},
             {id:'expenses',icon:'📋',label:'EXPENSES'},
             {id:'analytics',icon:'📊',label:'ANALYTICS'},
-            {id:'history',icon:'📅',label:'HISTORY'},
             {id:'monthly',icon:'🗓️',label:'MONTHLY'},
           ].map(n=>(
             <button key={n.id} className={`bnav-item ${tab===n.id?'active':''}`} onClick={()=>setTab(n.id)}>

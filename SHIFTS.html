@@ -39,31 +39,32 @@ const LICO={'TR':'🎪','Byker':'🍺','NUFC':'⚽','Boiler Shop':'🔧','O2 Cit
 const uid=(()=>{let i=Date.now();return()=>String(++i);})();
 
 function useSwipeRef(onLeft,onRight){
-  const ref=useRef(null);
-  const sx=useRef(null),sy=useRef(null);
-  useEffect(()=>{
-    const el=ref.current;if(!el)return;
-    function onTS(e){sx.current=e.touches[0].clientX;sy.current=e.touches[0].clientY;}
+  const cbL=useRef(onLeft),cbR=useRef(onRight);
+  useEffect(()=>{cbL.current=onLeft;},[onLeft]);
+  useEffect(()=>{cbR.current=onRight;},[onRight]);
+  const ref=useCallback(el=>{
+    if(!el)return;
+    let sx=null,sy=null;
+    function onTS(e){sx=e.touches[0].clientX;sy=e.touches[0].clientY;}
     function onTM(e){
-      if(sx.current===null)return;
-      const dx=e.touches[0].clientX-sx.current;
-      const dy=e.touches[0].clientY-sy.current;
-      if(Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)){e.preventDefault();}
+      if(sx===null)return;
+      const dx=e.touches[0].clientX-sx;
+      const dy=e.touches[0].clientY-sy;
+      if(Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)){e.preventDefault();}
     }
     function onTE(e){
-      if(sx.current===null)return;
-      const dx=e.changedTouches[0].clientX-sx.current;
-      const dy=e.changedTouches[0].clientY-sy.current;
-      if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)){
-        if(dx<0)onLeft();else onRight();
+      if(sx===null)return;
+      const dx=e.changedTouches[0].clientX-sx;
+      const dy=e.changedTouches[0].clientY-sy;
+      if(Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy)){
+        if(dx<0)cbL.current();else cbR.current();
       }
-      sx.current=null;sy.current=null;
+      sx=null;sy=null;
     }
     el.addEventListener('touchstart',onTS,{passive:true});
     el.addEventListener('touchmove',onTM,{passive:false});
     el.addEventListener('touchend',onTE,{passive:true});
-    return()=>{el.removeEventListener('touchstart',onTS);el.removeEventListener('touchmove',onTM);el.removeEventListener('touchend',onTE);};
-  },[onLeft,onRight]);
+  },[]);
   return ref;
 }
 const fmtH=h=>{const w=Math.floor(h),m=Math.round((h-w)*60);return m?`${w}h ${m}m`:`${w}h`;};
@@ -79,10 +80,10 @@ function calcH(s,e){
 function wkNum(ds){const d=new Date(ds),j=new Date(d.getFullYear(),0,1);return Math.ceil(((d-j)/86400000+j.getDay()+1)/7);}
 function mkKey(ds){return ds.slice(0,7);}
 function mkName(mk){const[y,m]=mk.split('-');return`${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]} ${y}`;}
-function dayName(ds){return['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(ds).getDay()];}
+function dayName(ds){return['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(ds).getDay()];}
 const TODAY=new Date().toISOString().slice(0,10);
 
-function loadStore(){try{const r=localStorage.getItem('shifts_v4');if(r)return JSON.parse(r);}catch(e){}return{shifts:[],hourlyRate:12.21};}
+function loadStore(){try{const r=localStorage.getItem('shifts_v4');if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;return d;}}catch(e){}return{shifts:[],hourlyRate:12.21,weeklyTarget:0};}
 function saveStore(s){try{localStorage.setItem('shifts_v4',JSON.stringify(s));}catch(e){}}
 
 function calDays(mk){
@@ -96,10 +97,72 @@ function calDays(mk){
   return days;
 }
 
+/* ── 24H TIME INPUT ── */
+function TimeInput({value, onChange, placeholder='HH:MM', className}){
+  const[raw,setRaw]=useState(value||'');
+  const ref=useRef(null);
+
+  // Keep in sync if parent value changes (e.g. reset)
+  useEffect(()=>{setRaw(value||'');},[value]);
+
+  function handleChange(e){
+    let v=e.target.value.replace(/[^0-9:]/g,'');
+    // Auto-insert colon after 2 digits
+    if(v.length===2&&raw.length===1&&!v.includes(':'))v=v+':';
+    // Limit to HH:MM
+    if(v.length>5)return;
+    setRaw(v);
+    // Validate & emit
+    const m=v.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+    if(m){
+      const hh=m[1].padStart(2,'0'),mm=m[2];
+      onChange(`${hh}:${mm}`);
+    } else if(v===''){
+      onChange('');
+    }
+  }
+
+  function handleBlur(){
+    // Try to fix partial input on blur
+    const m=raw.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+    if(m){
+      const fixed=`${m[1].padStart(2,'0')}:${m[2]}`;
+      setRaw(fixed);
+      onChange(fixed);
+    } else if(raw&&!raw.match(/^([01]?\d|2[0-3]):([0-5]\d)$/)){
+      // invalid — clear
+      setRaw('');onChange('');
+    }
+  }
+
+  function handleKeyDown(e){
+    if(e.key==='Backspace'&&raw.endsWith(':'))setRaw(raw.slice(0,-1));
+  }
+
+  return(
+    <input
+      ref={ref}
+      className={className}
+      type="text"
+      inputMode="numeric"
+      placeholder={placeholder}
+      value={raw}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      maxLength={5}
+      autoComplete="off"
+    />
+  );
+}
+
 const CSS=`
 @keyframes up{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}
 @keyframes pop{from{transform:scale(.93);opacity:0}to{transform:scale(1);opacity:1}}
 @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(0,229,255,.1)}50%{box-shadow:0 0 18px 5px rgba(0,229,255,.25)}}
+@keyframes lpress{0%{transform:scale(1)}50%{transform:scale(.97)}100%{transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-3px)}40%{transform:translateX(3px)}60%{transform:translateX(-2px)}80%{transform:translateX(2px)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 
 .app{display:flex;flex-direction:column;height:100vh;height:100dvh;background:var(--bg);overflow:hidden;}
 
@@ -108,28 +171,29 @@ const CSS=`
 .tb-inner{display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;}
 .title{font-family:var(--font-d);font-size:1.8rem;letter-spacing:.1em;color:var(--text);}
 .title span{color:var(--accent);}
-.rate-btn{font-family:var(--font-m);font-size:.6rem;color:var(--green);border:1px solid rgba(61,255,160,.35);background:rgba(61,255,160,.08);padding:.3rem .7rem;cursor:pointer;border-radius:4px;letter-spacing:.06em;}
+.rate-btn{font-family:var(--font-m);font-size:.65rem;color:var(--green);border:1px solid rgba(61,255,160,.35);background:rgba(61,255,160,.08);padding:.35rem .8rem;cursor:pointer;border-radius:4px;letter-spacing:.06em;display:flex;flex-direction:column;align-items:center;gap:1px;}
+.rate-btn-lbl{font-size:.48rem;color:var(--muted);letter-spacing:.1em;}
 
 /* SCREEN + NAV */
 .screen{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(68px + env(safe-area-inset-bottom,0));}
 .bnav{position:fixed;bottom:0;left:0;right:0;background:var(--s1);border-top:1px solid var(--border);display:flex;z-index:10;padding-bottom:env(safe-area-inset-bottom,0);}
-.bni{flex:1;display:flex;flex-direction:column;align-items:center;padding:.55rem .25rem;cursor:pointer;border:none;background:none;color:var(--muted);font-family:var(--font-m);font-size:.48rem;letter-spacing:.06em;gap:.18rem;transition:color .2s;}
+.bni{flex:1;display:flex;flex-direction:column;align-items:center;padding:.55rem .25rem;cursor:pointer;border:none;background:none;color:var(--muted);font-family:var(--font-m);font-size:.52rem;letter-spacing:.06em;gap:.18rem;transition:color .2s;}
 .bni.act{color:var(--accent);}
 .bni-ico{font-size:1.05rem;line-height:1;}
 
 /* ADD */
 .add-wrap{padding:1rem .85rem 0;animation:up .2s ease;}
 .fcard{background:var(--s1);border:1px solid var(--border);padding:1rem;margin-bottom:.6rem;border-radius:7px;}
-.flbl{font-family:var(--font-m);font-size:.6rem;color:var(--accent);letter-spacing:.1em;margin-bottom:.5rem;}
+.flbl{font-family:var(--font-m);font-size:.65rem;color:var(--accent);letter-spacing:.1em;margin-bottom:.5rem;}
 .finp{width:100%;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-m);font-size:.9rem;padding:.48rem .65rem;transition:border-color .15s;border-radius:4px;}
 .finp:focus{outline:none;border-color:var(--accent);}
 .trow{display:grid;grid-template-columns:1fr 20px 1fr;gap:.4rem;align-items:center;}
 .tsep{font-family:var(--font-d);font-size:1.1rem;color:var(--muted);text-align:center;}
 .lgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:.35rem;}
-.lbtn{display:flex;align-items:center;gap:.3rem;padding:.5rem .4rem;border:1px solid var(--border2);background:var(--s2);cursor:pointer;font-family:var(--font-b);font-size:.82rem;font-weight:700;color:var(--muted);white-space:nowrap;overflow:hidden;border-radius:4px;transition:all .15s;}
+.lbtn{display:flex;align-items:center;gap:.3rem;padding:.55rem .4rem;border:1px solid var(--border2);background:var(--s2);cursor:pointer;font-family:var(--font-b);font-size:.85rem;font-weight:700;color:var(--muted);white-space:nowrap;overflow:hidden;border-radius:4px;transition:all .15s;}
 .lbtn.sel{background:rgba(255,255,255,.05);}
 .prev{background:var(--s3);border:1px solid var(--border2);padding:.75rem 1rem;margin-bottom:.6rem;display:flex;justify-content:space-between;align-items:center;border-radius:7px;}
-.pv-l{font-family:var(--font-m);font-size:.58rem;color:var(--muted);letter-spacing:.08em;}
+.pv-l{font-family:var(--font-m);font-size:.65rem;color:var(--muted);letter-spacing:.08em;}
 .pv-h{font-family:var(--font-d);font-size:1.7rem;color:var(--accent);}
 .pv-p{font-family:var(--font-d);font-size:1.7rem;color:var(--green);}
 .add-btn{width:100%;font-family:var(--font-d);font-size:1.5rem;letter-spacing:.12em;padding:.85rem;border:none;cursor:pointer;background:var(--accent);color:#000;margin-top:.1rem;border-radius:5px;transition:all .15s;}
@@ -139,48 +203,60 @@ const CSS=`
 .dinp{width:100%;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-m);font-size:.88rem;padding:.48rem .65rem;border-radius:4px;}
 .dinp:focus{outline:none;border-color:var(--accent);}
 
+/* notes input */
+.notes-inp{width:100%;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-m);font-size:.78rem;padding:.48rem .65rem;border-radius:4px;resize:none;line-height:1.4;}
+.notes-inp:focus{outline:none;border-color:var(--accent);}
+.notes-inp::placeholder{color:var(--muted);}
+
 /* WEEK */
 .w-wrap{padding:.85rem .85rem 0;animation:up .2s ease;}
 .wnav{display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;}
 .wnbtn{background:var(--s2);border:1px solid var(--border2);color:var(--text2);font-size:1rem;padding:.3rem .65rem;cursor:pointer;border-radius:4px;}
 .wnbtn:active{border-color:var(--accent);color:var(--accent);}
 .wntit{font-family:var(--font-d);font-size:1.5rem;letter-spacing:.06em;flex:1;text-align:center;color:var(--text);}
-.wnsub{font-family:var(--font-m);font-size:.56rem;color:var(--muted);text-align:center;margin-top:1px;}
+.wnsub{font-family:var(--font-m);font-size:.6rem;color:var(--muted);text-align:center;margin-top:1px;}
 .who{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem;margin-bottom:.65rem;}
 .wc{background:var(--s1);border:1px solid var(--border);padding:.8rem .75rem;border-radius:7px;}
 .wcv{font-family:var(--font-d);font-size:1.5rem;letter-spacing:.04em;line-height:1;}
-.wcl{font-family:var(--font-m);font-size:.54rem;color:var(--muted);margin-top:.25rem;letter-spacing:.06em;}
+.wcl{font-family:var(--font-m);font-size:.58rem;color:var(--muted);margin-top:.25rem;letter-spacing:.06em;}
 
 /* DAY BLOCK */
 .db{background:var(--s1);border:1px solid var(--border);margin-bottom:.5rem;overflow:hidden;border-radius:8px;}
 .db.td{border-color:rgba(0,229,255,.65);border-width:1.5px;animation:glow 3s ease-in-out infinite;}
-.dbh{display:flex;justify-content:space-between;align-items:center;padding:.6rem .9rem;background:var(--s2);border-bottom:1px solid var(--border);}
+.dbh{display:flex;justify-content:space-between;align-items:center;padding:.6rem .9rem;background:var(--s2);border-bottom:1px solid var(--border);transition:background .1s;}
+.dbh:active{background:var(--s3);}
 .db.td .dbh{background:rgba(0,229,255,.07);}
-.dbh-d{font-family:var(--font-d);font-size:1.2rem;letter-spacing:.06em;color:var(--text);}
-.dbh-n{color:var(--muted);font-size:.95rem;}
+.dbh-d{font-family:var(--font-d);font-size:1.2rem;letter-spacing:.06em;color:var(--text2);}
+.dbh-n{color:var(--text2);font-size:.95rem;font-weight:600;}
+.sr-compact{display:flex;align-items:center;gap:.6rem;padding:.55rem .9rem;cursor:pointer;border-bottom:1px solid var(--border);background:var(--bg);transition:background .1s;}
+.sr-compact:last-child{border-bottom:none;}
+.sr-compact:active{background:var(--s2);}
+.sr-cdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.sr-cico{font-size:.9rem;flex-shrink:0;}
+.sr-cloc{font-family:var(--font-b);font-size:.88rem;font-weight:700;flex:1;}
+.sr-chrs{font-family:var(--font-d);font-size:1rem;color:var(--accent);}
+.sr-cpay{font-family:var(--font-m);font-size:.62rem;color:var(--green);min-width:48px;text-align:right;}
 .dbh-t{font-family:var(--font-d);font-size:1.2rem;color:var(--accent);}
-.tdtag{font-family:var(--font-m);font-size:.5rem;background:var(--accent);color:#000;padding:.12rem .38rem;letter-spacing:.08em;font-weight:700;margin-left:.45rem;border-radius:3px;vertical-align:middle;}
+.tdtag{font-family:var(--font-m);font-size:.52rem;background:var(--accent);color:#000;padding:.12rem .38rem;letter-spacing:.08em;font-weight:700;margin-left:.45rem;border-radius:3px;vertical-align:middle;}
 
-/* ── SHIFT ROW ── single line: TIME · 🍺 VENUE */
-.sr{display:flex;align-items:center;gap:.7rem;padding:.82rem .9rem;border-bottom:1px solid var(--border);animation:up .15s ease;}
-.sr:last-child{border-bottom:none;}
+/* SHIFT ROW — tap to edit, long-press to delete */
+.sr-wrap{position:relative;overflow:hidden;border-bottom:1px solid var(--border);}
+.sr-wrap:last-child{border-bottom:none;}
+.sr{display:flex;align-items:center;gap:.7rem;padding:.82rem .9rem;animation:up .15s ease;background:var(--bg);position:relative;user-select:none;cursor:pointer;transition:background .1s;}
+.sr:active{background:var(--s2);}
+.sr.pressing{animation:lpress .4s ease;}
 .sr-bar{width:3px;min-height:40px;border-radius:2px;flex-shrink:0;align-self:stretch;}
 .sr-info{flex:1;min-width:0;}
 .sr-line{display:flex;align-items:center;gap:.5rem;flex-wrap:nowrap;overflow:hidden;}
-/* Time — bright white, bigger */
 .sr-time{font-family:var(--font-m);font-size:1.08rem;font-weight:700;color:var(--text);white-space:nowrap;flex-shrink:0;letter-spacing:.01em;}
-/* separator dot */
 .sr-dot{font-size:.9rem;color:var(--muted);flex-shrink:0;}
-/* icon */
 .sr-ico{font-size:1.05rem;flex-shrink:0;}
-/* venue — location colour, bold, big */
 .sr-venue{font-family:var(--font-b);font-size:1.08rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sr-note{font-family:var(--font-m);font-size:.6rem;color:var(--muted);margin-top:.25rem;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sr-right{text-align:right;flex-shrink:0;}
 .sr-hrs{font-family:var(--font-d);font-size:1.35rem;line-height:1;}
 .sr-pay{font-family:var(--font-m);font-size:.68rem;color:var(--green);margin-top:1px;}
-.del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:.3rem;flex-shrink:0;transition:color .15s;}
-.del:active{color:var(--red);}
-.eday{padding:.7rem .9rem;font-family:var(--font-m);font-size:.68rem;color:var(--muted);}
+.eday{padding:.7rem .9rem;font-family:var(--font-m);font-size:.7rem;color:var(--muted);}
 
 /* MONTH */
 .m-wrap{padding:.85rem .85rem 0;animation:up .2s ease;}
@@ -190,16 +266,16 @@ const CSS=`
 .mnbtn:active{border-color:var(--accent);color:var(--accent);}
 .mhero{background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--gold);padding:1rem;margin-bottom:.6rem;border-radius:7px;}
 .mh-row{display:flex;justify-content:space-between;align-items:flex-start;}
-.mh-lbl{font-family:var(--font-m);font-size:.6rem;color:var(--gold);letter-spacing:.1em;margin-bottom:.15rem;}
+.mh-lbl{font-family:var(--font-m);font-size:.65rem;color:var(--gold);letter-spacing:.1em;margin-bottom:.15rem;}
 .mh-val{font-family:var(--font-d);font-size:2.4rem;color:var(--text);line-height:1;}
 .mh-pay{font-family:var(--font-d);font-size:1.9rem;color:var(--green);line-height:1;margin-top:.2rem;}
 
 /* CALENDAR */
 .cal{background:var(--s1);border:1px solid var(--border);margin-bottom:.6rem;overflow:hidden;border-radius:8px;}
 .cal-hdr{display:grid;grid-template-columns:repeat(7,1fr);background:var(--s2);border-bottom:1px solid var(--border);}
-.cal-dow{font-family:var(--font-m);font-size:.52rem;color:var(--muted);text-align:center;padding:.44rem 0;letter-spacing:.05em;}
+.cal-dow{font-family:var(--font-m);font-size:.55rem;color:var(--muted);text-align:center;padding:.44rem 0;letter-spacing:.05em;}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);}
-.cc{background:var(--s1);min-height:60px;padding:.32rem .3rem;display:flex;flex-direction:column;gap:2px;cursor:pointer;transition:background .1s;}
+.cc{background:var(--s1);min-height:62px;padding:.32rem .3rem;display:flex;flex-direction:column;gap:2px;cursor:pointer;transition:background .1s;}
 .cc:active{background:var(--s3);}
 .cc.om{background:#0a0a14;}
 .cc.hs{background:var(--s2);}
@@ -209,8 +285,9 @@ const CSS=`
 .cc.hs .cn{color:var(--text2);}
 .cc.it .cn{color:var(--accent);font-weight:700;}
 .cc.om .cn{color:#252538;}
-.cdot{width:100%;height:3px;border-radius:1px;}
-.chrs{font-family:var(--font-d);font-size:.75rem;color:var(--accent);line-height:1;margin-top:2px;}
+.cdot{width:100%;height:4px;border-radius:2px;}
+/* shift count badge */
+.cbadge{font-family:var(--font-d);font-size:.72rem;color:var(--accent);line-height:1;margin-top:1px;}
 
 .cdet{background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--accent);margin-bottom:.6rem;overflow:hidden;animation:up .15s ease;border-radius:7px;}
 .cdet-h{padding:.65rem .9rem;background:rgba(0,229,255,.07);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
@@ -220,7 +297,7 @@ const CSS=`
 /* WEEK BREAKDOWN */
 .wsc{background:var(--s1);border:1px solid var(--border);padding:.82rem 1rem;margin-bottom:.4rem;display:flex;align-items:center;justify-content:space-between;border-radius:7px;}
 .wsc-w{font-family:var(--font-d);font-size:1.15rem;letter-spacing:.06em;color:var(--text);}
-.wsc-d{font-family:var(--font-m);font-size:.58rem;color:var(--muted);margin-top:2px;}
+.wsc-d{font-family:var(--font-m);font-size:.62rem;color:var(--muted);margin-top:2px;}
 .wsc-h{font-family:var(--font-d);font-size:1.4rem;color:var(--accent);}
 .wsc-p{font-family:var(--font-m);font-size:.68rem;color:var(--green);margin-top:2px;}
 
@@ -229,17 +306,17 @@ const CSS=`
 .loc-t{font-family:var(--font-d);font-size:1.05rem;letter-spacing:.06em;color:var(--muted);margin-bottom:.75rem;}
 .lr{display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem;}
 .li{font-size:.95rem;width:22px;text-align:center;flex-shrink:0;}
-.ln{font-family:var(--font-b);font-weight:700;font-size:.9rem;min-width:92px;}
+.ln{font-family:var(--font-b);font-weight:700;font-size:.95rem;min-width:92px;}
 .lbw{flex:1;height:5px;background:var(--dim);border-radius:2px;}
 .lb{height:100%;transition:width .4s ease;border-radius:2px;}
-.lv{font-family:var(--font-m);font-size:.65rem;min-width:40px;text-align:right;color:var(--text2);}
+.lv{font-family:var(--font-m);font-size:.68rem;min-width:40px;text-align:right;color:var(--text2);}
 
 /* STATS */
 .st-wrap{padding:.85rem .85rem 0;animation:up .2s ease;}
 .stg{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.65rem;}
 .stc{background:var(--s1);border:1px solid var(--border);padding:.9rem;border-radius:8px;}
 .stv{font-family:var(--font-d);font-size:1.8rem;letter-spacing:.04em;color:var(--text);line-height:1;}
-.stl{font-family:var(--font-m);font-size:.54rem;color:var(--muted);margin-top:.25rem;letter-spacing:.07em;}
+.stl{font-family:var(--font-m);font-size:.58rem;color:var(--muted);margin-top:.25rem;letter-spacing:.07em;}
 .pb{background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--green);padding:1rem;margin-bottom:.65rem;border-radius:7px;}
 .pb-t{font-family:var(--font-d);font-size:1.05rem;letter-spacing:.06em;color:var(--muted);margin-bottom:.6rem;}
 .pb-r{display:flex;justify-content:space-between;align-items:center;padding:.38rem 0;border-bottom:1px solid var(--border);}
@@ -247,66 +324,110 @@ const CSS=`
 .pb-l{font-family:var(--font-b);font-size:.95rem;font-weight:700;color:var(--text2);}
 .pb-v{font-family:var(--font-d);font-size:1.15rem;color:var(--green);}
 
+/* export row */
+.export-row{display:flex;gap:.5rem;margin-bottom:.65rem;}
+.exp-btn{flex:1;font-family:var(--font-d);font-size:.95rem;letter-spacing:.08em;padding:.6rem .5rem;border:1px solid var(--border2);background:var(--s1);color:var(--text2);cursor:pointer;border-radius:5px;transition:all .15s;text-align:center;}
+.exp-btn:active{border-color:var(--accent);color:var(--accent);}
+
+/* weekly target progress */
+.wtarget{background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--purple);padding:.75rem 1rem;margin-bottom:.65rem;border-radius:7px;}
+.wt-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.45rem;}
+.wt-lbl{font-family:var(--font-m);font-size:.6rem;color:var(--muted);letter-spacing:.08em;}
+.wt-val{font-family:var(--font-d);font-size:1rem;color:var(--purple);}
+.wt-bar{height:6px;background:var(--dim);border-radius:3px;overflow:hidden;}
+.wt-fill{height:100%;border-radius:3px;transition:width .5s ease;}
+
+/* save flash */
+@keyframes savePop{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
+.save-flash{animation:savePop .35s ease;}
+
+/* today pill */
+.today-pill{font-family:var(--font-m);font-size:.55rem;color:var(--accent);border:1px solid rgba(0,229,255,.35);background:rgba(0,229,255,.08);padding:.2rem .55rem;cursor:pointer;border-radius:12px;letter-spacing:.06em;white-space:nowrap;}
+.today-pill:active{background:rgba(0,229,255,.2);}
+
+
+
+
 /* MODAL */
 .mo{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:100;display:flex;align-items:center;justify-content:center;padding:1.25rem;}
-.mdl{background:var(--s1);border:1px solid var(--border);padding:1.5rem;width:100%;max-width:320px;animation:pop .2s ease;border-radius:9px;}
+.mdl{background:var(--s1);border:1px solid var(--border);padding:1.5rem;width:100%;max-width:340px;animation:pop .2s ease;border-radius:9px;max-height:90vh;overflow-y:auto;}
 .mdl-t{font-family:var(--font-d);font-size:1.6rem;letter-spacing:.06em;margin-bottom:.3rem;color:var(--text);}
-.mdl-s{font-family:var(--font-m);font-size:.62rem;color:var(--muted);margin-bottom:1rem;}
-.mdl-l{font-family:var(--font-m);font-size:.6rem;color:var(--muted);letter-spacing:.08em;margin-bottom:.35rem;margin-top:.75rem;}
+.mdl-s{font-family:var(--font-m);font-size:.65rem;color:var(--muted);margin-bottom:1rem;}
+.mdl-l{font-family:var(--font-m);font-size:.65rem;color:var(--muted);letter-spacing:.08em;margin-bottom:.35rem;margin-top:.75rem;}
 .mdl-i{width:100%;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-d);font-size:1.5rem;padding:.6rem .75rem;letter-spacing:.04em;border-radius:5px;}
 .mdl-i:focus{outline:none;border-color:var(--green);}
+.mdl-i-sm{width:100%;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-m);font-size:.88rem;padding:.5rem .65rem;border-radius:4px;}
+.mdl-i-sm:focus{outline:none;border-color:var(--accent);}
+.mdl-trow{display:grid;grid-template-columns:1fr 20px 1fr;gap:.4rem;align-items:center;}
+.mdl-tsep{font-family:var(--font-d);font-size:1.1rem;color:var(--muted);text-align:center;}
+.mdl-lgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:.3rem;margin-top:.35rem;}
+.mdl-lbtn{display:flex;align-items:center;gap:.25rem;padding:.45rem .35rem;border:1px solid var(--border2);background:var(--s2);cursor:pointer;font-family:var(--font-b);font-size:.8rem;font-weight:700;color:var(--muted);white-space:nowrap;overflow:hidden;border-radius:4px;transition:all .15s;}
+.mdl-lbtn.sel{background:rgba(255,255,255,.05);}
+.mdl-notes{width:100%;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-m);font-size:.78rem;padding:.48rem .65rem;border-radius:4px;resize:none;line-height:1.4;}
+.mdl-notes:focus{outline:none;border-color:var(--accent);}
+.mdl-notes::placeholder{color:var(--muted);}
 .mdl-bs{display:flex;gap:.5rem;margin-top:1.25rem;}
 .mdl-b{flex:1;font-family:var(--font-d);font-size:1rem;letter-spacing:.08em;padding:.65rem;border:1px solid var(--border2);background:var(--s2);color:var(--text);cursor:pointer;border-radius:5px;}
 .mdl-b.ok{background:var(--green);border-color:var(--green);color:#000;}
+.mdl-b.danger{background:var(--red);border-color:var(--red);color:#fff;}
 `;
 
-/* ── SHIFT ROW COMPONENT (swipe-to-delete) ── */
-function ShiftRow({s,rate,onDel}){
-  const col=LCOL[s.loc]||'#888';
-  const[tx,setTx]=React.useState(0);
-  const[del,setDel]=React.useState(false);
-  const startX=React.useRef(null);
-  const THRESH=-72;
-
-  function onTouchStart(e){startX.current=e.touches[0].clientX;}
-  function onTouchMove(e){
-    if(startX.current===null)return;
-    const dx=e.touches[0].clientX-startX.current;
-    if(dx<0)setTx(Math.max(dx,-96));
+/* ── EDIT MODAL ── */
+function EditModal({shift, rate, onSave, onDelete, onClose}){
+  const isNew=!shift.id;
+  const[date,setDate]=useState(shift.date);
+  const[s0,setS0]=useState(shift.start||'');
+  const[e0,setE0]=useState(shift.end||'');
+  const[loc,setLoc]=useState(shift.loc||'TR');
+  const[note,setNote]=useState(shift.note||'');
+  const pH=calcH(s0,e0),pP=pH*rate;
+  function doSave(){
+    if(!s0||!e0||pH<=0)return;
+    onSave({...shift,id:shift.id||uid(),date,start:s0,end:e0,loc,hours:pH,note});
   }
-  function onTouchEnd(){
-    if(tx<=THRESH){setDel(true);setTx(-96);}
-    else{setTx(0);}
-    startX.current=null;
-  }
-  function onMouseDown(e){startX.current=e.clientX;}
-  function onMouseMove(e){
-    if(startX.current===null)return;
-    const dx=e.clientX-startX.current;
-    if(dx<0)setTx(Math.max(dx,-96));
-  }
-  function onMouseUp(){
-    if(tx<=THRESH){setDel(true);setTx(-96);}
-    else{setTx(0);}
-    startX.current=null;
-  }
-
-  // format time as 24h e.g. 14:30
-  const fmt24=t=>{if(!t)return'';const[h,m]=t.split(':');return`${h.padStart(2,'0')}:${m.padStart(2,'0')}`;};
-
   return(
-    <div style={{position:'relative',overflow:'hidden',borderBottom:'1px solid var(--border)'}}>
-      {/* Delete background */}
-      <div style={{position:'absolute',inset:0,background:'var(--red)',display:'flex',alignItems:'center',justifyContent:'flex-end',paddingRight:'1.2rem'}}>
-        <span style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',letterSpacing:'.08em',color:'#fff'}}>DELETE</span>
+    <div className="mo" onClick={onClose}>
+      <div className="mdl" onClick={e=>e.stopPropagation()}>
+        <div className="mdl-t">{isNew?'ADD SHIFT':'EDIT SHIFT'}</div>
+        <div className="mdl-s">{isNew?`Adding shift for ${dayName(date)} ${+date.slice(8)} ${mkName(date.slice(0,7))}`:'Update the details below'}</div>
+        <div className="mdl-l">DATE</div>
+        <input className="mdl-i-sm" type="date" value={date} onChange={e=>setDate(e.target.value)}/>
+        <div className="mdl-l">SHIFT TIME</div>
+        <div className="mdl-trow">
+          <TimeInput className="mdl-i-sm" value={s0} onChange={setS0} placeholder="09:00"/>
+          <div className="mdl-tsep">→</div>
+          <TimeInput className="mdl-i-sm" value={e0} onChange={setE0} placeholder="17:00"/>
+        </div>
+        {s0&&e0&&pH>0&&<div style={{marginTop:'.4rem',fontFamily:'var(--font-m)',fontSize:'.65rem',color:'var(--accent)'}}>{fmtH(pH)} · {fmtP(pP)}</div>}
+        <div className="mdl-l">LOCATION</div>
+        <div className="mdl-lgrid">
+          {LOCS.map(l=>(
+            <div key={l} className={`mdl-lbtn ${loc===l?'sel':''}`}
+              style={loc===l?{borderColor:LCOL[l],color:LCOL[l]}:{}}
+              onClick={()=>setLoc(l)}>
+              <span>{LICO[l]}</span>{l}
+            </div>
+          ))}
+        </div>
+        <div className="mdl-l">NOTES (OPTIONAL)</div>
+        <textarea className="mdl-notes" rows={2} value={note} onChange={e=>setNote(e.target.value)} placeholder=""/>
+        <div className="mdl-bs">
+          {!isNew&&<button className="mdl-b danger" onClick={()=>onDelete(shift.id)}>DELETE</button>}
+          <button className="mdl-b" onClick={onClose}>CANCEL</button>
+          <button className="mdl-b ok" disabled={!s0||!e0||pH<=0} onClick={doSave}>SAVE</button>
+        </div>
       </div>
-      {/* Row content */}
-      <div
-        className="sr"
-        style={{transform:`translateX(${tx}px)`,transition:tx===0||tx===-96?'transform .2s ease':'none',background:'var(--bg)',position:'relative',borderBottom:'none',userSelect:'none',cursor:'grab'}}
-        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
-        onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
-      >
+    </div>
+  );
+}
+
+/* ── SHIFT ROW — tap to edit ── */
+function ShiftRow({s, rate, onDel, onEdit}){
+  const col=LCOL[s.loc]||'#888';
+  const fmt24=t=>{if(!t)return'';const[h,m]=t.split(':');return`${h.padStart(2,'0')}:${m.padStart(2,'0')}`;};
+  return(
+    <div className="sr-wrap">
+      <div className="sr" onClick={()=>onEdit(s)}>
         <div className="sr-bar" style={{background:col}}/>
         <div className="sr-info">
           <div className="sr-line">
@@ -315,20 +436,13 @@ function ShiftRow({s,rate,onDel}){
             <span className="sr-ico">{LICO[s.loc]}</span>
             <span className="sr-venue" style={{color:col}}>{s.loc}</span>
           </div>
+          {s.note&&<div className="sr-note">📝 {s.note}</div>}
         </div>
         <div className="sr-right">
           <div className="sr-hrs" style={{color:col}}>{fmtH(s.hours)}</div>
           <div className="sr-pay">{fmtP(s.hours*rate)}</div>
         </div>
       </div>
-      {/* Confirm overlay */}
-      {del&&<div style={{position:'absolute',inset:0,background:'rgba(255,68,85,.92)',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 1rem',zIndex:5}}>
-        <span style={{fontFamily:'var(--font-d)',fontSize:'1rem',letterSpacing:'.06em',color:'#fff'}}>DELETE SHIFT?</span>
-        <div style={{display:'flex',gap:'.5rem'}}>
-          <button style={{fontFamily:'var(--font-d)',fontSize:'.9rem',letterSpacing:'.06em',background:'#fff',color:'var(--red)',border:'none',padding:'.3rem .8rem',cursor:'pointer',borderRadius:'4px'}} onClick={()=>onDel(s.id)}>YES</button>
-          <button style={{fontFamily:'var(--font-d)',fontSize:'.9rem',letterSpacing:'.06em',background:'transparent',color:'#fff',border:'1px solid rgba(255,255,255,.5)',padding:'.3rem .8rem',cursor:'pointer',borderRadius:'4px'}} onClick={()=>{setDel(false);setTx(0);}}>NO</button>
-        </div>
-      </div>}
     </div>
   );
 }
@@ -340,14 +454,18 @@ function App(){
   const[s0,setS0]=useState('');
   const[e0,setE0]=useState('');
   const[loc,setLoc]=useState('TR');
+  const[note,setNote]=useState('');
   const[ok,setOk]=useState(false);
   const[wOff,setWOff]=useState(0);
   const[vm,setVm]=useState(()=>new Date().toISOString().slice(0,7));
   const[showR,setShowR]=useState(false);
   const[rIn,setRIn]=useState('');
+  const[tgtIn,setTgtIn]=useState('');
   const[sel,setSel]=useState(null);
-  const[showLegend,setShowLegend]=useState(false);
-  const[showTax,setShowTax]=useState(false);
+  const[showTax,setShowTax]=useState(true);
+  const[editShift,setEditShift]=useState(null);
+  const[copyMsg,setCopyMsg]=useState('');
+  const[saveFlash,setSaveFlash]=useState(false);
 
   const up=useCallback(fn=>{
     setStore(p=>{const n={...p,shifts:[...p.shifts]};fn(n);saveStore(n);return{...n};});
@@ -355,13 +473,47 @@ function App(){
 
   function addShift(){
     const h=calcH(s0,e0);if(!h||h<=0)return;
-    up(st=>{st.shifts=[...st.shifts,{id:uid(),date,start:s0,end:e0,loc,hours:h}].sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));});
-    setS0('');setE0('');setOk(true);setTimeout(()=>setOk(false),700);
+    up(st=>{st.shifts=[...st.shifts,{id:uid(),date,start:s0,end:e0,loc,hours:h,note}].sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));});
+    setS0('');setE0('');setNote('');setOk(true);setTimeout(()=>setOk(false),700);
   }
-  const delShift=id=>up(st=>{st.shifts=st.shifts.filter(x=>x.id!==id);});
-  function saveRate(){const r=parseFloat(rIn);if(r>0)up(st=>{st.hourlyRate=r;});setShowR(false);}
+  const delShift=id=>up(st=>{st.shifts=st.shifts.filter(x=>x.id!==id);setEditShift(null);});
+  function saveRate(){
+    const r=parseFloat(rIn);if(r>0)up(st=>{st.hourlyRate=r;});
+    const t=parseFloat(tgtIn);up(st=>{st.weeklyTarget=t>=0?t:st.weeklyTarget||0;});
+    setShowR(false);
+  }
 
-  const rate=store.hourlyRate,shifts=store.shifts;
+  function saveEdit(updated){
+    up(st=>{
+      const exists=st.shifts.some(x=>x.id===updated.id);
+      if(exists){
+        st.shifts=st.shifts.map(x=>x.id===updated.id?updated:x);
+      } else {
+        st.shifts=[...st.shifts,updated];
+      }
+      st.shifts=st.shifts.sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
+    });
+    setEditShift(null);
+    setSaveFlash(true);setTimeout(()=>setSaveFlash(false),400);
+  }
+
+  function exportCSV(){
+    const rows=[['Date','Day','Start','End','Hours','Pay','Location','Notes']];
+    shifts.forEach(s=>{
+      rows.push([s.date,dayName(s.date),s.start,s.end,s.hours.toFixed(2),(s.hours*rate).toFixed(2),s.loc,s.note||'']);
+    });
+    const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob=new Blob([csv],{type:'text/csv'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='shifts.csv';a.click();
+  }
+
+  function copySummary(){
+    const lines=[`SHIFTS SUMMARY — as of ${TODAY}`,`Total Hours: ${fmtH(tHours)}`,`Total Earned: ${fmtP(tHours*rate)}`,`Total Shifts: ${shifts.length}`,`Hourly Rate: £${rate.toFixed(2)}/hr`,'','MONTHLY BREAKDOWN:'];
+    allM.forEach(m=>lines.push(`  ${mkName(m.k)}: ${fmtH(m.hours)} · ${fmtP(m.hours*rate)} (${m.shifts} shifts)`));
+    navigator.clipboard.writeText(lines.join('\n')).then(()=>{setCopyMsg('COPIED!');setTimeout(()=>setCopyMsg(''),1500);});
+  }
+
+  const rate=store.hourlyRate,shifts=store.shifts,weeklyTarget=store.weeklyTarget||0;
 
   const wStart=useMemo(()=>{
     const d=new Date(),day=d.getDay(),m=new Date(d);
@@ -397,14 +549,10 @@ function App(){
     return Object.values(m).sort((a,b)=>b.k.localeCompare(a.k));
   },[shifts]);
 
-  const pH=calcH(s0,e0),pP=pH*rate;
-
-  // Upcoming shifts (future dates)
   const upcomingShifts=useMemo(()=>shifts.filter(s=>s.date>TODAY).sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start)).slice(0,5),[shifts]);
   const nextShift=upcomingShifts[0]||null;
   function daysUntil(ds){const d=new Date(ds),t=new Date(TODAY);return Math.round((d-t)/86400000);}
 
-  // Tax estimate (UK 2024/25: 0% up to £12570/yr, 20% basic rate, NI ~8% on earnings 12570-50270)
   const taxEst=useMemo(()=>{
     const annual=tHours*rate;
     const pa=12570,br=50270;
@@ -425,18 +573,14 @@ function App(){
     return`${fmt(wDates[0])} – ${fmt(wDates[6])}`;
   },[wDates]);
 
-  const weekRef=useSwipeRef(useCallback(()=>setWOff(o=>o+1),[]),useCallback(()=>setWOff(o=>o-1),[]));  const monthRef=useSwipeRef(useCallback(()=>chMon(1),[vm]),useCallback(()=>chMon(-1),[vm]));
+  const weekRef=useSwipeRef(()=>setWOff(o=>o+1),()=>setWOff(o=>o-1));
+  const monthRef=useSwipeRef(()=>chMon(1),()=>chMon(-1));
   const cDays=useMemo(()=>calDays(vm),[vm]);
   const sByDate=useMemo(()=>{const m={};shifts.forEach(s=>{if(!m[s.date])m[s.date]=[];m[s.date].push(s);});return m;},[shifts]);
   const selS=sel?(sByDate[sel]||[]):[];
   const selH=selS.reduce((a,s)=>a+s.hours,0);
 
-  /* Quick stat colours */
-  const qStats=[
-    {l:'TODAY',v:fmtH(shifts.filter(s=>s.date===TODAY).reduce((a,s)=>a+s.hours,0)),c:'var(--accent)'},
-    {l:'THIS WEEK',v:fmtH(wHours),c:'var(--purple)'},
-    {l:'THIS MONTH',v:fmtH(shifts.filter(s=>s.date.startsWith(new Date().toISOString().slice(0,7))).reduce((a,s)=>a+s.hours,0)),c:'var(--gold)'},
-  ];
+  const pH=calcH(s0,e0),pP=pH*rate;
 
   return(<>
     <style>{CSS}</style>
@@ -445,10 +589,13 @@ function App(){
       <div className="topbar">
         <div className="tb-inner">
           <div style={{display:'flex',alignItems:'center',gap:'.6rem'}}>
-            <a href="index.html" style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--muted)',border:'1px solid var(--border2)',background:'var(--s2)',padding:'.28rem .55rem',textDecoration:'none',borderRadius:'4px',letterSpacing:'.06em',lineHeight:1,display:'flex',alignItems:'center',gap:'.3rem'}}>← HUB</a>
+            <a href="index.html" style={{fontFamily:'var(--font-m)',fontSize:'.62rem',color:'var(--muted)',border:'1px solid var(--border2)',background:'var(--s2)',padding:'.28rem .55rem',textDecoration:'none',borderRadius:'4px',letterSpacing:'.06em',lineHeight:1,display:'flex',alignItems:'center',gap:'.3rem'}}>← HUB</a>
             <div className="title">SHI<span>FT</span>S</div>
           </div>
-          <button className="rate-btn" onClick={()=>{setRIn(String(rate));setShowR(true);}}>£{rate.toFixed(2)}/HR</button>
+          <button className="rate-btn" onClick={()=>{setRIn(String(rate));setTgtIn(String(weeklyTarget||''));setShowR(true);}}>
+            <span className="rate-btn-lbl">RATE</span>
+            £{rate.toFixed(2)}/HR
+          </button>
         </div>
       </div>
 
@@ -461,9 +608,9 @@ function App(){
         <div className="fcard">
           <div className="flbl">SHIFT TIME</div>
           <div className="trow">
-            <input className="finp" type="time" value={s0} onChange={e=>setS0(e.target.value)}/>
+            <TimeInput className="finp" value={s0} onChange={setS0} placeholder="09:00"/>
             <div className="tsep">→</div>
-            <input className="finp" type="time" value={e0} onChange={e=>setE0(e.target.value)}/>
+            <TimeInput className="finp" value={e0} onChange={setE0} placeholder="17:00"/>
           </div>
           {s0&&e0&&pH>0&&<div style={{marginTop:'.5rem',fontFamily:'var(--font-m)',fontSize:'.67rem',color:'var(--accent)'}}>{fmtH(pH)} · ends {e0==='00:00'?'00:00':e0}</div>}
         </div>
@@ -479,19 +626,15 @@ function App(){
             ))}
           </div>
         </div>
+        <div className="fcard">
+          <div className="flbl">NOTES (OPTIONAL)</div>
+          <textarea className="notes-inp" rows={2} value={note} onChange={e=>setNote(e.target.value)} placeholder=""/>
+        </div>
         {pH>0&&<div className="prev">
           <div><div className="pv-l">HOURS</div><div className="pv-h">{fmtH(pH)}</div></div>
           <div style={{textAlign:'right'}}><div className="pv-l">EST. PAY</div><div className="pv-p">{fmtP(pP)}</div></div>
         </div>}
         <button className={`add-btn ${ok?'ok':''}`} disabled={!s0||!e0||pH<=0} onClick={addShift}>{ok?'✓ SHIFT ADDED':'LOG SHIFT'}</button>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'.4rem',marginTop:'.85rem'}}>
-          {qStats.map(({l,v,c})=>(
-            <div key={l} style={{background:'var(--s1)',border:'1px solid var(--border)',borderTop:`2px solid ${c}`,padding:'.7rem .5rem',textAlign:'center',borderRadius:'7px'}}>
-              <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:c}}>{v}</div>
-              <div style={{fontFamily:'var(--font-m)',fontSize:'.5rem',color:'var(--muted)',marginTop:'3px',letterSpacing:'.06em'}}>{l}</div>
-            </div>
-          ))}
-        </div>
       </div></div>}
 
       {/* WEEK */}
@@ -502,54 +645,57 @@ function App(){
             <div className="wntit">{wOff===0?'THIS WEEK':wOff===-1?'LAST WEEK':wOff<0?`${Math.abs(wOff)} WKS AGO`:`${wOff} WKS AHEAD`}</div>
             <div className="wnsub">{wLabel}</div>
           </div>
-          <button className="wnbtn" onClick={()=>setWOff(o=>o+1)}>▶</button>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'.3rem'}}>
+            <button className="wnbtn" onClick={()=>setWOff(o=>o+1)}>▶</button>
+            {wOff!==0&&<button className="today-pill" onClick={()=>setWOff(0)}>TODAY</button>}
+          </div>
         </div>
-        {/* Next upcoming shift banner — only show on current week */}
-        {nextShift&&wOff===0&&<div style={{background:'rgba(0,229,255,.06)',border:'1px solid rgba(0,229,255,.25)',borderLeft:'3px solid var(--accent)',borderRadius:'7px',padding:'.7rem .9rem',marginBottom:'.65rem',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <div>
-            <div style={{fontFamily:'var(--font-m)',fontSize:'.52rem',color:'var(--accent)',letterSpacing:'.1em',marginBottom:'.2rem'}}>NEXT SHIFT</div>
-            <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',color:'var(--text)',letterSpacing:'.04em'}}>{dayName(nextShift.date)} · {nextShift.date.slice(8)} {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+nextShift.date.slice(5,7)-1]}</div>
-            <div style={{fontFamily:'var(--font-m)',fontSize:'.62rem',color:LCOL[nextShift.loc]||'#888',marginTop:'.15rem'}}>{LICO[nextShift.loc]} {nextShift.loc} · {nextShift.start}–{nextShift.end}</div>
-          </div>
-          <div style={{textAlign:'right',flexShrink:0,marginLeft:'1rem'}}>
-            <div style={{fontFamily:'var(--font-d)',fontSize:'1.6rem',color:'var(--accent)'}}>{daysUntil(nextShift.date)===0?'TODAY':daysUntil(nextShift.date)===1?'TMW':`${daysUntil(nextShift.date)}D`}</div>
-            <div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--green)'}}>{fmtP(nextShift.hours*rate)}</div>
-          </div>
-        </div>}
         <div className="who">
           <div className="wc" style={{borderTop:'2px solid var(--accent)'}}><div className="wcv" style={{color:'var(--accent)'}}>{fmtH(wHours)}</div><div className="wcl">TOTAL HRS</div></div>
           <div className="wc" style={{borderTop:'2px solid var(--green)'}}><div className="wcv" style={{color:'var(--green)',fontSize:'1.3rem'}}>{wHours>0?fmtP(wHours*rate):'£0.00'}</div><div className="wcl">GROSS PAY</div></div>
           <div className="wc" style={{borderTop:'2px solid var(--gold)'}}><div className="wcv" style={{color:'var(--gold)'}}>{wShifts.length}</div><div className="wcl">SHIFTS</div></div>
         </div>
-        {/* Venue legend toggle */}
-        <div style={{marginBottom:'.65rem'}}>
-          <button onClick={()=>setShowLegend(v=>!v)} style={{background:'none',border:'none',fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.08em',cursor:'pointer',display:'flex',alignItems:'center',gap:'.35rem',padding:'.15rem 0'}}>
-            <span>{showLegend?'▾':'▸'}</span> VENUE LEGEND
-          </button>
-          {showLegend&&<div style={{display:'flex',flexWrap:'wrap',gap:'.35rem',marginTop:'.45rem'}}>
-            {LOCS.map(l=><div key={l} style={{display:'flex',alignItems:'center',gap:'.3rem',background:'var(--s1)',border:`1px solid ${LCOL[l]}44`,borderLeft:`3px solid ${LCOL[l]}`,padding:'.3rem .6rem',borderRadius:'4px'}}>
-              <span style={{fontSize:'.85rem'}}>{LICO[l]}</span>
-              <span style={{fontFamily:'var(--font-b)',fontSize:'.82rem',fontWeight:700,color:LCOL[l]}}>{l}</span>
-            </div>)}
-          </div>}
-        </div>
+        {weeklyTarget>0&&(()=>{const pct=Math.min(100,wHours/weeklyTarget*100),done=wHours>=weeklyTarget,rem=Math.max(0,weeklyTarget-wHours);return(
+          <div className="wtarget">
+            <div className="wt-row">
+              <span className="wt-lbl">WEEKLY TARGET · {fmtH(weeklyTarget)}</span>
+              <span className="wt-val">{done?'✓ DONE':`${fmtH(rem)} left`}</span>
+            </div>
+            <div className="wt-bar">
+              <div className="wt-fill" style={{width:`${pct}%`,background:done?'var(--green)':'var(--purple)'}}/>
+            </div>
+          </div>
+        );})()}
         {wShifts.length===0&&<div style={{background:'var(--s1)',border:'1px dashed var(--border2)',borderRadius:'8px',padding:'2rem',textAlign:'center',marginBottom:'.5rem'}}>
           <div style={{fontSize:'2rem',marginBottom:'.5rem'}}>📅</div>
           <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--muted)',letterSpacing:'.08em'}}>NO SHIFTS THIS WEEK</div>
-          <div style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--dim)',marginTop:'.35rem',letterSpacing:'.06em'}}>TAP + ADD TO LOG ONE</div>
+          <div style={{fontFamily:'var(--font-m)',fontSize:'.62rem',color:'var(--dim)',marginTop:'.35rem',letterSpacing:'.06em'}}>TAP A DAY TO LOG ONE</div>
         </div>}
         {wDates.map(d=>{
-          const ds=wByDay[d]||[],dh=ds.reduce((a,s)=>a+s.hours,0),has=ds.length>0,isT=d===TODAY,isFut=d>TODAY;
-          return<div key={d} className={`db${isT?' td':''}`} style={isFut&&!isT?{borderColor:'rgba(255,214,0,.3)'}:{}}>
-            <div className="dbh">
+          const ds=wByDay[d]||[],dh=ds.reduce((a,s)=>a+s.hours,0),has=ds.length>0,isT=d===TODAY,isFut=d>TODAY,isPast=d<TODAY;
+          return<div key={d} className={`db${isT?' td':''}`}>
+            <div className="dbh" style={{cursor:'pointer'}} onClick={()=>setEditShift({date:d,start:'',end:'',loc:'TR',note:''})}>
               <div style={{display:'flex',alignItems:'center',gap:'.4rem'}}>
-                <span className="dbh-d">{dayName(d)} <span className="dbh-n">{d.slice(8)}</span></span>
+                <span className="dbh-d" style={isPast?{color:'var(--muted)'}:{}}>{dayName(d)} <span className="dbh-n" style={isPast?{color:'var(--muted)'}:{}}>{d.slice(8)}</span></span>
                 {isT&&<span className="tdtag">TODAY</span>}
-                {isFut&&!isT&&<span style={{fontFamily:'var(--font-m)',fontSize:'.46rem',background:'rgba(255,214,0,.12)',color:'var(--gold)',padding:'.1rem .32rem',borderRadius:'3px',letterSpacing:'.06em'}}>UPCOMING</span>}
+                {isFut&&!isT&&<span style={{fontFamily:'var(--font-m)',fontSize:'.48rem',background:'rgba(255,214,0,.12)',color:'var(--gold)',padding:'.1rem .32rem',borderRadius:'3px',letterSpacing:'.06em'}}>UPCOMING</span>}
               </div>
               {has&&<div className="dbh-t">{fmtH(dh)}</div>}
             </div>
-            {has?ds.map(s=><ShiftRow key={s.id} s={s} rate={rate} onDel={delShift}/>):<div className="eday">no shifts</div>}
+            {has
+              ? isPast
+                ? ds.map(s=>(
+                  <div key={s.id} className="sr-compact" onClick={()=>setEditShift(s)}>
+                    <div className="sr-cdot" style={{background:LCOL[s.loc]||'#888'}}/>
+                    <span className="sr-cico">{LICO[s.loc]}</span>
+                    <span className="sr-cloc" style={{color:LCOL[s.loc]||'#888'}}>{s.loc}</span>
+                    <span className="sr-chrs" style={{color:LCOL[s.loc]||'#888'}}>{fmtH(s.hours)}</span>
+                    <span className="sr-cpay">{fmtP(s.hours*rate)}</span>
+                  </div>
+                ))
+                : ds.map(s=><ShiftRow key={s.id} s={s} rate={rate} onDel={delShift} onEdit={setEditShift}/>)
+              : <div className="eday">no shifts</div>
+            }
           </div>;
         })}
       </div></div>}
@@ -571,9 +717,9 @@ function App(){
               <div className="mh-pay">{fmtP(mPay)}</div>
             </div>
             <div style={{textAlign:'right'}}>
-              <div style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--purple)',letterSpacing:'.08em'}}>SHIFTS</div>
+              <div style={{fontFamily:'var(--font-m)',fontSize:'.65rem',color:'var(--purple)',letterSpacing:'.08em'}}>SHIFTS</div>
               <div style={{fontFamily:'var(--font-d)',fontSize:'1.7rem',color:'var(--purple)'}}>{mShifts.length}</div>
-              <div style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--accent)',letterSpacing:'.08em',marginTop:'.5rem'}}>AVG/SHIFT</div>
+              <div style={{fontFamily:'var(--font-m)',fontSize:'.65rem',color:'var(--accent)',letterSpacing:'.08em',marginTop:'.5rem'}}>AVG/SHIFT</div>
               <div style={{fontFamily:'var(--font-d)',fontSize:'1.4rem',color:'var(--accent)'}}>{mShifts.length>0?fmtH(mHours/mShifts.length):'—'}</div>
             </div>
           </div>
@@ -587,10 +733,16 @@ function App(){
               const cs=sByDate[cd]||[],ch=cs.reduce((a,s)=>a+s.hours,0);
               const isT=cd===TODAY,isSel=cd===sel,hasS=cs.length>0&&cur;
               const cls=['cc',!cur?'om':'',hasS?'hs':'',isT?'it':'',isSel?'sl':''].filter(Boolean).join(' ');
-              return<div key={cd} className={cls} onClick={()=>cur&&setSel(isSel?null:cd)}>
+              return<div key={cd} className={cls} onClick={()=>{
+                if(!cur)return;
+                if(cs.length===0){setEditShift({date:cd,start:'',end:'',loc:'TR',note:''});}
+                else{setSel(isSel?null:cd);}
+              }}>
                 <div className="cn">{+cd.slice(8)}</div>
-                {cs.slice(0,3).map((s,i)=><div key={i} className="cdot" style={{background:LCOL[s.loc]||'#888',opacity:cur?.9:.15}}/>)}
-                {ch>0&&cur&&<div className="chrs">{fmtH(ch)}</div>}
+                {cs.slice(0,3).map((s,i)=><div key={i} style={{width:'100%',height:'4px',borderRadius:'2px',background:LCOL[s.loc]||'#888',opacity:cur?.9:.15}}/>)}
+                {cs.length>1&&cur&&<div className="cbadge">{cs.length} shifts</div>}
+                {cs.length===1&&cur&&<div className="cbadge">{fmtH(cs[0].hours)}</div>}
+                {cs.length===0&&cur&&<div style={{fontSize:'.65rem',color:'var(--dim)',marginTop:'auto',lineHeight:1}}>+</div>}
               </div>;
             })}
           </div>
@@ -599,15 +751,18 @@ function App(){
         {sel&&<div className="cdet">
           <div className="cdet-h">
             <div className="cdet-d">{dayName(sel)} {+sel.slice(8)} {mkName(sel.slice(0,7))}{sel===TODAY&&<span className="tdtag" style={{marginLeft:'.5rem'}}>TODAY</span>}</div>
-            {selH>0&&<div className="cdet-t">{fmtH(selH)}</div>}
+            <div style={{display:'flex',alignItems:'center',gap:'.6rem'}}>
+              {selH>0&&<div className="cdet-t">{fmtH(selH)}</div>}
+              <button onClick={()=>setEditShift({date:sel,start:'',end:'',loc:'TR',note:''})} style={{fontFamily:'var(--font-d)',fontSize:'.85rem',letterSpacing:'.06em',background:'rgba(0,229,255,.12)',border:'1px solid rgba(0,229,255,.3)',color:'var(--accent)',padding:'.2rem .55rem',borderRadius:'4px',cursor:'pointer'}}>+ ADD</button>
+            </div>
           </div>
-          {selS.length===0?<div className="eday">— no shifts —</div>:selS.map(s=><ShiftRow key={s.id} s={s} rate={rate} onDel={delShift}/>)}
+          {selS.length===0?<div className="eday">— no shifts —</div>:selS.map(s=><ShiftRow key={s.id} s={s} rate={rate} onDel={delShift} onEdit={setEditShift}/>)}
         </div>}
 
         {/* WEEK BREAKDOWN */}
         <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--accent)',padding:'1rem',marginBottom:'.6rem',borderRadius:'7px'}}>
           <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--accent)',marginBottom:'.75rem'}}>WEEK BREAKDOWN</div>
-          {mByWeek.length===0&&<div style={{fontFamily:'var(--font-m)',fontSize:'.65rem',color:'var(--muted)'}}>NO SHIFTS THIS MONTH</div>}
+          {mByWeek.length===0&&<div style={{fontFamily:'var(--font-m)',fontSize:'.68rem',color:'var(--muted)'}}>NO SHIFTS THIS MONTH</div>}
           {mByWeek.map(w=>(
             <div key={w.w} className="wsc" style={{marginBottom:'.35rem',padding:'.7rem .85rem'}}>
               <div>
@@ -635,7 +790,7 @@ function App(){
               <span className="lv">{fmtH(h)}</span>
             </div>
           ))}
-          {Object.keys(mLoc).length===0&&<div style={{fontFamily:'var(--font-m)',fontSize:'.65rem',color:'var(--muted)'}}>NO DATA</div>}
+          {Object.keys(mLoc).length===0&&<div style={{fontFamily:'var(--font-m)',fontSize:'.68rem',color:'var(--muted)'}}>NO DATA</div>}
         </div>
       </div></div>}
 
@@ -648,32 +803,39 @@ function App(){
           <div className="stc" style={{borderTop:'2px solid var(--gold)'}}><div className="stv" style={{color:'var(--gold)'}}>{shifts.length}</div><div className="stl">TOTAL SHIFTS</div></div>
           <div className="stc" style={{borderTop:'2px solid var(--purple)'}}><div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem'}}>{shifts.length>0?fmtH(tHours/shifts.length):'—'}</div><div className="stl">AVG/SHIFT</div></div>
         </div>
-        {/* TAX ESTIMATE CARD */}
+
+        {/* TAX ESTIMATE — collapsible */}
         <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--orange)',padding:'1rem',marginBottom:'.65rem',borderRadius:'7px'}}>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.65rem'}}>
+          <button onClick={()=>setShowTax(v=>!v)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',padding:0}}>
             <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--orange)'}}>TAX ESTIMATE</div>
-            <div style={{fontFamily:'var(--font-m)',fontSize:'.52rem',color:'var(--muted)',letterSpacing:'.06em'}}>UK 2024/25 · APPROX</div>
-          </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.4rem',marginBottom:'.6rem'}}>
+            <div style={{display:'flex',alignItems:'center',gap:'.65rem'}}>
+              <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.06em'}}>UK 2024/25 · APPROX</div>
+              <span style={{color:'var(--orange)',fontSize:'.8rem'}}>{showTax?'▴':'▾'}</span>
+            </div>
+          </button>
+          {showTax&&<>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.4rem',marginBottom:'.6rem',marginTop:'.65rem'}}>
             <div style={{background:'var(--s2)',border:'1px solid var(--border2)',padding:'.65rem .75rem',borderRadius:'6px'}}>
-              <div style={{fontFamily:'var(--font-m)',fontSize:'.52rem',color:'var(--muted)',letterSpacing:'.07em',marginBottom:'.2rem'}}>GROSS / YEAR</div>
+              <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.07em',marginBottom:'.2rem'}}>GROSS / YEAR</div>
               <div style={{fontFamily:'var(--font-d)',fontSize:'1.25rem',color:'var(--text)'}}>{fmtP(taxEst.annual)}</div>
             </div>
             <div style={{background:'rgba(61,255,160,.06)',border:'1px solid rgba(61,255,160,.2)',padding:'.65rem .75rem',borderRadius:'6px'}}>
-              <div style={{fontFamily:'var(--font-m)',fontSize:'.52rem',color:'var(--green)',letterSpacing:'.07em',marginBottom:'.2rem'}}>EST. TAKE-HOME</div>
+              <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--green)',letterSpacing:'.07em',marginBottom:'.2rem'}}>EST. TAKE-HOME</div>
               <div style={{fontFamily:'var(--font-d)',fontSize:'1.25rem',color:'var(--green)'}}>{fmtP(taxEst.net)}</div>
             </div>
           </div>
           <div style={{borderTop:'1px solid var(--border)',paddingTop:'.6rem',display:'flex',flexDirection:'column',gap:'.3rem'}}>
             {[{l:'Income Tax',v:taxEst.incomeTax,c:'var(--red)'},{l:'Nat. Insurance (~8%)',v:taxEst.ni,c:'var(--orange)'},{l:'Monthly take-home',v:taxEst.monthly,c:'var(--green)'},{l:'Weekly take-home',v:taxEst.weekly,c:'var(--accent)'}].map(({l,v,c})=>(
               <div key={l} style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <span style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--muted)',letterSpacing:'.04em'}}>{l}</span>
+                <span style={{fontFamily:'var(--font-m)',fontSize:'.65rem',color:'var(--muted)',letterSpacing:'.04em'}}>{l}</span>
                 <span style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',color:c}}>{fmtP(v)}</span>
               </div>
             ))}
           </div>
-          <div style={{marginTop:'.55rem',fontFamily:'var(--font-m)',fontSize:'.52rem',color:'var(--dim)',letterSpacing:'.04em',lineHeight:1.4}}>Based on projected annual hours at current rate. Income tax free allowance £12,570. Figures are estimates only.</div>
+          <div style={{marginTop:'.55rem',fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--dim)',letterSpacing:'.04em',lineHeight:1.4}}>Based on projected annual hours at current rate. Income tax free allowance £12,570. Figures are estimates only.</div>
+          </>}
         </div>
+
         <div className="pb">
           <div className="pb-t">PAY BREAKDOWN · £{rate.toFixed(2)}/HR</div>
           {allM.map(m=>(
@@ -681,11 +843,11 @@ function App(){
               <div className="pb-l">{mkName(m.k)}</div>
               <div style={{textAlign:'right'}}>
                 <div className="pb-v">{fmtP(m.hours*rate)}</div>
-                <div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--muted)'}}>{fmtH(m.hours)} · {m.shifts} shifts</div>
+                <div style={{fontFamily:'var(--font-m)',fontSize:'.62rem',color:'var(--muted)'}}>{fmtH(m.hours)} · {m.shifts} shifts</div>
               </div>
             </div>
           ))}
-          {allM.length===0&&<div style={{fontFamily:'var(--font-m)',fontSize:'.65rem',color:'var(--muted)'}}>NO DATA YET</div>}
+          {allM.length===0&&<div style={{fontFamily:'var(--font-m)',fontSize:'.68rem',color:'var(--muted)'}}>NO DATA YET</div>}
         </div>
         <div className="locs">
           <div className="loc-t">ALL TIME BY LOCATION</div>
@@ -705,7 +867,7 @@ function App(){
 
       {/* NAV */}
       <div className="bnav">
-        {[{id:'add',ico:'➕',lbl:'ADD'},{id:'week',ico:'📅',lbl:'WEEK'},{id:'monthly',ico:'🗓️',lbl:'MONTH'},{id:'stats',ico:'⚡',lbl:'STATS'}].map(n=>(
+        {[{id:'add',ico:'➕',lbl:'ADD'},{id:'week',ico:'📅',lbl:'WEEK'},{id:'monthly',ico:'🗓️',lbl:'MONTH'},{id:'stats',ico:'📊',lbl:'STATS'}].map(n=>(
           <button key={n.id} className={`bni ${tab===n.id?'act':''}`} onClick={()=>setTab(n.id)}>
             <span className="bni-ico">{n.ico}</span>{n.lbl}
           </button>
@@ -713,17 +875,29 @@ function App(){
       </div>
     </div>
 
+    {/* HOURLY RATE MODAL */}
     {showR&&<div className="mo" onClick={()=>setShowR(false)}>
       <div className="mdl" onClick={e=>e.stopPropagation()}>
-        <div className="mdl-t">HOURLY RATE</div>
-        <div className="mdl-s">Current: £{rate.toFixed(2)}/hr</div>
-        <div className="mdl-l">NEW RATE (£)</div>
+        <div className="mdl-t">SETTINGS</div>
+        <div className="mdl-s">Hourly rate & weekly hours target</div>
+        <div className="mdl-l">HOURLY RATE (£)</div>
         <input className="mdl-i" type="number" inputMode="decimal" step="0.01" value={rIn} onChange={e=>setRIn(e.target.value)} placeholder={rate.toFixed(2)}/>
+        <div className="mdl-l">WEEKLY HOURS TARGET</div>
+        <input className="mdl-i" type="number" inputMode="decimal" step="0.5" value={tgtIn} onChange={e=>setTgtIn(e.target.value)} placeholder="e.g. 40"/>
+        <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',marginTop:'.35rem',letterSpacing:'.04em'}}>Set to 0 to hide the progress bar</div>
         <div className="mdl-bs">
           <button className="mdl-b" onClick={()=>setShowR(false)}>CANCEL</button>
           <button className="mdl-b ok" onClick={saveRate}>SAVE</button>
         </div>
       </div>
+    </div>}
+
+    {/* EDIT SHIFT MODAL */}
+    {editShift&&<EditModal shift={editShift} rate={rate} onSave={saveEdit} onDelete={delShift} onClose={()=>setEditShift(null)}/>}
+
+    {/* SAVE FLASH */}
+    {saveFlash&&<div style={{position:'fixed',inset:0,display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,pointerEvents:'none'}}>
+      <div className="save-flash" style={{background:'var(--green)',color:'#000',fontFamily:'var(--font-d)',fontSize:'1.4rem',letterSpacing:'.1em',padding:'.6rem 1.5rem',borderRadius:'8px',boxShadow:'0 0 30px rgba(61,255,160,.5)'}}>✓ SAVED</div>
     </div>}
   </>);
 }

@@ -110,7 +110,7 @@ const TYPE_BG={push:'rgba(255,87,34,0.08)',pull:'rgba(0,229,255,0.06)',legs:'rgb
 function mkWeekData(){
   return DAYS.map(d=>({
     done:false,startTime:null,endTime:null,conditioning:null,
-    sets:d.exercises.map(ex=>Array.from({length:ex.sets},()=>({kg:'',reps:'',done:false}))),
+    sets:d.exercises.map(ex=>Array.from({length:ex.sets},()=>({kg:'',reps:'',done:false,bw:false}))),
     notes:d.exercises.map(()=>''),
   }));
 }
@@ -332,7 +332,7 @@ const CSS=`
 .summary-chip .sl{font-family:var(--font-mono);font-size:0.48rem;color:var(--muted);letter-spacing:0.06em;margin-top:1px;}
 
 /* NEXT INCOMPLETE BANNER */
-.next-set-banner{margin:0 0.75rem 0.5rem;padding:0.5rem 0.85rem;background:rgba(255,87,34,0.08);border:1px solid rgba(255,87,34,0.25);border-radius:6px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background 0.15s;}
+.next-set-banner{margin:0 0.75rem 0.5rem;padding:0.5rem 0.85rem;background:rgba(255,87,34,0.08);border:1px solid rgba(255,87,34,0.25);border-radius:6px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background 0.15s;position:sticky;top:0;z-index:5;}
 .next-set-banner:active{background:rgba(255,87,34,0.15);}
 .nsb-txt{font-family:var(--font-mono);font-size:0.62rem;color:#e0e0f0;}
 .nsb-arrow{font-size:0.9rem;color:var(--push);}
@@ -346,7 +346,7 @@ const CSS=`
 .cond-opt-dur{font-family:var(--font-mono);font-size:0.62rem;color:#b8b8c8;}
 
 /* REST TIMER */
-.timer-overlay{position:fixed;bottom:80px;right:0.75rem;z-index:50;background:#18181e;border:1px solid var(--push);border-left:3px solid var(--push);padding:0.85rem 1rem;min-width:160px;animation:slideUp 0.2s ease;border-radius:8px;box-shadow:0 6px 30px rgba(0,0,0,0.8);}
+.timer-overlay{position:fixed;top:calc(env(safe-area-inset-top,0) + 56px);right:0.75rem;z-index:50;background:#18181e;border:1px solid var(--push);border-left:3px solid var(--push);padding:0.85rem 1rem;min-width:160px;animation:slideUp 0.2s ease;border-radius:8px;box-shadow:0 6px 30px rgba(0,0,0,0.8);}
 .timer-label{font-family:var(--font-mono);font-size:0.58rem;color:#c8c8d8;margin-bottom:0.2rem;letter-spacing:0.1em;}
 .timer-display{font-family:var(--font-display);font-size:3rem;line-height:1;color:#fff;letter-spacing:0.04em;}
 .timer-display.done{color:var(--legs);animation:pulse 0.7s infinite,timerPulse 0.7s infinite;}
@@ -452,6 +452,57 @@ function SparkRow({exName,store,weekNums,dayIdx,exIdx,color}){
       {lastVal>0&&<div className="ex-spark-val" style={{color:trendColor}}>
         {trend}{lastVal}kg
       </div>}
+    </div>
+  );
+}
+
+// ── DRAGGABLE TIMER ───────────────────────────────────────────────
+function DraggableTimer({timer}){
+  const ref=useRef(null);
+  const pos=useRef(null);
+  const isDragging=useRef(false);
+  const[style,setStyle]=useState({top:'calc(env(safe-area-inset-top,0) + 56px)',right:'0.75rem',left:'auto',bottom:'auto'});
+
+  const onPointerDown=useCallback((e)=>{
+    if(e.target.closest('button'))return;
+    isDragging.current=true;
+    const el=ref.current;
+    const rect=el.getBoundingClientRect();
+    pos.current={startX:e.clientX,startY:e.clientY,origLeft:rect.left,origTop:rect.top};
+    el.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  },[]);
+
+  const onPointerMove=useCallback((e)=>{
+    if(!isDragging.current||!pos.current)return;
+    const dx=e.clientX-pos.current.startX;
+    const dy=e.clientY-pos.current.startY;
+    const el=ref.current;
+    const vw=window.innerWidth, vh=window.innerHeight;
+    const w=el.offsetWidth, h=el.offsetHeight;
+    const left=Math.min(Math.max(0,pos.current.origLeft+dx),vw-w);
+    const top=Math.min(Math.max(0,pos.current.origTop+dy),vh-h);
+    setStyle({left:left+'px',top:top+'px',right:'auto',bottom:'auto'});
+  },[]);
+
+  const onPointerUp=useCallback(()=>{isDragging.current=false;},[]);
+
+  return(
+    <div ref={ref} className="timer-overlay"
+      style={{...style,cursor:'grab',userSelect:'none',touchAction:'none'}}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+    >
+      <div style={{fontFamily:'var(--font-mono)',fontSize:'0.48rem',color:'var(--dim)',letterSpacing:'0.06em',marginBottom:'0.15rem',textAlign:'center'}}>⠿ DRAG</div>
+      <button className="timer-close" onClick={timer.close}>✕</button>
+      <div className="timer-label">REST TIMER {timer.done?'— GO!':''}</div>
+      <div className={`timer-display ${timer.done?'done':''}`}>{timer.fmt(timer.seconds)}</div>
+      <div className="timer-presets">
+        {[[60,'1m'],[90,'90s'],[120,'2m'],[180,'3m']].map(([s,l])=>(
+          <button key={s} className="timer-preset-btn" onClick={()=>timer.start(s)}>{l}</button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -629,17 +680,27 @@ function App(){
     },0);
   },0);
   const startTime=dayData?.startTime;
-  const elapsed=startTime?Math.round((Date.now()-new Date(startTime).getTime())/60000):0;
+  const endTime=dayData?.endTime;
 
-  // Live session elapsed timer
+  // Live session elapsed timer — freezes at endTime when day is marked done
   const[liveElapsed,setLiveElapsed]=useState(0);
+  const[liveElapsedSecs,setLiveElapsedSecs]=useState(0);
   useEffect(()=>{
-    if(!startTime){setLiveElapsed(0);return;}
-    const tick=()=>setLiveElapsed(Math.round((Date.now()-new Date(startTime).getTime())/60000));
-    tick();
-    const id=setInterval(tick,15000);
+    if(!startTime){setLiveElapsed(0);setLiveElapsedSecs(0);return;}
+    const getMs=()=>{
+      const end=dayData?.done&&endTime?new Date(endTime).getTime():Date.now();
+      return Math.max(0,end-new Date(startTime).getTime());
+    };
+    const apply=()=>{
+      const ms=getMs();
+      setLiveElapsed(Math.floor(ms/60000));
+      setLiveElapsedSecs(Math.floor((ms%60000)/1000));
+    };
+    apply();
+    if(dayData?.done)return; // frozen — no interval needed
+    const id=setInterval(apply,1000);
     return()=>clearInterval(id);
-  },[startTime]);
+  },[startTime,endTime,dayData?.done]);
 
   const color=TYPE_COLOR[day.type];
   const hex=TYPE_HEX[day.type];
@@ -663,6 +724,11 @@ function App(){
                 <button onClick={()=>changeWeek(1)}>›</button>
               </div>
             </div>
+            {tab==='workout'&&startTime&&(
+              <div style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:dayData.done?'var(--legs)':'var(--abs)',border:`1px solid ${dayData.done?'rgba(178,255,89,0.3)':'rgba(255,214,0,0.3)'}`,background:dayData.done?'rgba(178,255,89,0.06)':'rgba(255,214,0,0.06)',padding:'0.25rem 0.55rem',borderRadius:'4px',letterSpacing:'0.06em',flexShrink:0,animation:dayData.done?'none':'pulse 2s infinite'}}>
+                {dayData.done?'✓':'⏱'} {liveElapsed}:{String(liveElapsedSecs).padStart(2,'0')}
+              </div>
+            )}
             {tab==='workout'&&(
               <button className={`copy-btn ${copied?'copied':''}`} onClick={copyLastWeek}>
                 {copied?'✓ COPIED':'↑ COPY WK'}
@@ -677,16 +743,24 @@ function App(){
             {/* Day chips */}
             <div className="day-swipe-wrap">
               <div className="day-scroll">
-                {DAYS.map((d,i)=>(
+                {DAYS.map((d,i)=>{
+                  const chipDone=weekData[i]?.sets.reduce((a,setArr)=>a+setArr.filter(s=>s.done).length,0)||0;
+                  const chipTotal=d.exercises.reduce((a,ex)=>a+ex.sets,0);
+                  const chipPct=chipTotal?Math.round(chipDone/chipTotal*100):0;
+                  return(
                   <div key={d.id}
                     className={`day-chip ${i===dayIdx?'active':''} ${weekData[i]?.done?'done-chip':''}`}
                     onClick={()=>setDayIdx(i)}
                   >
                     <div className="day-chip-label" style={{color:i===dayIdx?TYPE_COLOR[d.type]:undefined}}>{d.name}</div>
                     <div className="day-chip-sub">{d.label}</div>
-                    <div className="day-chip-dot" style={{background:TYPE_COLOR[d.type],opacity:i===dayIdx?1:0.35}}/>
+                    {chipDone>0&&!weekData[i]?.done?(
+                      <div style={{fontFamily:'var(--font-mono)',fontSize:'0.42rem',color:TYPE_COLOR[d.type],marginTop:'2px',letterSpacing:'0.02em'}}>{chipDone}/{chipTotal}</div>
+                    ):(
+                      <div className="day-chip-dot" style={{background:TYPE_COLOR[d.type],opacity:i===dayIdx?1:0.35}}/>
+                    )}
                   </div>
-                ))}
+                );})}
               </div>
               <div className="swipe-hint">← swipe →</div>
             </div>
@@ -720,10 +794,6 @@ function App(){
                   <div className="sv" style={{color:'var(--pull)'}}>{Math.round(totalVolume)}</div>
                   <div className="sl">VOL (KG)</div>
                 </div>
-                {startTime&&<div className="summary-chip">
-                  <div className="sv" style={{color:'var(--abs)'}}>{liveElapsed}m</div>
-                  <div className="sl">SESSION</div>
-                </div>}
                 {prevWeekSets&&<div className="summary-chip" style={{borderTop:`2px solid var(--pull)`}}>
                   <div className="sv" style={{color:'var(--pull)',fontSize:'0.85rem'}}>WK{week-1}</div>
                   <div className="sl">PREV DATA</div>
@@ -750,13 +820,13 @@ function App(){
                 const allSetsDone=sets.every(s=>s.done)&&sets.length>0;
                 const exPB=pbs[ex.name]||0;
                 const hasPR=sets.some(s=>isPR(ex.name,s.kg));
+                const isBW=sets.length>0&&sets[0].bw;
                 return(
                   <div key={ei} className={`ex-card ${allSetsDone?'is-done':''}`}>
                     <div className="ex-card-head">
                       <div style={{flex:1}}>
                         <div className="ex-card-name">{ex.name}</div>
                         <div className="ex-card-meta">
-                          {/* SETS badge: boxed sets count + reps */}
                           <div className="ex-sets-badge">
                             <span className="ex-sets-box">{ex.sets} SETS</span>
                             <span className="ex-sets-reps">{ex.rep} REPS</span>
@@ -766,6 +836,15 @@ function App(){
                           {allSetsDone&&<div style={{fontFamily:'var(--font-mono)',fontSize:'0.5rem',color:'var(--legs)',border:'1px solid rgba(178,255,89,0.3)',padding:'0.08rem 0.3rem',borderRadius:'2px'}}>✓ DONE</div>}
                         </div>
                       </div>
+                      <button
+                        onClick={()=>{
+                          update(s=>{
+                            const newBw=!isBW;
+                            s.weeks[week][dayIdx].sets[ei].forEach(set=>{set.bw=newBw;if(newBw)set.kg='';});
+                          });
+                        }}
+                        style={{fontFamily:'var(--font-mono)',fontSize:'0.52rem',padding:'0.25rem 0.5rem',border:`1px solid ${isBW?'rgba(178,255,89,0.6)':'var(--border2)'}`,background:isBW?'rgba(178,255,89,0.1)':'transparent',color:isBW?'var(--legs)':'var(--muted)',cursor:'pointer',borderRadius:'3px',letterSpacing:'0.06em',flexShrink:0,transition:'all 0.15s'}}
+                      >{isBW?'✓ BW':'BW'}</button>
                     </div>
 
                     {/* Sparkline trend */}
@@ -791,11 +870,15 @@ function App(){
                             style={{gridTemplateColumns:'32px 1fr 1fr 36px 40px 44px'}}
                           >
                             <div className="set-num">S{si+1}</div>
-                            {/* KG stepper */}
-                            <div className={`stepper-wrap ${s.kg?'has-val':''}`}>
+                            {/* KG stepper — shows BW+kg or plain kg */}
+                            <div className={`stepper-wrap ${s.kg?'has-val':''}`} style={s.bw?{borderColor:'rgba(178,255,89,0.4)'}:{}}>
                               <button className="step-btn" onMouseDown={e=>{e.preventDefault();updateSet(ei,si,'kg',String(Math.max(0,(parseFloat(s.kg)||0)-2.5)));}}>−</button>
-                              <input className="set-field" type="number" inputMode="decimal" placeholder="kg"
-                                value={s.kg} onChange={e=>updateSet(ei,si,'kg',e.target.value)}/>
+                              <div style={{position:'relative',flex:1,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                                {s.bw&&<span style={{fontFamily:'var(--font-mono)',fontSize:'0.42rem',color:'var(--legs)',position:'absolute',top:'2px',left:'50%',transform:'translateX(-50%)',whiteSpace:'nowrap',pointerEvents:'none',letterSpacing:'0.02em'}}>BW+</span>}
+                                <input className="set-field" type="number" inputMode="decimal" placeholder={s.bw?'extra':'kg'}
+                                  value={s.kg} onChange={e=>updateSet(ei,si,'kg',e.target.value)}
+                                  style={s.bw?{paddingTop:'10px',fontSize:'0.78rem',color:'var(--legs)'}:{}}/>
+                              </div>
                               <button className="step-btn" onMouseDown={e=>{e.preventDefault();updateSet(ei,si,'kg',String((parseFloat(s.kg)||0)+2.5));}}>+</button>
                             </div>
                             {/* Reps stepper */}
@@ -976,16 +1059,7 @@ function App(){
 
       {/* REST TIMER */}
       {timer.visible&&(
-        <div className="timer-overlay">
-          <button className="timer-close" onClick={timer.close}>✕</button>
-          <div className="timer-label">REST TIMER {timer.done?'— GO!':''}</div>
-          <div className={`timer-display ${timer.done?'done':''}`}>{timer.fmt(timer.seconds)}</div>
-          <div className="timer-presets">
-            {[[60,'1m'],[90,'90s'],[120,'2m'],[180,'3m']].map(([s,l])=>(
-              <button key={s} className="timer-preset-btn" onClick={()=>timer.start(s)}>{l}</button>
-            ))}
-          </div>
-        </div>
+        <DraggableTimer timer={timer}/>
       )}
 
       {/* TOAST */}
