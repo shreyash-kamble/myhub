@@ -118,6 +118,11 @@ function mkWeekData(){
     notes:d.exercises.map(()=>''),
   }));
 }
+function getNextWorkoutDay(s){
+  const wd=s.weeks[s.currentWeek]||mkWeekData();
+  const first=wd.findIndex(d=>!d.done);
+  return first>=0?first:0;
+}
 function loadStore(){
   try{
     const r=localStorage.getItem('pplbeast_v3');
@@ -238,10 +243,7 @@ const CSS=`
 .app-title{font-family:var(--font-display);font-size:1.5rem;letter-spacing:0.06em;line-height:1;color:var(--text);}
 .app-title span{color:var(--push);}
 .topbar-center{flex:1;display:flex;justify-content:center;}
-.week-pill{display:flex;align-items:center;gap:0.3rem;background:var(--s3);border:1px solid var(--border2);padding:0.25rem 0.4rem;border-radius:4px;}
-.week-pill button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;line-height:1;padding:0 0.25rem;transition:color 0.15s;min-width:28px;min-height:28px;display:flex;align-items:center;justify-content:center;}
-.week-pill button:active{color:var(--push);}
-.week-pill span{font-family:var(--font-display);font-size:1rem;min-width:64px;text-align:center;color:var(--text);}
+.week-label-tap{font-family:var(--font-display);font-size:1.1rem;letter-spacing:0.08em;color:var(--text);text-align:center;padding:0.3rem 1.2rem;cursor:pointer;user-select:none;-webkit-user-select:none;line-height:1;}
 
 /* COPY LAST WEEK BTN */
 .copy-btn{font-family:var(--font-mono);font-size:0.55rem;letter-spacing:0.06em;padding:0.3rem 0.6rem;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.3);color:var(--pull);cursor:pointer;border-radius:3px;transition:all 0.15s;white-space:nowrap;}
@@ -290,14 +292,15 @@ const CSS=`
 /* EXERCISE CARD */
 .ex-card{margin:0 0.75rem 0.6rem;border:1px solid var(--border);background:var(--s1);overflow:hidden;border-radius:8px;transition:all 0.2s;}
 .ex-card.is-done{border-color:rgba(178,255,89,0.25);background:rgba(178,255,89,0.02);}
-.ex-card-head{padding:0.6rem 0.85rem 0.5rem;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:0.5rem;}
-.ex-card-name{font-family:var(--font-body);font-weight:700;font-size:1.1rem;color:#e8e8e8;line-height:1.2;}
+.ex-card-head{padding:0.6rem 0.85rem 0.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:0.6rem;}
+.ex-card-name{font-family:var(--font-body);font-weight:700;font-size:1.15rem;color:#e8e8e8;line-height:1.2;flex:1;}
 .ex-card-meta{display:flex;gap:0.4rem;align-items:center;margin-top:4px;flex-wrap:wrap;}
+.ex-name-row{display:flex;align-items:center;gap:0.55rem;flex-wrap:nowrap;}
 
-/* SETS BADGE — split into two chips */
-.ex-sets-badge{display:inline-flex;align-items:center;gap:0;overflow:hidden;border:1px solid var(--border2);border-radius:3px;}
-.ex-sets-box{font-family:var(--font-mono);font-size:0.58rem;padding:0.12rem 0.38rem;background:var(--s3);color:#fff;font-weight:700;letter-spacing:0.04em;border-right:1px solid var(--border2);}
-.ex-sets-reps{font-family:var(--font-mono);font-size:0.58rem;padding:0.12rem 0.38rem;color:#c8c8d8;letter-spacing:0.04em;}
+/* SETS BADGE — inline with name, bigger */
+.ex-sets-badge{display:inline-flex;align-items:center;gap:0;overflow:hidden;border:1px solid var(--border2);border-radius:3px;flex-shrink:0;}
+.ex-sets-box{font-family:var(--font-mono);font-size:0.82rem;padding:0.15rem 0.45rem;background:var(--s3);color:#fff;font-weight:700;letter-spacing:0.04em;border-right:1px solid var(--border2);}
+.ex-sets-reps{font-family:var(--font-mono);font-size:0.82rem;padding:0.15rem 0.45rem;color:#c8c8d8;letter-spacing:0.04em;}
 
 .ex-target{font-family:var(--font-mono);font-size:0.65rem;color:#c8c8d8;}
 .dropset-tag{font-family:var(--font-mono);font-size:0.48rem;color:var(--push);border:1px solid var(--push);padding:0.08rem 0.3rem;letter-spacing:0.06em;border-radius:2px;}
@@ -584,11 +587,12 @@ function App(){
   const storeRef=useRef(null);
   storeRef.current=store;
   const[tab,setTab]=useState('workout');
+  // viewWeek: what week user is currently browsing (may differ from store.currentWeek when swiping)
+  const[viewWeek,setViewWeek]=useState(()=>loadStore().currentWeek);
+  // dayIdx: always starts at next incomplete day in currentWeek on load
   const[dayIdx,setDayIdx]=useState(()=>{
     const s=loadStore();
-    const wd=s.weeks[s.currentWeek]||mkWeekData();
-    const first=wd.findIndex(d=>!d.done);
-    return first>=0?first:0;
+    return getNextWorkoutDay(s);
   });
   const[showReset,setShowReset]=useState(false);
   const[compareA,setCompareA]=useState(()=>store.currentWeek);
@@ -602,8 +606,9 @@ function App(){
   const swipeStartX=useRef(null);
   const nextSetRef=useRef(null);
 
-  const week=store.currentWeek;
-  const weekData=store.weeks[week]||mkWeekData();
+  const week=store.currentWeek; // actual training week (writes go here)
+  // viewWeek: week shown in header (browsable via swipe, resets to currentWeek on load)
+  const weekData=store.weeks[week]||mkWeekData(); // workout content always uses currentWeek
   const dayData=weekData[dayIdx];
   const day=DAYS[dayIdx];
   const allDone=weekData.every(d=>d.done);
@@ -707,14 +712,19 @@ function App(){
   const handleReset=useCallback(()=>{
     const nw=week+1;
     update(s=>{s.weeks[nw]=mkWeekData();s.currentWeek=nw;});
+    setViewWeek(nw);
+    setDayIdx(0);
     setShowReset(false);
   },[week,update]);
 
   const changeWeek=useCallback((delta)=>{
-    update(s=>{
-      const nw=Math.max(1,s.currentWeek+delta);
-      if(delta>0&&!s.weeks[nw])s.weeks[nw]=mkWeekData();
-      s.currentWeek=nw;
+    setViewWeek(vw=>{
+      const nw=Math.max(1,vw+delta);
+      // If navigating forward to a week that doesn't exist yet, create it in store
+      if(delta>0&&!storeRef.current.weeks[nw]){
+        update(s=>{if(!s.weeks[nw])s.weeks[nw]=mkWeekData();});
+      }
+      return nw;
     });
   },[update]);
 
@@ -738,6 +748,36 @@ function App(){
     showToast('✓ LAST WEEK WEIGHTS COPIED');
     setTimeout(()=>setCopied(false),2000);
   },[store,week,dayIdx,update,showToast]);
+
+  // ── SWIPE BETWEEN WEEKS (top bar) ────────────────────────────
+  const weekSwipeStartX=useRef(null);
+  const weekSwipeStartY=useRef(null);
+  const weekSwipeTime=useRef(null);
+  const weekTouchStart=useCallback(e=>{
+    weekSwipeStartX.current=e.touches[0].clientX;
+    weekSwipeStartY.current=e.touches[0].clientY;
+    weekSwipeTime.current=Date.now();
+  },[]);
+  const weekTouchEnd=useCallback(e=>{
+    if(weekSwipeStartX.current===null)return;
+    const dx=e.changedTouches[0].clientX-weekSwipeStartX.current;
+    const dy=e.changedTouches[0].clientY-weekSwipeStartY.current;
+    const dt=Date.now()-weekSwipeTime.current;
+    const velocity=Math.abs(dx)/dt;
+    const isTap=Math.abs(dx)<10&&Math.abs(dy)<10&&dt<300;
+    if(isTap){
+      // Tap: jump back to current training week + next workout day
+      setViewWeek(storeRef.current.currentWeek);
+      setDayIdx(getNextWorkoutDay(storeRef.current));
+      weekSwipeStartX.current=null;
+      return;
+    }
+    if(Math.abs(dy)>Math.abs(dx)*0.8){weekSwipeStartX.current=null;return;}
+    if(Math.abs(dx)>30||velocity>0.3){
+      changeWeek(dx<0?1:-1);
+    }
+    weekSwipeStartX.current=null;
+  },[changeWeek]);
 
   // ── SWIPE BETWEEN DAYS ────────────────────────────────────────
   const swipeStartY=useRef(null);
@@ -797,13 +837,11 @@ function App(){
         {/* TOP BAR */}
         <div className="topbar">
           <div className="topbar-inner">
-            <a href="index.html" style={{fontFamily:'var(--font-mono)',fontSize:'0.55rem',color:'var(--muted)',border:'1px solid var(--border2)',background:'var(--s2)',padding:'0.28rem 0.55rem',textDecoration:'none',borderRadius:'3px',letterSpacing:'0.06em',lineHeight:1,display:'flex',alignItems:'center',gap:'0.3rem',flexShrink:0}}>← HUB</a>
             <div className="app-title">PPL <span>BEAST</span></div>
             <div className="topbar-center">
-              <div className="week-pill">
-                <button onClick={()=>changeWeek(-1)}>‹</button>
-                <span>WEEK {week}</span>
-                <button onClick={()=>changeWeek(1)}>›</button>
+              <div className="week-label-tap" onTouchStart={weekTouchStart} onTouchEnd={weekTouchEnd} onClick={()=>{setViewWeek(store.currentWeek);setDayIdx(getNextWorkoutDay(store));}}>
+                WEEK {viewWeek}
+                {viewWeek!==store.currentWeek&&<span style={{fontFamily:'var(--font-mono)',fontSize:'0.45rem',color:'var(--push)',display:'block',letterSpacing:'0.06em',marginTop:'1px'}}>TAP → WK{store.currentWeek}</span>}
               </div>
             </div>
             {tab==='workout'&&(
@@ -891,12 +929,14 @@ function App(){
                   <div key={ei} className={`ex-card ${allSetsDone?'is-done':''}`}>
                     <div className="ex-card-head">
                       <div style={{flex:1}}>
-                        <div className="ex-card-name">{ex.name}</div>
-                        <div className="ex-card-meta">
+                        <div className="ex-name-row">
+                          <div className="ex-card-name">{ex.name}</div>
                           <div className="ex-sets-badge">
                             <span className="ex-sets-box">{ex.sets} SETS</span>
                             <span className="ex-sets-reps">{ex.rep} REPS</span>
                           </div>
+                        </div>
+                        <div className="ex-card-meta">
                           {ex.dropset&&<div className="dropset-tag">DROP</div>}
                           {ex.note&&<div style={{fontFamily:'var(--font-mono)',fontSize:'0.48rem',color:'var(--pull)',border:'1px solid rgba(0,229,255,0.3)',padding:'0.08rem 0.3rem',borderRadius:'2px',letterSpacing:'0.04em'}}>{ex.note}</div>}
                           {hasPR&&<div className="pr-badge">🏆 NEW PR</div>}
@@ -1116,7 +1156,7 @@ function App(){
         )}
 
         {/* BOTTOM NAV */}
-        <div className="bottomnav">
+        <div className="bottomnav" onTouchStart={weekTouchStart} onTouchEnd={weekTouchEnd}>
           {[{id:'workout',icon:'🏋️',label:'WORKOUT'},{id:'history',icon:'📅',label:'HISTORY'},{id:'compare',icon:'📊',label:'COMPARE'},{id:'stats',icon:'⚡',label:'STATS'}].map(n=>(
             <button key={n.id} className={`nav-item ${tab===n.id?'active':''}`} onClick={()=>setTab(n.id)}>
               <span className="nav-icon">{n.icon}</span>

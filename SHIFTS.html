@@ -83,17 +83,22 @@ function mkName(mk){const[y,m]=mk.split('-');return`${['Jan','Feb','Mar','Apr','
 function dayName(ds){return['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(ds).getDay()];}
 const TODAY=new Date().toISOString().slice(0,10);
 
-function loadStore(){try{const r=localStorage.getItem('shifts_v4');if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;return d;}}catch(e){}return{shifts:[],hourlyRate:12.21,weeklyTarget:0};}
+function loadStore(){try{const r=localStorage.getItem('shifts_v4');if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.lastPayRate)d.lastPayRate=0;return d;}}catch(e){}return{shifts:[],hourlyRate:12.21,weeklyTarget:0,lastPayRate:0};}
 function saveStore(s){try{localStorage.setItem('shifts_v4',JSON.stringify(s));}catch(e){}}
 
 function calDays(mk){
   const[y,m]=mk.split('-').map(Number);
-  const first=new Date(y,m-1,1),last=new Date(y,m,0);
-  const off=(first.getDay()+6)%7;
+  const first=new Date(y,m-1,1);
+  const totalDays=new Date(y,m,0).getDate();
+  const off=(first.getDay()+6)%7; // Mon=0 offset
   const days=[];
-  for(let i=off-1;i>=0;i--){const d=new Date(y,m-1,-i);days.push({date:d.toISOString().slice(0,10),cur:false});}
-  for(let i=1;i<=last.getDate();i++){const d=new Date(y,m-1,i);days.push({date:d.toISOString().slice(0,10),cur:true});}
-  while(days.length%7){const l=new Date(days[days.length-1].date);l.setDate(l.getDate()+1);days.push({date:l.toISOString().slice(0,10),cur:false});}
+  const pad=n=>String(n).padStart(2,'0');
+  // blank cells for padding (no date)
+  for(let i=0;i<off;i++){days.push({date:null,cur:false});}
+  // actual month days — build date string directly to avoid UTC shift
+  for(let i=1;i<=totalDays;i++){days.push({date:`${y}-${pad(m)}-${pad(i)}`,cur:true});}
+  // trailing blank cells to complete the grid row
+  while(days.length%7){days.push({date:null,cur:false});}
   return days;
 }
 
@@ -226,6 +231,7 @@ const CSS=`
 .dbh{display:flex;justify-content:space-between;align-items:center;padding:.6rem .9rem;background:var(--s2);border-bottom:1px solid var(--border);transition:background .1s;}
 .dbh:active{background:var(--s3);}
 .db.td .dbh{background:rgba(0,229,255,.07);}
+.db-body{}
 .dbh-d{font-family:var(--font-d);font-size:1.2rem;letter-spacing:.06em;color:var(--text2);}
 .dbh-n{color:var(--text2);font-size:.95rem;font-weight:600;}
 .sr-compact{display:flex;align-items:center;gap:.6rem;padding:.55rem .9rem;cursor:pointer;border-bottom:1px solid var(--border);background:var(--bg);transition:background .1s;}
@@ -239,7 +245,7 @@ const CSS=`
 .dbh-t{font-family:var(--font-d);font-size:1.2rem;color:var(--accent);}
 .tdtag{font-family:var(--font-m);font-size:.52rem;background:var(--accent);color:#000;padding:.12rem .38rem;letter-spacing:.08em;font-weight:700;margin-left:.45rem;border-radius:3px;vertical-align:middle;}
 
-/* SHIFT ROW — tap to edit, long-press to delete */
+/* SHIFT ROW — tap to edit */
 .sr-wrap{position:relative;overflow:hidden;border-bottom:1px solid var(--border);}
 .sr-wrap:last-child{border-bottom:none;}
 .sr{display:flex;align-items:center;gap:.7rem;padding:.82rem .9rem;animation:up .15s ease;background:var(--bg);position:relative;user-select:none;cursor:pointer;transition:background .1s;}
@@ -270,24 +276,23 @@ const CSS=`
 .mh-val{font-family:var(--font-d);font-size:2.4rem;color:var(--text);line-height:1;}
 .mh-pay{font-family:var(--font-d);font-size:1.9rem;color:var(--green);line-height:1;margin-top:.2rem;}
 
-/* CALENDAR */
-.cal{background:var(--s1);border:1px solid var(--border);margin-bottom:.6rem;overflow:hidden;border-radius:8px;}
-.cal-hdr{display:grid;grid-template-columns:repeat(7,1fr);background:var(--s2);border-bottom:1px solid var(--border);}
-.cal-dow{font-family:var(--font-m);font-size:.55rem;color:var(--muted);text-align:center;padding:.44rem 0;letter-spacing:.05em;}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);}
-.cc{background:var(--s1);min-height:62px;padding:.32rem .3rem;display:flex;flex-direction:column;gap:2px;cursor:pointer;transition:background .1s;}
-.cc:active{background:var(--s3);}
-.cc.om{background:#0a0a14;}
+/* CALENDAR — EXPENSES style */
+.cal{background:var(--s1);border:1px solid var(--border);margin-bottom:.6rem;overflow:hidden;border-radius:8px;padding:.6rem;}
+.cal-dow-row{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:.25rem;}
+.cal-dow{font-family:var(--font-m);font-size:.52rem;color:var(--muted);text-align:center;padding:.2rem 0;letter-spacing:.04em;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.cc{aspect-ratio:1;background:var(--s1);border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;position:relative;}
+.cc:active{border-color:var(--accent);}
+.cc.om{background:transparent;border-color:transparent;cursor:default;}
+.cc.it{border-color:var(--accent);}
+.cc.sl{border-color:var(--gold);background:rgba(255,214,0,.06);}
 .cc.hs{background:var(--s2);}
-.cc.it{background:rgba(0,229,255,.08);box-shadow:inset 0 0 0 1.5px var(--accent);}
-.cc.sl{box-shadow:inset 0 0 0 2px var(--gold);background:rgba(255,214,0,.06);}
-.cn{font-family:var(--font-m);font-size:.68rem;color:var(--muted);line-height:1;}
-.cc.hs .cn{color:var(--text2);}
+.cn{font-family:var(--font-d);font-size:.85rem;color:var(--muted);line-height:1;}
+.cc.hs .cn{color:var(--text);}
 .cc.it .cn{color:var(--accent);font-weight:700;}
-.cc.om .cn{color:#252538;}
-.cdot{width:100%;height:4px;border-radius:2px;}
-/* shift count badge */
-.cbadge{font-family:var(--font-d);font-size:.72rem;color:var(--accent);line-height:1;margin-top:1px;}
+.cc.om .cn{color:var(--dim);}
+.cal-dots{display:flex;gap:1px;margin-top:2px;}
+.cal-add{font-size:.6rem;color:var(--dim);margin-top:2px;}
 
 .cdet{background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--accent);margin-bottom:.6rem;overflow:hidden;animation:up .15s ease;border-radius:7px;}
 .cdet-h{padding:.65rem .9rem;background:rgba(0,229,255,.07);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
@@ -350,72 +355,109 @@ const CSS=`
 
 /* MODAL */
 .mo{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:100;display:flex;align-items:center;justify-content:center;padding:1.25rem;}
-.mdl{background:var(--s1);border:1px solid var(--border);padding:1.5rem;width:100%;max-width:340px;animation:pop .2s ease;border-radius:9px;max-height:90vh;overflow-y:auto;}
-.mdl-t{font-family:var(--font-d);font-size:1.6rem;letter-spacing:.06em;margin-bottom:.3rem;color:var(--text);}
-.mdl-s{font-family:var(--font-m);font-size:.65rem;color:var(--muted);margin-bottom:1rem;}
-.mdl-l{font-family:var(--font-m);font-size:.65rem;color:var(--muted);letter-spacing:.08em;margin-bottom:.35rem;margin-top:.75rem;}
+.mdl{background:var(--bg);border:1px solid var(--border);padding:1rem;width:100%;max-width:340px;animation:pop .2s ease;border-radius:9px;max-height:90vh;overflow-y:auto;}
+.mdl-t{font-family:var(--font-d);font-size:1.6rem;letter-spacing:.06em;margin-bottom:.25rem;color:var(--text);}
+.mdl-s{font-family:var(--font-m);font-size:.65rem;color:var(--muted);margin-bottom:.75rem;}
+.mdl-box{background:var(--s1);border:1px solid var(--border);padding:.85rem 1rem;border-radius:7px;margin-bottom:.5rem;}
+.mdl-l{font-family:var(--font-m);font-size:.65rem;color:var(--accent);letter-spacing:.1em;margin-bottom:.45rem;}
+.mdl-l+.mdl-l{margin-top:.65rem;}
 .mdl-i{width:100%;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-d);font-size:1.5rem;padding:.6rem .75rem;letter-spacing:.04em;border-radius:5px;}
 .mdl-i:focus{outline:none;border-color:var(--green);}
 .mdl-i-sm{width:100%;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-m);font-size:.88rem;padding:.5rem .65rem;border-radius:4px;}
 .mdl-i-sm:focus{outline:none;border-color:var(--accent);}
 .mdl-trow{display:grid;grid-template-columns:1fr 20px 1fr;gap:.4rem;align-items:center;}
 .mdl-tsep{font-family:var(--font-d);font-size:1.1rem;color:var(--muted);text-align:center;}
-.mdl-lgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:.3rem;margin-top:.35rem;}
+.mdl-lgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:.3rem;}
 .mdl-lbtn{display:flex;align-items:center;gap:.25rem;padding:.45rem .35rem;border:1px solid var(--border2);background:var(--s2);cursor:pointer;font-family:var(--font-b);font-size:.8rem;font-weight:700;color:var(--muted);white-space:nowrap;overflow:hidden;border-radius:4px;transition:all .15s;}
 .mdl-lbtn.sel{background:rgba(255,255,255,.05);}
 .mdl-notes{width:100%;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-m);font-size:.78rem;padding:.48rem .65rem;border-radius:4px;resize:none;line-height:1.4;}
 .mdl-notes:focus{outline:none;border-color:var(--accent);}
 .mdl-notes::placeholder{color:var(--muted);}
-.mdl-bs{display:flex;gap:.5rem;margin-top:1.25rem;}
-.mdl-b{flex:1;font-family:var(--font-d);font-size:1rem;letter-spacing:.08em;padding:.65rem;border:1px solid var(--border2);background:var(--s2);color:var(--text);cursor:pointer;border-radius:5px;}
-.mdl-b.ok{background:var(--green);border-color:var(--green);color:#000;}
-.mdl-b.danger{background:var(--red);border-color:var(--red);color:#fff;}
+.mdl-divider{height:1px;background:var(--border);margin:.65rem 0;}
+.mdl-save{width:100%;font-family:var(--font-d);font-size:1.3rem;letter-spacing:.1em;padding:.75rem;border:none;cursor:pointer;background:var(--green);color:#000;border-radius:5px;margin-top:.25rem;transition:all .15s;}
+.mdl-save:disabled{background:var(--dim);color:var(--muted);cursor:default;}
+.mdl-save.edit{background:var(--green);}
+.mdl-del{width:100%;font-family:var(--font-d);font-size:1rem;letter-spacing:.08em;padding:.6rem;border:1px solid rgba(255,85,85,.35);background:transparent;color:var(--red);cursor:pointer;border-radius:5px;margin-top:.4rem;}
 `;
 
 /* ── EDIT MODAL ── */
-function EditModal({shift, rate, onSave, onDelete, onClose}){
+function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose}){
   const isNew=!shift.id;
   const[date,setDate]=useState(shift.date);
   const[s0,setS0]=useState(shift.start||'');
   const[e0,setE0]=useState(shift.end||'');
   const[loc,setLoc]=useState(shift.loc||'TR');
   const[note,setNote]=useState(shift.note||'');
-  const pH=calcH(s0,e0),pP=pH*rate;
+  const[payRateIn,setPayRateIn]=useState(
+    shift.payRate>0?String(shift.payRate):lastPayRate>0?String(lastPayRate):''
+  );
+  const effectiveRate=parseFloat(payRateIn)>0?parseFloat(payRateIn):rate;
+  const pH=calcH(s0,e0),pP=pH*effectiveRate;
   function doSave(){
     if(!s0||!e0||pH<=0)return;
-    onSave({...shift,id:shift.id||uid(),date,start:s0,end:e0,loc,hours:pH,note});
+    const pr=parseFloat(payRateIn);
+    onSave({...shift,id:shift.id||uid(),date,start:s0,end:e0,loc,hours:pH,note,payRate:pr>0?pr:0});
   }
   return(
     <div className="mo" onClick={onClose}>
       <div className="mdl" onClick={e=>e.stopPropagation()}>
         <div className="mdl-t">{isNew?'ADD SHIFT':'EDIT SHIFT'}</div>
-        <div className="mdl-s">{isNew?`Adding shift for ${dayName(date)} ${+date.slice(8)} ${mkName(date.slice(0,7))}`:'Update the details below'}</div>
-        <div className="mdl-l">DATE</div>
-        <input className="mdl-i-sm" type="date" value={date} onChange={e=>setDate(e.target.value)}/>
-        <div className="mdl-l">SHIFT TIME</div>
-        <div className="mdl-trow">
-          <TimeInput className="mdl-i-sm" value={s0} onChange={setS0} placeholder="09:00"/>
-          <div className="mdl-tsep">→</div>
-          <TimeInput className="mdl-i-sm" value={e0} onChange={setE0} placeholder="17:00"/>
+        <div className="mdl-s">{isNew?`${dayName(date)} · ${+date.slice(8)} ${mkName(date.slice(0,7))}`:'Update the details below'}</div>
+
+        {/* DATE box */}
+        <div className="mdl-box">
+          <div className="mdl-l">DATE</div>
+          <input className="mdl-i-sm" type="date" value={date} onChange={e=>setDate(e.target.value)}/>
         </div>
-        {s0&&e0&&pH>0&&<div style={{marginTop:'.4rem',fontFamily:'var(--font-m)',fontSize:'.65rem',color:'var(--accent)'}}>{fmtH(pH)} · {fmtP(pP)}</div>}
-        <div className="mdl-l">LOCATION</div>
-        <div className="mdl-lgrid">
-          {LOCS.map(l=>(
-            <div key={l} className={`mdl-lbtn ${loc===l?'sel':''}`}
-              style={loc===l?{borderColor:LCOL[l],color:LCOL[l]}:{}}
-              onClick={()=>setLoc(l)}>
-              <span>{LICO[l]}</span>{l}
-            </div>
-          ))}
+
+        {/* SHIFT TIME + PAY RATE box */}
+        <div className="mdl-box">
+          <div className="mdl-l">SHIFT TIME</div>
+          <div className="mdl-trow">
+            <TimeInput className="mdl-i-sm" value={s0} onChange={setS0} placeholder="09:00"/>
+            <div className="mdl-tsep">→</div>
+            <TimeInput className="mdl-i-sm" value={e0} onChange={setE0} placeholder="17:00"/>
+          </div>
+          {s0&&e0&&pH>0&&<div style={{marginTop:'.35rem',fontFamily:'var(--font-m)',fontSize:'.63rem',color:'var(--accent)'}}>{fmtH(pH)} · {fmtP(pP)}</div>}
+          <div className="mdl-divider"/>
+          <div className="mdl-l">PAY RATE (£/HR)</div>
+          <div style={{display:'flex',alignItems:'center',gap:'.4rem'}}>
+            <span style={{fontFamily:'var(--font-m)',fontSize:'.85rem',color:'var(--muted)'}}>£</span>
+            <input className="mdl-i-sm" type="number" inputMode="decimal" step="0.01" min="0"
+              value={payRateIn} onChange={e=>setPayRateIn(e.target.value)}
+              placeholder={rate.toFixed(2)} style={{flex:1}}/>
+            <span style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--muted)'}}>/HR</span>
+          </div>
         </div>
-        <div className="mdl-l">NOTES (OPTIONAL)</div>
-        <textarea className="mdl-notes" rows={2} value={note} onChange={e=>setNote(e.target.value)} placeholder=""/>
-        <div className="mdl-bs">
-          {!isNew&&<button className="mdl-b danger" onClick={()=>onDelete(shift.id)}>DELETE</button>}
-          <button className="mdl-b" onClick={onClose}>CANCEL</button>
-          <button className="mdl-b ok" disabled={!s0||!e0||pH<=0} onClick={doSave}>SAVE</button>
+
+        {/* LOCATION box */}
+        <div className="mdl-box">
+          <div className="mdl-l">LOCATION</div>
+          <div className="mdl-lgrid">
+            {LOCS.map(l=>(
+              <div key={l} className={`mdl-lbtn ${loc===l?'sel':''}`}
+                style={loc===l?{borderColor:LCOL[l],color:LCOL[l]}:{}}
+                onClick={()=>setLoc(l)}>
+                <span>{LICO[l]}</span>{l}
+              </div>
+            ))}
+          </div>
         </div>
+
+        {/* NOTES box */}
+        <div className="mdl-box">
+          <div className="mdl-l">NOTES (OPTIONAL)</div>
+          <textarea className="mdl-notes" rows={2} value={note} onChange={e=>setNote(e.target.value)} placeholder=""/>
+        </div>
+
+        {!isNew ? (
+          <div style={{display:'flex',gap:'.5rem',marginTop:'.25rem'}}>
+            <button className="mdl-del" style={{margin:0,flex:1,background:'var(--red)',borderColor:'var(--red)',color:'#fff'}} onClick={()=>onDelete(shift.id)}>DELETE</button>
+            <button className="mdl-save edit" style={{flex:1,marginTop:0}} disabled={!s0||!e0||pH<=0} onClick={doSave}>SAVE</button>
+          </div>
+        ) : (
+          <button className="mdl-save" disabled={!s0||!e0||pH<=0} onClick={doSave}>SAVE</button>
+        )}
       </div>
     </div>
   );
@@ -425,6 +467,7 @@ function EditModal({shift, rate, onSave, onDelete, onClose}){
 function ShiftRow({s, rate, onDel, onEdit}){
   const col=LCOL[s.loc]||'#888';
   const fmt24=t=>{if(!t)return'';const[h,m]=t.split(':');return`${h.padStart(2,'0')}:${m.padStart(2,'0')}`;};
+  const effectiveRate=s.payRate&&s.payRate>0?s.payRate:rate;
   return(
     <div className="sr-wrap">
       <div className="sr" onClick={()=>onEdit(s)}>
@@ -440,7 +483,7 @@ function ShiftRow({s, rate, onDel, onEdit}){
         </div>
         <div className="sr-right">
           <div className="sr-hrs" style={{color:col}}>{fmtH(s.hours)}</div>
-          <div className="sr-pay">{fmtP(s.hours*rate)}</div>
+          <div className="sr-pay">{fmtP(s.hours*effectiveRate)}</div>
         </div>
       </div>
     </div>
@@ -456,6 +499,7 @@ function App(){
   const[loc,setLoc]=useState('TR');
   const[note,setNote]=useState('');
   const[ok,setOk]=useState(false);
+  const[payRateIn,setPayRateIn]=useState('');
   const[wOff,setWOff]=useState(0);
   const[vm,setVm]=useState(()=>new Date().toISOString().slice(0,7));
   const[showR,setShowR]=useState(false);
@@ -473,7 +517,11 @@ function App(){
 
   function addShift(){
     const h=calcH(s0,e0);if(!h||h<=0)return;
-    up(st=>{st.shifts=[...st.shifts,{id:uid(),date,start:s0,end:e0,loc,hours:h,note}].sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));});
+    const pr=parseFloat(payRateIn);const shiftRate=pr>0?pr:rate;
+    up(st=>{
+      if(pr>0)st.lastPayRate=pr;
+      st.shifts=[...st.shifts,{id:uid(),date,start:s0,end:e0,loc,hours:h,note,payRate:shiftRate}].sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
+    });
     setS0('');setE0('');setNote('');setOk(true);setTimeout(()=>setOk(false),700);
   }
   const delShift=id=>up(st=>{st.shifts=st.shifts.filter(x=>x.id!==id);setEditShift(null);});
@@ -492,6 +540,7 @@ function App(){
         st.shifts=[...st.shifts,updated];
       }
       st.shifts=st.shifts.sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
+      if(updated.payRate>0)st.lastPayRate=updated.payRate;
     });
     setEditShift(null);
     setSaveFlash(true);setTimeout(()=>setSaveFlash(false),400);
@@ -514,6 +563,8 @@ function App(){
   }
 
   const rate=store.hourlyRate,shifts=store.shifts,weeklyTarget=store.weeklyTarget||0;
+  // Initialize payRateIn from last saved rate on first render
+  useEffect(()=>{if(payRateIn===''&&store.lastPayRate>0)setPayRateIn(String(store.lastPayRate));},[]);
 
   const wStart=useMemo(()=>{
     const d=new Date(),day=d.getDay(),m=new Date(d);
@@ -527,26 +578,32 @@ function App(){
 
   const wShifts=useMemo(()=>shifts.filter(s=>wDates.includes(s.date)),[shifts,wDates]);
   const wHours=useMemo(()=>wShifts.reduce((a,s)=>a+s.hours,0),[wShifts]);
+  const wPay=useMemo(()=>wShifts.reduce((a,s)=>a+s.hours*(s.payRate&&s.payRate>0?s.payRate:rate),0),[wShifts,rate]);
   const wByDay=useMemo(()=>{const m={};wDates.forEach(d=>{m[d]=wShifts.filter(s=>s.date===d);});return m;},[wDates,wShifts]);
 
   const mShifts=useMemo(()=>shifts.filter(s=>s.date.startsWith(vm)),[shifts,vm]);
   const mHours=useMemo(()=>mShifts.reduce((a,s)=>a+s.hours,0),[mShifts]);
-  const mPay=mHours*rate;
+  const mPay=useMemo(()=>mShifts.reduce((a,s)=>a+s.hours*(s.payRate&&s.payRate>0?s.payRate:rate),0),[mShifts,rate]);
 
   const mByWeek=useMemo(()=>{
     const m={};
-    mShifts.forEach(s=>{const w=wkNum(s.date);if(!m[w])m[w]={w,hours:0,shifts:[],dates:[]};m[w].hours+=s.hours;m[w].shifts.push(s);if(!m[w].dates.includes(s.date))m[w].dates.push(s.date);});
+    mShifts.forEach(s=>{const w=wkNum(s.date);if(!m[w])m[w]={w,hours:0,shifts:[],dates:[],pay:0};m[w].hours+=s.hours;m[w].pay+=s.hours*(s.payRate&&s.payRate>0?s.payRate:rate);m[w].shifts.push(s);if(!m[w].dates.includes(s.date))m[w].dates.push(s.date);});
     return Object.values(m).sort((a,b)=>a.w-b.w);
-  },[mShifts]);
+  },[mShifts,rate]);
   const maxWH=useMemo(()=>Math.max(1,...mByWeek.map(w=>w.hours)),[mByWeek]);
 
   const mLoc=useMemo(()=>{const m={};mShifts.forEach(s=>{m[s.loc]=(m[s.loc]||0)+s.hours;});return m;},[mShifts]);
   const maxLH=useMemo(()=>Math.max(1,...Object.values(mLoc)),[mLoc]);
 
   const tHours=useMemo(()=>shifts.reduce((a,s)=>a+s.hours,0),[shifts]);
+  const tPay=useMemo(()=>shifts.reduce((a,s)=>a+s.hours*(s.payRate&&s.payRate>0?s.payRate:rate),0),[shifts,rate]);
   const allM=useMemo(()=>{
-    const m={};shifts.forEach(s=>{const k=mkKey(s.date);if(!m[k])m[k]={k,hours:0,shifts:0};m[k].hours+=s.hours;m[k].shifts++;});
-    return Object.values(m).sort((a,b)=>b.k.localeCompare(a.k));
+    const m={};shifts.forEach(s=>{const k=mkKey(s.date);if(!m[k])m[k]={k,hours:0,shifts:0,pay:0};m[k].hours+=s.hours;m[k].shifts++;m[k].pay+=s.hours*(s.payRate&&s.payRate>0?s.payRate:rate);});
+    // Sort by tax year order: Apr (month 4) starts new tax year, so offset month by -3
+    return Object.values(m).sort((a,b)=>{
+      const taxOrd=k=>{const[y,mo]=k.split('-').map(Number);return(+mo>=4?y*100+(+mo):( (y-1)*100+(+mo+12)));};
+      return taxOrd(b.k)-taxOrd(a.k);
+    });
   },[shifts]);
 
   const upcomingShifts=useMemo(()=>shifts.filter(s=>s.date>TODAY).sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start)).slice(0,5),[shifts]);
@@ -554,14 +611,19 @@ function App(){
   function daysUntil(ds){const d=new Date(ds),t=new Date(TODAY);return Math.round((d-t)/86400000);}
 
   const taxEst=useMemo(()=>{
-    const annual=tHours*rate;
+    // UK tax year: 1 Apr → 31 Mar
+    const now=new Date();
+    const tyStart=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
+    const tyS=`${tyStart}-04-01`,tyE=`${tyStart+1}-03-31`;
+    const tyHours=shifts.filter(s=>s.date>=tyS&&s.date<=tyE).reduce((a,s)=>a+s.hours,0);
+    const annual=tyHours*rate;
     const pa=12570,br=50270;
     const taxable=Math.max(0,annual-pa);
     const incomeTax=Math.min(taxable,br-pa)*0.2+Math.max(0,taxable-(br-pa))*0.4;
     const ni=Math.max(0,annual-12570)*0.08;
     const net=annual-incomeTax-ni;
-    return{annual,incomeTax,ni,net,monthly:net/12,weekly:net/52};
-  },[tHours,rate]);
+    return{annual,incomeTax,ni,net,monthly:net/12,weekly:net/52,tyStart,tyEnd:tyStart+1};
+  },[tHours,rate,shifts]);
 
   function chMon(d){
     const[y,m]=vm.split('-').map(Number),nd=new Date(y,m-1+d,1);
@@ -580,22 +642,17 @@ function App(){
   const selS=sel?(sByDate[sel]||[]):[];
   const selH=selS.reduce((a,s)=>a+s.hours,0);
 
-  const pH=calcH(s0,e0),pP=pH*rate;
+  const shiftPayRate=parseFloat(payRateIn)>0?parseFloat(payRateIn):rate;
+  const pH=calcH(s0,e0),pP=pH*shiftPayRate;
 
   return(<>
     <style>{CSS}</style>
     <div className="app">
 
       <div className="topbar">
-        <div className="tb-inner">
-          <div style={{display:'flex',alignItems:'center',gap:'.6rem'}}>
-            <a href="index.html" style={{fontFamily:'var(--font-m)',fontSize:'.62rem',color:'var(--muted)',border:'1px solid var(--border2)',background:'var(--s2)',padding:'.28rem .55rem',textDecoration:'none',borderRadius:'4px',letterSpacing:'.06em',lineHeight:1,display:'flex',alignItems:'center',gap:'.3rem'}}>← HUB</a>
-            <div className="title">SHI<span>FT</span>S</div>
-          </div>
-          <button className="rate-btn" onClick={()=>{setRIn(String(rate));setTgtIn(String(weeklyTarget||''));setShowR(true);}}>
-            <span className="rate-btn-lbl">RATE</span>
-            £{rate.toFixed(2)}/HR
-          </button>
+        <div className="tb-inner" style={{justifyContent:'center',position:'relative'}}>
+          <div className="title">SHI<span>FT</span>S</div>
+          <button onClick={()=>{setRIn(String(rate));setTgtIn(String(weeklyTarget||''));setShowR(true);}} style={{position:'absolute',right:'1rem',background:'none',border:'none',cursor:'pointer',color:'var(--muted)',fontSize:'1.1rem',padding:'.25rem',lineHeight:1}} title="Settings">⚙️</button>
         </div>
       </div>
 
@@ -613,6 +670,24 @@ function App(){
             <TimeInput className="finp" value={e0} onChange={setE0} placeholder="17:00"/>
           </div>
           {s0&&e0&&pH>0&&<div style={{marginTop:'.5rem',fontFamily:'var(--font-m)',fontSize:'.67rem',color:'var(--accent)'}}>{fmtH(pH)} · ends {e0==='00:00'?'00:00':e0}</div>}
+          <div style={{height:'1px',background:'var(--border)',margin:'.75rem 0'}}/>
+          <div className="flbl" style={{marginBottom:'.4rem'}}>PAY RATE (£/HR)</div>
+          <div style={{display:'flex',alignItems:'center',gap:'.5rem'}}>
+            <span style={{fontFamily:'var(--font-m)',fontSize:'.9rem',color:'var(--muted)'}}>£</span>
+            <input
+              className="finp"
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              value={payRateIn}
+              onChange={e=>setPayRateIn(e.target.value)}
+              placeholder={rate.toFixed(2)}
+              style={{flex:1}}
+            />
+            <span style={{fontFamily:'var(--font-m)',fontSize:'.62rem',color:'var(--muted)',whiteSpace:'nowrap'}}>/HR</span>
+          </div>
+          {payRateIn&&parseFloat(payRateIn)>0&&<div style={{marginTop:'.3rem',fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--green)',letterSpacing:'.04em'}}>Using £{parseFloat(payRateIn).toFixed(2)}/hr for this shift</div>}
         </div>
         <div className="fcard">
           <div className="flbl">LOCATION</div>
@@ -639,20 +714,18 @@ function App(){
 
       {/* WEEK */}
       {tab==='week'&&<div className="screen" ref={weekRef}><div className="w-wrap">
-        <div className="wnav">
-          <button className="wnbtn" onClick={()=>setWOff(o=>o-1)}>◀</button>
-          <div>
-            <div className="wntit">{wOff===0?'THIS WEEK':wOff===-1?'LAST WEEK':wOff<0?`${Math.abs(wOff)} WKS AGO`:`${wOff} WKS AHEAD`}</div>
-            <div className="wnsub">{wLabel}</div>
-          </div>
-          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'.3rem'}}>
-            <button className="wnbtn" onClick={()=>setWOff(o=>o+1)}>▶</button>
-            {wOff!==0&&<button className="today-pill" onClick={()=>setWOff(0)}>TODAY</button>}
+        <div className="wnav" style={{justifyContent:'center',flexDirection:'column',alignItems:'center',gap:'.3rem'}}>
+          <div
+            onClick={wOff!==0?()=>setWOff(0):undefined}
+            style={{cursor:wOff!==0?'pointer':'default',textAlign:'center',userSelect:'none'}}
+          >
+            <div className="wntit" style={{color:wOff!==0?'var(--accent)':'var(--text)',transition:'color .2s'}}>{wOff===0?'THIS WEEK':wOff===-1?'LAST WEEK':wOff<0?`${Math.abs(wOff)} WKS AGO`:`${wOff} WKS AHEAD`}</div>
+            <div className="wnsub">{wLabel}{wOff!==0&&<span style={{marginLeft:'.5rem',fontSize:'.52rem',color:'var(--accent)',opacity:.75}}>↩ tap to return</span>}</div>
           </div>
         </div>
         <div className="who">
           <div className="wc" style={{borderTop:'2px solid var(--accent)'}}><div className="wcv" style={{color:'var(--accent)'}}>{fmtH(wHours)}</div><div className="wcl">TOTAL HRS</div></div>
-          <div className="wc" style={{borderTop:'2px solid var(--green)'}}><div className="wcv" style={{color:'var(--green)',fontSize:'1.3rem'}}>{wHours>0?fmtP(wHours*rate):'£0.00'}</div><div className="wcl">GROSS PAY</div></div>
+          <div className="wc" style={{borderTop:'2px solid var(--green)'}}><div className="wcv" style={{color:'var(--green)',fontSize:'1.3rem'}}>{wHours>0?fmtP(wPay):'£0.00'}</div><div className="wcl">GROSS PAY</div></div>
           <div className="wc" style={{borderTop:'2px solid var(--gold)'}}><div className="wcv" style={{color:'var(--gold)'}}>{wShifts.length}</div><div className="wcl">SHIFTS</div></div>
         </div>
         {weeklyTarget>0&&(()=>{const pct=Math.min(100,wHours/weeklyTarget*100),done=wHours>=weeklyTarget,rem=Math.max(0,weeklyTarget-wHours);return(
@@ -693,30 +766,26 @@ function App(){
               </div>
               {has&&<div className="dbh-t">{fmtH(dh)}</div>}
             </div>
-            {has
-              ? isPast
-                ? ds.map(s=>(
-                  <div key={s.id} className="sr-compact" onClick={()=>setEditShift(s)}>
-                    <div className="sr-cdot" style={{background:LCOL[s.loc]||'#888'}}/>
-                    <span className="sr-cico">{LICO[s.loc]}</span>
-                    <span className="sr-cloc" style={{color:LCOL[s.loc]||'#888'}}>{s.loc}</span>
-                    <span className="sr-chrs" style={{color:LCOL[s.loc]||'#888'}}>{fmtH(s.hours)}</span>
-                    <span className="sr-cpay">{fmtP(s.hours*rate)}</span>
-                  </div>
-                ))
-                : ds.map(s=><ShiftRow key={s.id} s={s} rate={rate} onDel={delShift} onEdit={setEditShift}/>)
-              : <div className="eday">no shifts</div>
-            }
+            <div className="db-body">
+              {has
+                ? ds.map(s=><ShiftRow key={s.id} s={s} rate={rate} onDel={delShift} onEdit={setEditShift}/>)
+                : <div className="eday">no shifts</div>
+              }
+            </div>
           </div>;
         })}
       </div></div>}
 
       {/* MONTHLY */}
       {tab==='monthly'&&<div className="screen" ref={monthRef}><div className="m-wrap">
-        <div className="mnav">
-          <button className="mnbtn" onClick={()=>chMon(-1)}>◀</button>
-          <div className="mtit">{mkName(vm)}</div>
-          <button className="mnbtn" onClick={()=>chMon(1)}>▶</button>
+        <div className="mnav" style={{justifyContent:'center'}}>
+          <div
+            className="mtit"
+            onClick={vm!==new Date().toISOString().slice(0,7)?()=>{setVm(new Date().toISOString().slice(0,7));setSel(null);}:undefined}
+            style={{cursor:vm!==new Date().toISOString().slice(0,7)?'pointer':'default',color:vm!==new Date().toISOString().slice(0,7)?'var(--gold)':'var(--text)',transition:'color .2s',textAlign:'center'}}
+          >
+            {mkName(vm)}{vm!==new Date().toISOString().slice(0,7)&&<span style={{fontFamily:'var(--font-m)',fontSize:'.55rem',marginLeft:'.5rem',opacity:.8}}>↩</span>}
+          </div>
         </div>
 
         <div className="mhero">
@@ -738,22 +807,23 @@ function App(){
 
         {/* CALENDAR */}
         <div className="cal">
-          <div className="cal-hdr">{['MON','TUE','WED','THU','FRI','SAT','SUN'].map(d=><div key={d} className="cal-dow">{d}</div>)}</div>
+          <div className="cal-dow-row">{['MON','TUE','WED','THU','FRI','SAT','SUN'].map(d=><div key={d} className="cal-dow">{d}</div>)}</div>
           <div className="cal-grid">
-            {cDays.map(({date:cd,cur})=>{
-              const cs=sByDate[cd]||[],ch=cs.reduce((a,s)=>a+s.hours,0);
-              const isT=cd===TODAY,isSel=cd===sel,hasS=cs.length>0&&cur;
-              const cls=['cc',!cur?'om':'',hasS?'hs':'',isT?'it':'',isSel?'sl':''].filter(Boolean).join(' ');
+            {cDays.map(({date:cd,cur},i)=>{
+              if(!cd){return<div key={`blank-${i}`} className="cc om"/>;}
+              const cs=sByDate[cd]||[];
+              const isT=cd===TODAY,isSel=cd===sel,hasS=cs.length>0;
+              const cls=['cc',hasS?'hs':'',isT?'it':'',isSel?'sl':''].filter(Boolean).join(' ');
+              const topLocs=[...new Set(cs.map(s=>s.loc))].slice(0,3);
               return<div key={cd} className={cls} onClick={()=>{
-                if(!cur)return;
                 if(cs.length===0){setEditShift({date:cd,start:'',end:'',loc:'TR',note:''});}
                 else{setSel(isSel?null:cd);}
               }}>
                 <div className="cn">{+cd.slice(8)}</div>
-                {cs.slice(0,3).map((s,i)=><div key={i} style={{width:'100%',height:'4px',borderRadius:'2px',background:LCOL[s.loc]||'#888',opacity:cur?.9:.15}}/>)}
-                {cs.length>1&&cur&&<div className="cbadge">{cs.length} shifts</div>}
-                {cs.length===1&&cur&&<div className="cbadge">{fmtH(cs[0].hours)}</div>}
-                {cs.length===0&&cur&&<div style={{fontSize:'.65rem',color:'var(--dim)',marginTop:'auto',lineHeight:1}}>+</div>}
+                {hasS&&<div className="cal-dots">
+                  {topLocs.map((loc,j)=><div key={j} style={{width:'5px',height:'5px',borderRadius:'50%',background:LCOL[loc]||'#888'}}/>)}
+                </div>}
+                {!hasS&&<div className="cal-add">+</div>}
               </div>;
             })}
           </div>
@@ -785,7 +855,7 @@ function App(){
               </div>
               <div style={{textAlign:'right'}}>
                 <div className="wsc-h">{fmtH(w.hours)}</div>
-                <div className="wsc-p">{fmtP(w.hours*rate)}</div>
+                <div className="wsc-p">{fmtP(w.pay)}</div>
               </div>
             </div>
           ))}
@@ -807,73 +877,107 @@ function App(){
 
       {/* STATS */}
       {tab==='stats'&&<div className="screen"><div className="st-wrap">
-        <div style={{fontFamily:'var(--font-d)',fontSize:'1.9rem',letterSpacing:'.06em',marginBottom:'.65rem',color:'var(--text)'}}>ALL TIME</div>
-        <div className="stg">
-          <div className="stc" style={{borderTop:'2px solid var(--accent)'}}><div className="stv" style={{color:'var(--accent)'}}>{fmtH(tHours)}</div><div className="stl">TOTAL HOURS</div></div>
-          <div className="stc" style={{borderTop:'2px solid var(--green)'}}><div className="stv" style={{color:'var(--green)',fontSize:'1.4rem'}}>{fmtP(tHours*rate)}</div><div className="stl">TOTAL EARNED</div></div>
-          <div className="stc" style={{borderTop:'2px solid var(--gold)'}}><div className="stv" style={{color:'var(--gold)'}}>{shifts.length}</div><div className="stl">TOTAL SHIFTS</div></div>
-          <div className="stc" style={{borderTop:'2px solid var(--purple)'}}><div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem'}}>{shifts.length>0?fmtH(tHours/shifts.length):'—'}</div><div className="stl">AVG/SHIFT</div></div>
-        </div>
 
-        {/* TAX ESTIMATE — collapsible */}
-        <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--orange)',padding:'1rem',marginBottom:'.65rem',borderRadius:'7px'}}>
-          <button onClick={()=>setShowTax(v=>!v)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',padding:0}}>
-            <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--orange)'}}>TAX ESTIMATE</div>
-            <div style={{display:'flex',alignItems:'center',gap:'.65rem'}}>
-              <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.06em'}}>UK 2024/25 · APPROX</div>
-              <span style={{color:'var(--orange)',fontSize:'.8rem'}}>{showTax?'▴':'▾'}</span>
+        {(()=>{
+          // Build tax years from allM
+          const taxYearOf=k=>{const[y,mo]=k.split('-').map(Number);return mo>=4?y:y-1;};
+          const tyMap={};
+          allM.forEach(m=>{
+            const ty=taxYearOf(m.k);
+            if(!tyMap[ty])tyMap[ty]={ty,hours:0,pay:0,shifts:0,months:[]};
+            tyMap[ty].hours+=m.hours;tyMap[ty].pay+=m.pay;tyMap[ty].shifts+=m.shifts;tyMap[ty].months.push(m);
+          });
+          const taxYears=Object.values(tyMap).sort((a,b)=>b.ty-a.ty);
+
+          // Current tax year for summary cards
+          const now=new Date();
+          const curTY=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
+          const curTYData=tyMap[curTY]||{hours:0,pay:0,shifts:0,months:[]};
+
+          return(<>
+            {/* Current tax year headline */}
+            <div style={{fontFamily:'var(--font-d)',fontSize:'1.5rem',letterSpacing:'.06em',marginBottom:'.5rem',color:'var(--text)'}}>
+              {curTY}/{String(curTY+1).slice(2)} TAX YEAR
             </div>
-          </button>
-          {showTax&&<>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.4rem',marginBottom:'.6rem',marginTop:'.65rem'}}>
-            <div style={{background:'var(--s2)',border:'1px solid var(--border2)',padding:'.65rem .75rem',borderRadius:'6px'}}>
-              <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.07em',marginBottom:'.2rem'}}>GROSS / YEAR</div>
-              <div style={{fontFamily:'var(--font-d)',fontSize:'1.25rem',color:'var(--text)'}}>{fmtP(taxEst.annual)}</div>
+            <div className="stg" style={{marginBottom:'.65rem'}}>
+              <div className="stc" style={{borderTop:'2px solid var(--accent)'}}><div className="stv" style={{color:'var(--accent)'}}>{fmtH(curTYData.hours)}</div><div className="stl">HOURS</div></div>
+              <div className="stc" style={{borderTop:'2px solid var(--green)'}}><div className="stv" style={{color:'var(--green)',fontSize:'1.4rem'}}>{fmtP(curTYData.pay)}</div><div className="stl">EARNED</div></div>
+              <div className="stc" style={{borderTop:'2px solid var(--gold)'}}><div className="stv" style={{color:'var(--gold)'}}>{curTYData.shifts}</div><div className="stl">SHIFTS</div></div>
+              <div className="stc" style={{borderTop:'2px solid var(--purple)'}}><div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem'}}>{curTYData.shifts>0?fmtH(curTYData.hours/curTYData.shifts):'—'}</div><div className="stl">AVG/SHIFT</div></div>
             </div>
-            <div style={{background:'rgba(61,255,160,.06)',border:'1px solid rgba(61,255,160,.2)',padding:'.65rem .75rem',borderRadius:'6px'}}>
-              <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--green)',letterSpacing:'.07em',marginBottom:'.2rem'}}>EST. TAKE-HOME</div>
-              <div style={{fontFamily:'var(--font-d)',fontSize:'1.25rem',color:'var(--green)'}}>{fmtP(taxEst.net)}</div>
+
+            {/* TAX ESTIMATE */}
+            <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--orange)',padding:'1rem',marginBottom:'.65rem',borderRadius:'7px'}}>
+              <button onClick={()=>setShowTax(v=>!v)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',padding:0}}>
+                <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--orange)'}}>TAX ESTIMATE</div>
+                <div style={{display:'flex',alignItems:'center',gap:'.65rem'}}>
+                  <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.06em'}}>UK {taxEst.tyStart}/{String(taxEst.tyEnd).slice(2)} · APPROX</div>
+                  <span style={{color:'var(--orange)',fontSize:'.8rem'}}>{showTax?'▴':'▾'}</span>
+                </div>
+              </button>
+              {showTax&&<>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.4rem',marginBottom:'.6rem',marginTop:'.65rem'}}>
+                <div style={{background:'var(--s2)',border:'1px solid var(--border2)',padding:'.65rem .75rem',borderRadius:'6px'}}>
+                  <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.07em',marginBottom:'.2rem'}}>GROSS / YEAR</div>
+                  <div style={{fontFamily:'var(--font-d)',fontSize:'1.25rem',color:'var(--text)'}}>{fmtP(taxEst.annual)}</div>
+                </div>
+                <div style={{background:'rgba(61,255,160,.06)',border:'1px solid rgba(61,255,160,.2)',padding:'.65rem .75rem',borderRadius:'6px'}}>
+                  <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--green)',letterSpacing:'.07em',marginBottom:'.2rem'}}>EST. TAKE-HOME</div>
+                  <div style={{fontFamily:'var(--font-d)',fontSize:'1.25rem',color:'var(--green)'}}>{fmtP(taxEst.net)}</div>
+                </div>
+              </div>
+              <div style={{borderTop:'1px solid var(--border)',paddingTop:'.6rem',display:'flex',flexDirection:'column',gap:'.3rem'}}>
+                {[{l:'Income Tax',v:taxEst.incomeTax,c:'var(--red)'},{l:'Nat. Insurance (~8%)',v:taxEst.ni,c:'var(--orange)'},{l:'Monthly take-home',v:taxEst.monthly,c:'var(--green)'},{l:'Weekly take-home',v:taxEst.weekly,c:'var(--accent)'}].map(({l,v,c})=>(
+                  <div key={l} style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <span style={{fontFamily:'var(--font-m)',fontSize:'.65rem',color:'var(--muted)',letterSpacing:'.04em'}}>{l}</span>
+                    <span style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',color:c}}>{fmtP(v)}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{marginTop:'.55rem',fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--dim)',letterSpacing:'.04em',lineHeight:1.4}}>Based on actual tax year earnings. Free allowance £12,570. Estimates only.</div>
+              </>}
             </div>
-          </div>
-          <div style={{borderTop:'1px solid var(--border)',paddingTop:'.6rem',display:'flex',flexDirection:'column',gap:'.3rem'}}>
-            {[{l:'Income Tax',v:taxEst.incomeTax,c:'var(--red)'},{l:'Nat. Insurance (~8%)',v:taxEst.ni,c:'var(--orange)'},{l:'Monthly take-home',v:taxEst.monthly,c:'var(--green)'},{l:'Weekly take-home',v:taxEst.weekly,c:'var(--accent)'}].map(({l,v,c})=>(
-              <div key={l} style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <span style={{fontFamily:'var(--font-m)',fontSize:'.65rem',color:'var(--muted)',letterSpacing:'.04em'}}>{l}</span>
-                <span style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',color:c}}>{fmtP(v)}</span>
+
+            {/* Per tax year breakdown */}
+            {taxYears.map(ty=>(
+              <div key={ty.ty} className="pb" style={{marginBottom:'.65rem'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'.6rem'}}>
+                  <div className="pb-t" style={{margin:0}}>{ty.ty}/{String(ty.ty+1).slice(2)} TAX YEAR</div>
+                  <div style={{textAlign:'right'}}>
+                    <div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:'var(--green)'}}>{fmtP(ty.pay)}</div>
+                    <div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--muted)'}}>{fmtH(ty.hours)} · {ty.shifts} shifts</div>
+                  </div>
+                </div>
+                {ty.months.map(m=>(
+                  <div key={m.k} className="pb-r">
+                    <div className="pb-l">{mkName(m.k)}</div>
+                    <div style={{textAlign:'right'}}>
+                      <div className="pb-v">{fmtP(m.pay)}</div>
+                      <div style={{fontFamily:'var(--font-m)',fontSize:'.62rem',color:'var(--muted)'}}>{fmtH(m.hours)} · {m.shifts} shifts</div>
+                    </div>
+                  </div>
+                ))}
               </div>
             ))}
-          </div>
-          <div style={{marginTop:'.55rem',fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--dim)',letterSpacing:'.04em',lineHeight:1.4}}>Based on projected annual hours at current rate. Income tax free allowance £12,570. Figures are estimates only.</div>
-          </>}
-        </div>
+            {taxYears.length===0&&<div style={{fontFamily:'var(--font-m)',fontSize:'.68rem',color:'var(--muted)'}}>NO DATA YET</div>}
 
-        <div className="pb">
-          <div className="pb-t">PAY BREAKDOWN · £{rate.toFixed(2)}/HR</div>
-          {allM.map(m=>(
-            <div key={m.k} className="pb-r">
-              <div className="pb-l">{mkName(m.k)}</div>
-              <div style={{textAlign:'right'}}>
-                <div className="pb-v">{fmtP(m.hours*rate)}</div>
-                <div style={{fontFamily:'var(--font-m)',fontSize:'.62rem',color:'var(--muted)'}}>{fmtH(m.hours)} · {m.shifts} shifts</div>
-              </div>
+            {/* All time by location */}
+            <div className="locs">
+              <div className="loc-t">ALL TIME BY LOCATION</div>
+              {(()=>{
+                const lt={};shifts.forEach(s=>{lt[s.loc]=(lt[s.loc]||0)+s.hours;});const mx=Math.max(1,...Object.values(lt));
+                return Object.entries(lt).sort((a,b)=>b[1]-a[1]).map(([l,h])=>(
+                  <div key={l} className="lr">
+                    <span className="li">{LICO[l]}</span>
+                    <span className="ln" style={{color:LCOL[l]||'#888'}}>{l}</span>
+                    <div className="lbw"><div className="lb" style={{width:`${h/mx*100}%`,background:LCOL[l]||'#888'}}/></div>
+                    <span className="lv">{fmtH(h)}</span>
+                  </div>
+                ));
+              })()}
             </div>
-          ))}
-          {allM.length===0&&<div style={{fontFamily:'var(--font-m)',fontSize:'.68rem',color:'var(--muted)'}}>NO DATA YET</div>}
-        </div>
-        <div className="locs">
-          <div className="loc-t">ALL TIME BY LOCATION</div>
-          {(()=>{
-            const lt={};shifts.forEach(s=>{lt[s.loc]=(lt[s.loc]||0)+s.hours;});const mx=Math.max(1,...Object.values(lt));
-            return Object.entries(lt).sort((a,b)=>b[1]-a[1]).map(([l,h])=>(
-              <div key={l} className="lr">
-                <span className="li">{LICO[l]}</span>
-                <span className="ln" style={{color:LCOL[l]||'#888'}}>{l}</span>
-                <div className="lbw"><div className="lb" style={{width:`${h/mx*100}%`,background:LCOL[l]||'#888'}}/></div>
-                <span className="lv">{fmtH(h)}</span>
-              </div>
-            ));
-          })()}
-        </div>
+          </>);
+        })()}
       </div></div>}
 
       {/* NAV */}
@@ -891,20 +995,20 @@ function App(){
       <div className="mdl" onClick={e=>e.stopPropagation()}>
         <div className="mdl-t">SETTINGS</div>
         <div className="mdl-s">Hourly rate & weekly hours target</div>
-        <div className="mdl-l">HOURLY RATE (£)</div>
-        <input className="mdl-i" type="number" inputMode="decimal" step="0.01" value={rIn} onChange={e=>setRIn(e.target.value)} placeholder={rate.toFixed(2)}/>
-        <div className="mdl-l">WEEKLY HOURS TARGET</div>
-        <input className="mdl-i" type="number" inputMode="decimal" step="0.5" value={tgtIn} onChange={e=>setTgtIn(e.target.value)} placeholder="e.g. 40"/>
-        <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',marginTop:'.35rem',letterSpacing:'.04em'}}>Set to 0 to hide the progress bar</div>
-        <div className="mdl-bs">
-          <button className="mdl-b" onClick={()=>setShowR(false)}>CANCEL</button>
-          <button className="mdl-b ok" onClick={saveRate}>SAVE</button>
+        <div className="mdl-box">
+          <div className="mdl-l">HOURLY RATE (£)</div>
+          <input className="mdl-i" type="number" inputMode="decimal" step="0.01" value={rIn} onChange={e=>setRIn(e.target.value)} placeholder={rate.toFixed(2)}/>
+          <div className="mdl-divider"/>
+          <div className="mdl-l">WEEKLY HOURS TARGET</div>
+          <input className="mdl-i" type="number" inputMode="decimal" step="0.5" value={tgtIn} onChange={e=>setTgtIn(e.target.value)} placeholder="e.g. 40"/>
+          <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',marginTop:'.35rem',letterSpacing:'.04em'}}>Set to 0 to hide the progress bar</div>
         </div>
+        <button className="mdl-save edit" onClick={saveRate}>SAVE</button>
       </div>
     </div>}
 
     {/* EDIT SHIFT MODAL */}
-    {editShift&&<EditModal shift={editShift} rate={rate} onSave={saveEdit} onDelete={delShift} onClose={()=>setEditShift(null)}/>}
+    {editShift&&<EditModal shift={editShift} rate={rate} lastPayRate={store.lastPayRate||0} onSave={saveEdit} onDelete={delShift} onClose={()=>setEditShift(null)}/>}
 
     {/* SAVE FLASH */}
     {saveFlash&&<div style={{position:'fixed',inset:0,display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,pointerEvents:'none'}}>
