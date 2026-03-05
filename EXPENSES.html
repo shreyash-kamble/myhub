@@ -536,6 +536,16 @@ function App() {
   const [showAllMonthDays, setShowAllMonthDays] = useState(false);
   const monthSwipeX = useRef(null);
   const monthSwipeY = useRef(null);
+  const tabSwipeX = useRef(null);
+  const tabSwipeY = useRef(null);
+  const TABS = ['add','expenses','analytics','monthly'];
+  function handleTabSwipe(dx, dy) {
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+      const idx = TABS.indexOf(tab);
+      if (dx < 0 && idx < TABS.length - 1) setTab(TABS[idx + 1]);
+      else if (dx > 0 && idx > 0) setTab(TABS[idx - 1]);
+    }
+  }
   // compare
   const [cmpA, setCmpA] = useState('');
   const [cmpB, setCmpB] = useState('');
@@ -784,7 +794,19 @@ function App() {
   return (
     <>
       <style>{CSS}</style>
-      <div className="app">
+      <div className="app"
+        onTouchStart={e=>{ tabSwipeX.current=e.touches[0].clientX; tabSwipeY.current=e.touches[0].clientY; }}
+        onTouchEnd={e=>{
+          if(tabSwipeX.current===null) return;
+          // Skip tab swipe on monthly tab — it handles its own month navigation
+          if(tab!=='monthly') {
+            const dx=e.changedTouches[0].clientX-tabSwipeX.current;
+            const dy=e.changedTouches[0].clientY-tabSwipeY.current;
+            handleTabSwipe(dx,dy);
+          }
+          tabSwipeX.current=null; tabSwipeY.current=null;
+        }}
+      >
 
         {/* TOP BAR */}
         <div className="topbar">
@@ -1143,7 +1165,6 @@ function App() {
                     style={{cursor:viewMonth!==today().slice(0,7)?'pointer':'default',transition:'color 0.2s',color:viewMonth!==today().slice(0,7)?'var(--orange)':'var(--text)'}}
                   >
                     {monthName(viewMonth)} {viewMonth.split('-')[0]}
-                    {viewMonth!==today().slice(0,7)&&<span style={{fontFamily:'var(--font-m)',fontSize:'0.5rem',color:'var(--orange)',marginLeft:'0.5rem',opacity:0.8}}>↩</span>}
                   </div>
                 </div>
               </div>

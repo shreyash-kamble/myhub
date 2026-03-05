@@ -15,7 +15,7 @@ html,body{height:100%;overflow:hidden;background:#2b2b2b;}
 :root{
   --bg:#2b2b2b;--s1:#333333;--s2:#3d3d3d;--s3:#474747;
   --border:#555555;--border2:#606060;
-  --accent:#29e6ff;--gold:#ffd600;--green:#b2ff59;--red:#ff5555;
+  --accent:#29e6ff;--gold:#ffd600;--green:#41ab5d;--red:#ff5555;
   --orange:#ff8c00;--purple:#c084fc;--pink:#f472b6;--sky:#38bdf8;
   --text:#e8e8e8;--text2:#cccccc;--dim:#4a4a4a;--muted:#aaaaaa;
   --font-d:'Bebas Neue',sans-serif;
@@ -36,7 +36,7 @@ const LOCS=['TR','Byker','NUFC','Boiler Shop','O2 City Hall','Arena','Other'];
 const LCOL={'TR':'#00e5ff','Byker':'#c084fc','NUFC':'#94a3b8','Boiler Shop':'#ff8c00','O2 City Hall':'#3dffa0','Arena':'#ffd600','Other':'#f472b6'};
 const LICO={'TR':'🎪','Byker':'🍺','NUFC':'⚽','Boiler Shop':'🔧','O2 City Hall':'🎵','Arena':'🏟️','Other':'📍'};
 
-const uid=(()=>{let i=Date.now();return()=>String(++i);})();
+const uid=()=>crypto.randomUUID();
 
 function useSwipeRef(onLeft,onRight){
   const cbL=useRef(onLeft),cbR=useRef(onRight);
@@ -83,8 +83,9 @@ function mkName(mk){const[y,m]=mk.split('-');return`${['Jan','Feb','Mar','Apr','
 function dayName(ds){return['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(ds).getDay()];}
 const TODAY=new Date().toISOString().slice(0,10);
 
-function loadStore(){try{const r=localStorage.getItem('shifts_v4');if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.lastPayRate)d.lastPayRate=0;return d;}}catch(e){}return{shifts:[],hourlyRate:12.21,weeklyTarget:0,lastPayRate:0};}
-function saveStore(s){try{localStorage.setItem('shifts_v4',JSON.stringify(s));}catch(e){}}
+const STORE_KEY='shifts_v4';
+function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.lastPayRate)d.lastPayRate=0;return d;}}catch(e){}return{shifts:[],hourlyRate:12.21,weeklyTarget:0,lastPayRate:0};}
+function saveStore(s){try{localStorage.setItem(STORE_KEY,JSON.stringify(s));}catch(e){}}
 
 function calDays(mk){
   const[y,m]=mk.split('-').map(Number);
@@ -201,10 +202,10 @@ const CSS=`
 .pv-l{font-family:var(--font-m);font-size:.65rem;color:var(--muted);letter-spacing:.08em;}
 .pv-h{font-family:var(--font-d);font-size:1.7rem;color:var(--accent);}
 .pv-p{font-family:var(--font-d);font-size:1.7rem;color:var(--green);}
-.add-btn{width:100%;font-family:var(--font-d);font-size:1.5rem;letter-spacing:.12em;padding:.85rem;border:none;cursor:pointer;background:var(--green);color:#000;margin-top:.1rem;border-radius:5px;transition:all .15s;}
+.add-btn{width:100%;font-family:var(--font-d);font-size:1.5rem;letter-spacing:.12em;padding:.85rem;border:none;cursor:pointer;background:var(--green);color:#fff;margin-top:.1rem;border-radius:5px;transition:all .15s;}
 .add-btn:active{transform:scale(.98);}
-.add-btn:disabled{background:var(--green);color:#000;cursor:default;opacity:.55;}
-.add-btn.ok{background:var(--green);color:#000;}
+.add-btn:disabled{background:var(--green);color:#fff;cursor:default;opacity:.55;}
+.add-btn.ok{background:var(--green);color:#fff;}
 .dinp{width:100%;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-m);font-size:.88rem;padding:.48rem .65rem;border-radius:4px;}
 .dinp:focus{outline:none;border-color:var(--accent);}
 
@@ -376,14 +377,23 @@ const CSS=`
 .mdl-notes:focus{outline:none;border-color:var(--accent);}
 .mdl-notes::placeholder{color:var(--muted);}
 .mdl-divider{height:1px;background:var(--border);margin:.65rem 0;}
-.mdl-save{width:100%;font-family:var(--font-d);font-size:1.3rem;letter-spacing:.1em;padding:.75rem;border:none;cursor:pointer;background:var(--green);color:#000;border-radius:5px;margin-top:.25rem;transition:all .15s;}
-.mdl-save:disabled{background:var(--green);color:#000;cursor:default;opacity:.55;}
-.mdl-save.edit{background:var(--green);color:#000;}
-.mdl-del{width:100%;font-family:var(--font-d);font-size:1rem;letter-spacing:.08em;padding:.6rem;border:1px solid rgba(255,85,85,.35);background:transparent;color:var(--red);cursor:pointer;border-radius:5px;margin-top:.4rem;}
+.mdl-save{width:100%;font-family:var(--font-d);font-size:1.3rem;letter-spacing:.1em;padding:.75rem;border:none;cursor:pointer;background:var(--green);color:#fff;border-radius:5px;margin-top:.25rem;transition:all .15s;}
+.mdl-save:disabled{background:var(--green);color:#fff;cursor:default;opacity:.55;}
+.mdl-save.edit{background:var(--green);color:#fff;}
+.mdl-del{width:100%;font-family:var(--font-d);font-size:1rem;letter-spacing:.08em;padding:.6rem;border:none;background:var(--red);color:#fff;cursor:pointer;border-radius:5px;margin-top:.4rem;transition:all .15s;}
+/* UPCOMING */
+.upcoming-item{display:flex;align-items:center;gap:.65rem;padding:.5rem .1rem;border-bottom:1px solid var(--border);cursor:pointer;}
+.upcoming-item:last-child{border-bottom:none;}
+.upcoming-bar{width:3px;height:32px;border-radius:2px;flex-shrink:0;}
+.upcoming-info{flex:1;min-width:0;}
+.upcoming-loc{font-family:var(--font-b);font-size:.9rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.upcoming-sub{font-family:var(--font-m);font-size:.6rem;color:var(--muted);}
+.upcoming-tag{font-family:var(--font-d);font-size:1rem;color:var(--sky);text-align:right;}
+.upcoming-hrs{font-family:var(--font-m);font-size:.6rem;color:var(--muted);text-align:right;}
 `;
 
 /* ── EDIT MODAL ── */
-function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose}){
+function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDuplicate}){
   const isNew=!shift.id;
   const[date,setDate]=useState(shift.date);
   const[s0,setS0]=useState(shift.start||'');
@@ -453,10 +463,13 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose}){
         </div>
 
         {!isNew ? (
+          <>
           <div style={{display:'flex',gap:'.5rem',marginTop:'.25rem'}}>
-            <button className="mdl-del" style={{margin:0,flex:1,background:'var(--red)',borderColor:'var(--red)',color:'#fff'}} onClick={()=>onDelete(shift.id)}>DELETE</button>
+            <button className="mdl-del" style={{margin:0,flex:1}} onClick={()=>onDelete(shift.id)}>DELETE</button>
             <button className="mdl-save edit" style={{flex:1,marginTop:0}} disabled={!s0||!e0||pH<=0} onClick={doSave}>SAVE</button>
           </div>
+          <button className="mdl-del" style={{marginTop:'.4rem',background:'transparent',border:'1px solid rgba(56,189,248,.35)',color:'var(--sky)'}} onClick={()=>onDuplicate&&onDuplicate({...shift,id:uid(),date:TODAY})}>⧉ DUPLICATE TO TODAY</button>
+          </>
         ) : (
           <button className="mdl-save" disabled={!s0||!e0||pH<=0} onClick={doSave}>SAVE</button>
         )}
@@ -529,9 +542,12 @@ function App(){
     setS0('');setE0('');setNote('');setOk(true);setTimeout(()=>setOk(false),700);
   }
   const delShift=id=>up(st=>{st.shifts=st.shifts.filter(x=>x.id!==id);setEditShift(null);});
+  const dupShift=s=>up(st=>{st.shifts=[...st.shifts,s].sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));setEditShift(null);setSaveFlash(true);setTimeout(()=>setSaveFlash(false),400);});
   function saveRate(){
-    const r=parseFloat(rIn);if(r>0)up(st=>{st.hourlyRate=r;});
-    const t=parseFloat(tgtIn);up(st=>{st.weeklyTarget=t>=0?t:st.weeklyTarget||0;});
+    up(st=>{
+      const r=parseFloat(rIn);if(r>0)st.hourlyRate=r;
+      const t=parseFloat(tgtIn);st.weeklyTarget=t>=0?t:st.weeklyTarget||0;
+    });
     setShowR(false);
   }
 
@@ -551,9 +567,10 @@ function App(){
   }
 
   function exportCSV(){
-    const rows=[['Date','Day','Start','End','Hours','Pay','Location','Notes']];
+    const rows=[['Date','Day','Start','End','Hours','Rate','Pay','Location','Notes']];
     shifts.forEach(s=>{
-      rows.push([s.date,dayName(s.date),s.start,s.end,s.hours.toFixed(2),(s.hours*rate).toFixed(2),s.loc,s.note||'']);
+      const er=s.payRate&&s.payRate>0?s.payRate:rate;
+      rows.push([s.date,dayName(s.date),s.start,s.end,s.hours.toFixed(2),er.toFixed(2),(s.hours*er).toFixed(2),s.loc,s.note||'']);
     });
     const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
     const blob=new Blob([csv],{type:'text/csv'});
@@ -561,8 +578,8 @@ function App(){
   }
 
   function copySummary(){
-    const lines=[`SHIFTS SUMMARY — as of ${TODAY}`,`Total Hours: ${fmtH(tHours)}`,`Total Earned: ${fmtP(tHours*rate)}`,`Total Shifts: ${shifts.length}`,`Hourly Rate: £${rate.toFixed(2)}/hr`,'','MONTHLY BREAKDOWN:'];
-    allM.forEach(m=>lines.push(`  ${mkName(m.k)}: ${fmtH(m.hours)} · ${fmtP(m.hours*rate)} (${m.shifts} shifts)`));
+    const lines=[`SHIFTS SUMMARY — as of ${TODAY}`,`Total Hours: ${fmtH(tHours)}`,`Total Earned: ${fmtP(tPay)}`,`Total Shifts: ${shifts.length}`,`Hourly Rate: £${rate.toFixed(2)}/hr`,'','MONTHLY BREAKDOWN:'];
+    allM.forEach(m=>lines.push(`  ${mkName(m.k)}: ${fmtH(m.hours)} · ${fmtP(m.pay)} (${m.shifts} shifts)`));
     navigator.clipboard.writeText(lines.join('\n')).then(()=>{setCopyMsg('COPIED!');setTimeout(()=>setCopyMsg(''),1500);});
   }
 
@@ -571,7 +588,7 @@ function App(){
   useEffect(()=>{if(payRateIn===''&&store.lastPayRate>0)setPayRateIn(String(store.lastPayRate));},[]);
 
   const wStart=useMemo(()=>{
-    const d=new Date(),day=d.getDay(),m=new Date(d);
+    const d=new Date(TODAY),day=d.getDay(),m=new Date(d);
     m.setDate(d.getDate()-(day===0?6:day-1)+wOff*7);
     return m.toISOString().slice(0,10);
   },[wOff]);
@@ -723,7 +740,7 @@ function App(){
             style={{cursor:wOff!==0?'pointer':'default',textAlign:'center',userSelect:'none'}}
           >
             <div className="wntit" style={{color:wOff!==0?'var(--accent)':'var(--text)',transition:'color .2s'}}>{wOff===0?'THIS WEEK':wOff===-1?'LAST WEEK':wOff<0?`${Math.abs(wOff)} WKS AGO`:`${wOff} WKS AHEAD`}</div>
-            <div className="wnsub">{wLabel}{wOff!==0&&<span style={{marginLeft:'.5rem',fontSize:'.52rem',color:'var(--accent)',opacity:.75}}>↩ tap to return</span>}</div>
+            <div className="wnsub">{wLabel}</div>
           </div>
         </div>
         <div key={`sh-w-${swipeKey}`} className="swipe-hint">{'<'} swipe to change week {'>'}</div>
@@ -747,6 +764,24 @@ function App(){
           <div style={{fontSize:'2rem',marginBottom:'.5rem'}}>📅</div>
           <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--muted)',letterSpacing:'.08em'}}>NO SHIFTS THIS WEEK</div>
           <div style={{fontFamily:'var(--font-m)',fontSize:'.62rem',color:'var(--dim)',marginTop:'.35rem',letterSpacing:'.06em'}}>TAP A DAY TO LOG ONE</div>
+        </div>}
+        {wOff===0&&upcomingShifts.length>0&&<div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--sky)',padding:'1rem',marginBottom:'.6rem',borderRadius:'7px'}}>
+          <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--sky)',marginBottom:'.5rem'}}>UPCOMING SHIFTS</div>
+          {upcomingShifts.map(s=>{
+            const col=LCOL[s.loc]||'#888';
+            const du=daysUntil(s.date);
+            return<div key={s.id} className="upcoming-item" onClick={()=>setEditShift(s)}>
+              <div className="upcoming-bar" style={{background:col}}/>
+              <div className="upcoming-info">
+                <div className="upcoming-loc" style={{color:col}}>{LICO[s.loc]} {s.loc}</div>
+                <div className="upcoming-sub">{dayName(s.date)}, {+s.date.slice(8)} {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+s.date.slice(5,7)-1]} · {s.start}–{s.end}</div>
+              </div>
+              <div>
+                <div className="upcoming-tag">{du===1?'TOMORROW':`IN ${du}D`}</div>
+                <div className="upcoming-hrs">{fmtH(s.hours)}</div>
+              </div>
+            </div>;
+          })}
         </div>}
         {[...wDates].sort((a,b)=>{
           // Today first, future next in order, past days at bottom
@@ -788,7 +823,7 @@ function App(){
             onClick={vm!==new Date().toISOString().slice(0,7)?()=>{setVm(new Date().toISOString().slice(0,7));setSel(null);}:undefined}
             style={{cursor:vm!==new Date().toISOString().slice(0,7)?'pointer':'default',color:vm!==new Date().toISOString().slice(0,7)?'var(--gold)':'var(--text)',transition:'color .2s',textAlign:'center'}}
           >
-            {mkName(vm)}{vm!==new Date().toISOString().slice(0,7)&&<span style={{fontFamily:'var(--font-m)',fontSize:'.55rem',marginLeft:'.5rem',opacity:.8}}>↩</span>}
+            {mkName(vm)}
           </div>
         </div>
         <div key={`sh-m-${swipeKey}`} className="swipe-hint">{'<'} swipe to change month {'>'}</div>
@@ -822,7 +857,6 @@ function App(){
               const topLocs=[...new Set(cs.map(s=>s.loc))].slice(0,3);
               return<div key={cd} className={cls} onClick={()=>{
                 setSel(isSel?null:cd);
-                setEditShift({date:cd,start:'',end:'',loc:'TR',note:''});
               }}>
                 <div className="cn">{+cd.slice(8)}</div>
                 {hasS&&<div className="cal-dots">
@@ -834,12 +868,12 @@ function App(){
           </div>
         </div>
 
-        {sel&&<div className="cdet" style={{cursor:'pointer'}} onClick={()=>setEditShift({date:sel,start:'',end:'',loc:'TR',note:''})}>
+        {sel&&<div className="cdet">
           <div className="cdet-h">
             <div className="cdet-d">{dayName(sel)} {+sel.slice(8)} {mkName(sel.slice(0,7))}{sel===TODAY&&<span className="tdtag" style={{marginLeft:'.5rem'}}>TODAY</span>}</div>
             {selH>0&&<div className="cdet-t">{fmtH(selH)}</div>}
           </div>
-          {selS.length===0?<div className="eday">tap to add shift</div>:selS.map(s=><div key={s.id} onClick={e=>{e.stopPropagation();setEditShift(s);}}><ShiftRow s={s} rate={rate} onDel={delShift} onEdit={setEditShift}/></div>)}
+          {selS.length===0?<div className="eday" style={{cursor:'pointer'}} onClick={()=>setEditShift({date:sel,start:'',end:'',loc:'TR',note:''})}>+ tap to add shift</div>:selS.map(s=><div key={s.id} onClick={e=>{e.stopPropagation();setEditShift(s);}}><ShiftRow s={s} rate={rate} onDel={delShift} onEdit={setEditShift}/></div>)}
         </div>}
 
         {/* WEEK BREAKDOWN */}
@@ -1010,11 +1044,11 @@ function App(){
     </div>}
 
     {/* EDIT SHIFT MODAL */}
-    {editShift&&<EditModal shift={editShift} rate={rate} lastPayRate={store.lastPayRate||0} onSave={saveEdit} onDelete={delShift} onClose={()=>setEditShift(null)}/>}
+    {editShift&&<EditModal shift={editShift} rate={rate} lastPayRate={store.lastPayRate||0} onSave={saveEdit} onDelete={delShift} onDuplicate={dupShift} onClose={()=>setEditShift(null)}/>}
 
     {/* SAVE FLASH */}
     {saveFlash&&<div style={{position:'fixed',inset:0,display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,pointerEvents:'none'}}>
-      <div className="save-flash" style={{background:'var(--green)',color:'#000',fontFamily:'var(--font-d)',fontSize:'1.4rem',letterSpacing:'.1em',padding:'.6rem 1.5rem',borderRadius:'8px',boxShadow:'0 0 30px rgba(61,255,160,.5)'}}>✓ SAVED</div>
+      <div className="save-flash" style={{background:'var(--green)',color:'#fff',fontFamily:'var(--font-d)',fontSize:'1.4rem',letterSpacing:'.1em',padding:'.6rem 1.5rem',borderRadius:'8px',boxShadow:'0 0 30px rgba(29,185,84,.4)'}}>✓ SAVED</div>
     </div>}
   </>);
 }
