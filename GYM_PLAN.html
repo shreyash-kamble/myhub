@@ -588,27 +588,14 @@ function App(){
   storeRef.current=store;
   const[tab,setTab]=useState('workout');
   // viewWeek: what week user is currently browsing (may differ from store.currentWeek when swiping)
-  // Start on the lowest week that has an incomplete day, so returning users land on their actual next workout
+  // Always start on the actual current training week
   const[viewWeek,setViewWeek]=useState(()=>{
     const s=loadStore();
-    // Find the first week with an incomplete day (in ascending order)
-    const weekNums=Object.keys(s.weeks).map(Number).sort((a,b)=>a-b);
-    for(const wn of weekNums){
-      const wd=s.weeks[wn]||[];
-      if(wd.some(d=>!d.done))return wn;
-    }
     return s.currentWeek;
   });
-  // dayIdx: always starts at next incomplete day on load
+  // dayIdx: starts at the next incomplete day within the current training week
   const[dayIdx,setDayIdx]=useState(()=>{
     const s=loadStore();
-    // Find the first week with an incomplete day
-    const weekNums=Object.keys(s.weeks).map(Number).sort((a,b)=>a-b);
-    for(const wn of weekNums){
-      const wd=s.weeks[wn]||[];
-      const first=wd.findIndex(d=>!d.done);
-      if(first>=0)return first;
-    }
     return getNextWorkoutDay(s);
   });
   const[showReset,setShowReset]=useState(false);
@@ -904,20 +891,13 @@ function App(){
             <div className="app-title">PPL <span>BEAST</span>{wakeLockActive&&<span title="Screen kept on" style={{display:'inline-block',width:'6px',height:'6px',borderRadius:'50%',background:'var(--legs)',marginLeft:'6px',verticalAlign:'middle',boxShadow:'0 0 6px var(--legs)',animation:'pulse 2s infinite'}}/>}</div>
             <div className="topbar-center">
               {tab==='workout'&&(
-                <div
-                  className="week-label-tap"
-                  onTouchStart={weekTouchStart}
-                  onTouchEnd={weekTouchEnd}
-                  onClick={()=>{
+                <div className="week-label-tap" onTouchStart={weekTouchStart} onTouchEnd={weekTouchEnd} onClick={()=>{
                     const currentWeek = storeRef.current.currentWeek;
                     setViewWeek(currentWeek);
-
                     const wd = storeRef.current.weeks[currentWeek] || mkWeekData();
                     const first = wd.findIndex(d => !d.done);
-
                     setDayIdx(first >= 0 ? first : 0);
-                  }}
-                >
+                  }} >
                   WEEK {viewWeek}
                 </div>
               )}
