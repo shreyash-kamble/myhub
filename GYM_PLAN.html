@@ -588,10 +588,27 @@ function App(){
   storeRef.current=store;
   const[tab,setTab]=useState('workout');
   // viewWeek: what week user is currently browsing (may differ from store.currentWeek when swiping)
-  const[viewWeek,setViewWeek]=useState(()=>loadStore().currentWeek);
-  // dayIdx: always starts at next incomplete day in currentWeek on load
+  // Start on the lowest week that has an incomplete day, so returning users land on their actual next workout
+  const[viewWeek,setViewWeek]=useState(()=>{
+    const s=loadStore();
+    // Find the first week with an incomplete day (in ascending order)
+    const weekNums=Object.keys(s.weeks).map(Number).sort((a,b)=>a-b);
+    for(const wn of weekNums){
+      const wd=s.weeks[wn]||[];
+      if(wd.some(d=>!d.done))return wn;
+    }
+    return s.currentWeek;
+  });
+  // dayIdx: always starts at next incomplete day on load
   const[dayIdx,setDayIdx]=useState(()=>{
     const s=loadStore();
+    // Find the first week with an incomplete day
+    const weekNums=Object.keys(s.weeks).map(Number).sort((a,b)=>a-b);
+    for(const wn of weekNums){
+      const wd=s.weeks[wn]||[];
+      const first=wd.findIndex(d=>!d.done);
+      if(first>=0)return first;
+    }
     return getNextWorkoutDay(s);
   });
   const[showReset,setShowReset]=useState(false);
@@ -888,7 +905,7 @@ function App(){
             <div className="topbar-center">
               {tab==='workout'&&(
                 <div className="week-label-tap" onTouchStart={weekTouchStart} onTouchEnd={weekTouchEnd} onClick={()=>{setViewWeek(week);setDayIdx(getNextWorkoutDay(store));}} >
-                  WEEK {viewWeek}{viewWeek!==week&&<span style={{fontSize:'0.6rem',fontFamily:'var(--font-mono)',color:'var(--pull)',marginLeft:'6px'}}>← TAP</span>}
+                  WEEK {viewWeek}
                 </div>
               )}
             </div>
