@@ -594,11 +594,7 @@ function App(){
     const s=loadStore();
     return getNextWorkoutDay(s);
   });
-  const[showReset,setShowReset]=useState(()=>{
-    const s=loadStore();
-    const wd=s.weeks[s.currentWeek]||mkWeekData();
-    return wd.every(d=>d.done);
-  });
+  const[showReset,setShowReset]=useState(false);
   const[compareA,setCompareA]=useState(()=>store.currentWeek);
   const[compareB,setCompareB]=useState(()=>store.currentWeek>1?store.currentWeek-1:null);
   const[histDetail,setHistDetail]=useState(null);
@@ -611,11 +607,21 @@ function App(){
   const nextSetRef=useRef(null);
 
   const week=store.currentWeek; // actual training week (writes go here)
-  // viewWeek: week shown in header (browsable via swipe, resets to currentWeek on load)
-  const weekData=store.weeks[week]||mkWeekData(); // workout content always uses currentWeek
+  // viewWeek: week shown in header AND drives workout display (browsable via swipe)
+  const weekData=(store.weeks[viewWeek]||mkWeekData()); // workout content uses viewWeek
   const dayData=weekData[dayIdx];
   const day=DAYS[dayIdx];
   const allDone=weekData.every(d=>d.done);
+
+  const handleReset=useCallback(()=>{
+    const nw=week+1;
+    update(s=>{s.weeks[nw]=mkWeekData();s.currentWeek=nw;});
+    setViewWeek(nw);
+    setDayIdx(0);
+    setShowReset(false);
+  },[week,update]);
+
+  useEffect(()=>{if(allDone&&weekData.length===7&&viewWeek===week)setShowReset(true);},[allDone,viewWeek,week]);
   const weekNums=Object.keys(store.weeks).map(Number).sort((a,b)=>a-b);
   // Only show weeks that have at least one completed day (for history/compare/stats)
   const activeWeekNums=weekNums.filter(wn=>(store.weeks[wn]||[]).some(d=>d.done));
@@ -624,10 +630,10 @@ function App(){
 
   // Previous week data for this day (for inline reference)
   const prevWeekSets=useMemo(()=>{
-    const pw=week-1;
+    const pw=viewWeek-1;
     if(!store.weeks[pw])return null;
     return store.weeks[pw][dayIdx]?.sets||null;
-  },[store,week,dayIdx]);
+  },[store,viewWeek,dayIdx]);
 
   // Personal bests across all weeks
   const pbs=useMemo(()=>{
@@ -678,17 +684,17 @@ function App(){
   },[]);
 
   const updateSet=useCallback((ei,si,field,val)=>{
-    update(s=>{s.weeks[week][dayIdx].sets[ei][si][field]=val;});
-  },[week,dayIdx,update]);
+    update(s=>{s.weeks[viewWeek][dayIdx].sets[ei][si][field]=val;});
+  },[viewWeek,dayIdx,update]);
 
   const toggleSet=useCallback((ei,si)=>{
     const freshStore=storeRef.current;
     const freshWeek=freshStore.currentWeek;
-    const wasAlreadyDone=freshStore.weeks[freshWeek]?.[dayIdx]?.sets[ei]?.[si]?.done;
-    const exSets=freshStore.weeks[freshWeek]?.[dayIdx]?.sets[ei]||[];
+    const wasAlreadyDone=freshStore.weeks[viewWeek]?.[dayIdx]?.sets[ei]?.[si]?.done;
+    const exSets=freshStore.weeks[viewWeek]?.[dayIdx]?.sets[ei]||[];
     const isLastSetOfExercise=si===exSets.length-1;
     update(s=>{
-      const set=s.weeks[freshWeek][dayIdx].sets[ei][si];
+      const set=s.weeks[viewWeek][dayIdx].sets[ei][si];
       set.done=!set.done;
     });
     // Start timer only when marking AS done AND it is NOT the last set of this exercise
@@ -701,27 +707,19 @@ function App(){
   },[dayIdx,update,timer]);
 
   const updateNote=useCallback((ei,val)=>{
-    update(s=>{s.weeks[week][dayIdx].notes[ei]=val;});
-  },[week,dayIdx,update]);
+    update(s=>{s.weeks[viewWeek][dayIdx].notes[ei]=val;});
+  },[viewWeek,dayIdx,update]);
 
   const toggleDone=useCallback(()=>{
     update(s=>{
-      const d=s.weeks[week][dayIdx];
+      const d=s.weeks[viewWeek][dayIdx];
       d.done=!d.done;
     });
-  },[week,dayIdx,update]);
+  },[viewWeek,dayIdx,update]);
 
   const selectCond=useCallback((i)=>{
-    update(s=>{s.weeks[week][dayIdx].conditioning=i;});
-  },[week,dayIdx,update]);
-
-  const handleReset=useCallback(()=>{
-    const nw=week+1;
-    update(s=>{s.weeks[nw]=mkWeekData();s.currentWeek=nw;});
-    setViewWeek(nw);
-    setDayIdx(0);
-    setShowReset(false);
-  },[week,update]);
+    update(s=>{s.weeks[viewWeek][dayIdx].conditioning=i;});
+  },[viewWeek,dayIdx,update]);
 
   const changeWeek=useCallback((delta)=>{
     setViewWeek(vw=>{
@@ -736,16 +734,16 @@ function App(){
 
   // ── COPY LAST WEEK ────────────────────────────────────────────
   const copyLastWeek=useCallback(()=>{
-    const prevWeek=week-1;
+    const prevWeek=viewWeek-1;
     if(!store.weeks[prevWeek]){showToast('NO PREVIOUS WEEK DATA');return;}
     setShowCopyConfirm(true);
-  },[store,week,showToast]);
+  },[store,viewWeek,showToast]);
 
   const confirmCopyLastWeek=useCallback(()=>{
-    const prevWeek=week-1;
+    const prevWeek=viewWeek-1;
     const prev=store.weeks[prevWeek];
     update(s=>{
-      const curr=s.weeks[week][dayIdx];
+      const curr=s.weeks[viewWeek][dayIdx];
       const prevDay=prev[dayIdx];
       curr.sets=prevDay.sets.map(setArr=>setArr.map(set=>({kg:set.kg,reps:set.reps,done:false})));
     });
@@ -753,7 +751,7 @@ function App(){
     setCopied(true);
     showToast('✓ LAST WEEK WEIGHTS COPIED');
     setTimeout(()=>setCopied(false),2000);
-  },[store,week,dayIdx,update,showToast]);
+  },[store,viewWeek,dayIdx,update,showToast]);
 
   // ── SWIPE BETWEEN WEEKS (top bar) ────────────────────────────
   const weekSwipeStartX=useRef(null);
@@ -878,8 +876,6 @@ function App(){
   const color=TYPE_COLOR[day.type];
   const hex=TYPE_HEX[day.type];
 
-  useEffect(()=>{if(allDone&&weekData.length===7)setShowReset(true);},[allDone]);
-
   return(
     <>
       <style>{CSS}</style>
@@ -891,8 +887,8 @@ function App(){
             <div className="app-title">PPL <span>BEAST</span>{wakeLockActive&&<span title="Screen kept on" style={{display:'inline-block',width:'6px',height:'6px',borderRadius:'50%',background:'var(--legs)',marginLeft:'6px',verticalAlign:'middle',boxShadow:'0 0 6px var(--legs)',animation:'pulse 2s infinite'}}/>}</div>
             <div className="topbar-center">
               {tab==='workout'&&(
-                <div className="week-label-tap" onTouchStart={weekTouchStart} onTouchEnd={weekTouchEnd} >
-                  WEEK {viewWeek}
+                <div className="week-label-tap" onTouchStart={weekTouchStart} onTouchEnd={weekTouchEnd} onClick={()=>{setViewWeek(week);setDayIdx(getNextWorkoutDay(store));}} >
+                  WEEK {viewWeek}{viewWeek!==week&&<span style={{fontSize:'0.6rem',fontFamily:'var(--font-mono)',color:'var(--pull)',marginLeft:'6px'}}>← TAP</span>}
                 </div>
               )}
             </div>
