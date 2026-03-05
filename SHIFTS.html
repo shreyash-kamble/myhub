@@ -201,10 +201,10 @@ const CSS=`
 .pv-l{font-family:var(--font-m);font-size:.65rem;color:var(--muted);letter-spacing:.08em;}
 .pv-h{font-family:var(--font-d);font-size:1.7rem;color:var(--accent);}
 .pv-p{font-family:var(--font-d);font-size:1.7rem;color:var(--green);}
-.add-btn{width:100%;font-family:var(--font-d);font-size:1.5rem;letter-spacing:.12em;padding:.85rem;border:none;cursor:pointer;background:var(--accent);color:#000;margin-top:.1rem;border-radius:5px;transition:all .15s;}
+.add-btn{width:100%;font-family:var(--font-d);font-size:1.5rem;letter-spacing:.12em;padding:.85rem;border:none;cursor:pointer;background:var(--green);color:#000;margin-top:.1rem;border-radius:5px;transition:all .15s;}
 .add-btn:active{transform:scale(.98);}
-.add-btn:disabled{background:var(--dim);color:var(--muted);cursor:default;}
-.add-btn.ok{background:var(--green);}
+.add-btn:disabled{background:var(--green);color:#000;cursor:default;opacity:.55;}
+.add-btn.ok{background:var(--green);color:#000;}
 .dinp{width:100%;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-m);font-size:.88rem;padding:.48rem .65rem;border-radius:4px;}
 .dinp:focus{outline:none;border-color:var(--accent);}
 
@@ -346,7 +346,9 @@ const CSS=`
 @keyframes savePop{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
 .save-flash{animation:savePop .35s ease;}
 
-/* today pill */
+/* swipe hint */
+@keyframes swipeHint{0%{opacity:0;transform:translateX(0)}20%{opacity:.7;transform:translateX(-6px)}50%{opacity:.7;transform:translateX(6px)}80%{opacity:.7;transform:translateX(-4px)}100%{opacity:0;transform:translateX(0)}}
+.swipe-hint{display:flex;align-items:center;justify-content:center;gap:.4rem;font-family:var(--font-m);font-size:.52rem;color:var(--dim);letter-spacing:.08em;padding:.3rem 0 .1rem;pointer-events:none;animation:swipeHint 1.8s ease 0.5s 1 forwards;opacity:0;}
 .today-pill{font-family:var(--font-m);font-size:.55rem;color:var(--accent);border:1px solid rgba(0,229,255,.35);background:rgba(0,229,255,.08);padding:.2rem .55rem;cursor:pointer;border-radius:12px;letter-spacing:.06em;white-space:nowrap;}
 .today-pill:active{background:rgba(0,229,255,.2);}
 
@@ -375,8 +377,8 @@ const CSS=`
 .mdl-notes::placeholder{color:var(--muted);}
 .mdl-divider{height:1px;background:var(--border);margin:.65rem 0;}
 .mdl-save{width:100%;font-family:var(--font-d);font-size:1.3rem;letter-spacing:.1em;padding:.75rem;border:none;cursor:pointer;background:var(--green);color:#000;border-radius:5px;margin-top:.25rem;transition:all .15s;}
-.mdl-save:disabled{background:var(--dim);color:var(--muted);cursor:default;}
-.mdl-save.edit{background:var(--green);}
+.mdl-save:disabled{background:var(--green);color:#000;cursor:default;opacity:.55;}
+.mdl-save.edit{background:var(--green);color:#000;}
 .mdl-del{width:100%;font-family:var(--font-d);font-size:1rem;letter-spacing:.08em;padding:.6rem;border:1px solid rgba(255,85,85,.35);background:transparent;color:var(--red);cursor:pointer;border-radius:5px;margin-top:.4rem;}
 `;
 
@@ -493,6 +495,8 @@ function ShiftRow({s, rate, onDel, onEdit}){
 function App(){
   const[store,setStore]=useState(()=>loadStore());
   const[tab,setTab]=useState('week');
+  const[swipeKey,setSwipeKey]=useState(0);
+  function switchTab(id){if(id==='add')setDate(new Date().toISOString().slice(0,10));if(id==='week'||id==='monthly')setSwipeKey(k=>k+1);setTab(id);}
   const[date,setDate]=useState(new Date().toISOString().slice(0,10));
   const[s0,setS0]=useState('');
   const[e0,setE0]=useState('');
@@ -615,15 +619,14 @@ function App(){
     const now=new Date();
     const tyStart=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
     const tyS=`${tyStart}-04-01`,tyE=`${tyStart+1}-03-31`;
-    const tyHours=shifts.filter(s=>s.date>=tyS&&s.date<=tyE).reduce((a,s)=>a+s.hours,0);
-    const annual=tyHours*rate;
+    const annual=shifts.filter(s=>s.date>=tyS&&s.date<=tyE).reduce((a,s)=>a+s.hours*(s.payRate&&s.payRate>0?s.payRate:rate),0);
     const pa=12570,br=50270;
     const taxable=Math.max(0,annual-pa);
     const incomeTax=Math.min(taxable,br-pa)*0.2+Math.max(0,taxable-(br-pa))*0.4;
     const ni=Math.max(0,annual-12570)*0.08;
     const net=annual-incomeTax-ni;
     return{annual,incomeTax,ni,net,monthly:net/12,weekly:net/52,tyStart,tyEnd:tyStart+1};
-  },[tHours,rate,shifts]);
+  },[shifts,rate]);
 
   function chMon(d){
     const[y,m]=vm.split('-').map(Number),nd=new Date(y,m-1+d,1);
@@ -650,7 +653,7 @@ function App(){
     <div className="app">
 
       <div className="topbar">
-        <div className="tb-inner" style={{justifyContent:'center',position:'relative'}}>
+        <div className="tb-inner" style={{justifyContent:'flex-start',position:'relative'}}>
           <div className="title">SHI<span>FT</span>S</div>
           <button onClick={()=>{setRIn(String(rate));setTgtIn(String(weeklyTarget||''));setShowR(true);}} style={{position:'absolute',right:'1rem',background:'none',border:'none',cursor:'pointer',color:'var(--muted)',fontSize:'1.1rem',padding:'.25rem',lineHeight:1}} title="Settings">⚙️</button>
         </div>
@@ -709,7 +712,7 @@ function App(){
           <div><div className="pv-l">HOURS</div><div className="pv-h">{fmtH(pH)}</div></div>
           <div style={{textAlign:'right'}}><div className="pv-l">EST. PAY</div><div className="pv-p">{fmtP(pP)}</div></div>
         </div>}
-        <button className={`add-btn ${ok?'ok':''}`} disabled={!s0||!e0||pH<=0} onClick={addShift}>{ok?'✓ SHIFT ADDED':'LOG SHIFT'}</button>
+        <button className="add-btn ok" disabled={!s0||!e0||pH<=0} onClick={addShift}>{ok?'✓ SAVED':'SAVE'}</button>
       </div></div>}
 
       {/* WEEK */}
@@ -723,6 +726,7 @@ function App(){
             <div className="wnsub">{wLabel}{wOff!==0&&<span style={{marginLeft:'.5rem',fontSize:'.52rem',color:'var(--accent)',opacity:.75}}>↩ tap to return</span>}</div>
           </div>
         </div>
+        <div key={`sh-w-${swipeKey}`} className="swipe-hint">{'<'} swipe to change week {'>'}</div>
         <div className="who">
           <div className="wc" style={{borderTop:'2px solid var(--accent)'}}><div className="wcv" style={{color:'var(--accent)'}}>{fmtH(wHours)}</div><div className="wcl">TOTAL HRS</div></div>
           <div className="wc" style={{borderTop:'2px solid var(--green)'}}><div className="wcv" style={{color:'var(--green)',fontSize:'1.3rem'}}>{wHours>0?fmtP(wPay):'£0.00'}</div><div className="wcl">GROSS PAY</div></div>
@@ -787,6 +791,7 @@ function App(){
             {mkName(vm)}{vm!==new Date().toISOString().slice(0,7)&&<span style={{fontFamily:'var(--font-m)',fontSize:'.55rem',marginLeft:'.5rem',opacity:.8}}>↩</span>}
           </div>
         </div>
+        <div key={`sh-m-${swipeKey}`} className="swipe-hint">{'<'} swipe to change month {'>'}</div>
 
         <div className="mhero">
           <div className="mh-row">
@@ -816,8 +821,8 @@ function App(){
               const cls=['cc',hasS?'hs':'',isT?'it':'',isSel?'sl':''].filter(Boolean).join(' ');
               const topLocs=[...new Set(cs.map(s=>s.loc))].slice(0,3);
               return<div key={cd} className={cls} onClick={()=>{
-                if(cs.length===0){setEditShift({date:cd,start:'',end:'',loc:'TR',note:''});}
-                else{setSel(isSel?null:cd);}
+                setSel(isSel?null:cd);
+                setEditShift({date:cd,start:'',end:'',loc:'TR',note:''});
               }}>
                 <div className="cn">{+cd.slice(8)}</div>
                 {hasS&&<div className="cal-dots">
@@ -829,15 +834,12 @@ function App(){
           </div>
         </div>
 
-        {sel&&<div className="cdet">
+        {sel&&<div className="cdet" style={{cursor:'pointer'}} onClick={()=>setEditShift({date:sel,start:'',end:'',loc:'TR',note:''})}>
           <div className="cdet-h">
             <div className="cdet-d">{dayName(sel)} {+sel.slice(8)} {mkName(sel.slice(0,7))}{sel===TODAY&&<span className="tdtag" style={{marginLeft:'.5rem'}}>TODAY</span>}</div>
-            <div style={{display:'flex',alignItems:'center',gap:'.6rem'}}>
-              {selH>0&&<div className="cdet-t">{fmtH(selH)}</div>}
-              <button onClick={()=>setEditShift({date:sel,start:'',end:'',loc:'TR',note:''})} style={{fontFamily:'var(--font-d)',fontSize:'.85rem',letterSpacing:'.06em',background:'rgba(0,229,255,.12)',border:'1px solid rgba(0,229,255,.3)',color:'var(--accent)',padding:'.2rem .55rem',borderRadius:'4px',cursor:'pointer'}}>+ ADD</button>
-            </div>
+            {selH>0&&<div className="cdet-t">{fmtH(selH)}</div>}
           </div>
-          {selS.length===0?<div className="eday">— no shifts —</div>:selS.map(s=><ShiftRow key={s.id} s={s} rate={rate} onDel={delShift} onEdit={setEditShift}/>)}
+          {selS.length===0?<div className="eday">tap to add shift</div>:selS.map(s=><div key={s.id} onClick={e=>{e.stopPropagation();setEditShift(s);}}><ShiftRow s={s} rate={rate} onDel={delShift} onEdit={setEditShift}/></div>)}
         </div>}
 
         {/* WEEK BREAKDOWN */}
@@ -983,7 +985,7 @@ function App(){
       {/* NAV */}
       <div className="bnav">
         {[{id:'add',ico:'➕',lbl:'ADD'},{id:'week',ico:'📅',lbl:'WEEK'},{id:'monthly',ico:'🗓️',lbl:'MONTH'},{id:'stats',ico:'📊',lbl:'STATS'}].map(n=>(
-          <button key={n.id} className={`bni ${tab===n.id?'act':''}`} onClick={()=>setTab(n.id)}>
+          <button key={n.id} className={`bni ${tab===n.id?'act':''}`} onClick={()=>switchTab(n.id)}>
             <span className="bni-ico">{n.ico}</span>{n.lbl}
           </button>
         ))}

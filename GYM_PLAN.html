@@ -255,7 +255,7 @@ const CSS=`
 
 /* BOTTOM NAV */
 .bottomnav{position:fixed;bottom:0;left:0;right:0;background:var(--s1);border-top:1px solid var(--border);display:flex;padding-bottom:env(safe-area-inset-bottom,0);z-index:10;}
-.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:0.65rem 0.3rem;cursor:pointer;border:none;background:none;color:var(--muted);font-family:var(--font-mono);font-size:0.5rem;letter-spacing:0.06em;transition:color 0.2s;gap:0.2rem;}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:0.65rem 0.3rem;cursor:pointer;border:none;background:none;color:var(--muted);font-family:var(--font-mono);font-size:0.55rem;letter-spacing:0.06em;transition:color 0.2s;gap:0.2rem;}
 .nav-item.active{color:var(--push);}
 .nav-icon{font-size:1.2rem;line-height:1;}
 
@@ -267,7 +267,7 @@ const CSS=`
 .day-chip:active{transform:scale(0.95);}
 .day-chip.active{background:var(--s3);border-color:var(--border2);}
 .day-chip-label{font-family:var(--font-display);font-size:1rem;letter-spacing:0.04em;}
-.day-chip-sub{font-family:var(--font-mono);font-size:0.46rem;color:var(--muted);margin-top:1px;}
+.day-chip-sub{font-family:var(--font-mono);font-size:0.52rem;color:var(--muted);margin-top:1px;}
 .day-chip-dot{width:5px;height:5px;border-radius:50%;margin-top:4px;}
 .day-chip.done-chip::after{content:'✓';position:absolute;top:3px;right:6px;font-size:0.5rem;color:var(--legs);font-family:var(--font-mono);}
 .swipe-hint{position:absolute;bottom:4px;right:8px;font-size:0.45rem;font-family:var(--font-mono);color:var(--dim);pointer-events:none;}
@@ -293,7 +293,7 @@ const CSS=`
 .ex-card{margin:0 0.75rem 0.6rem;border:1px solid var(--border);background:var(--s1);overflow:hidden;border-radius:8px;transition:all 0.2s;}
 .ex-card.is-done{border-color:rgba(178,255,89,0.25);background:rgba(178,255,89,0.02);}
 .ex-card-head{padding:0.6rem 0.85rem 0.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:0.6rem;}
-.ex-card-name{font-family:var(--font-body);font-weight:700;font-size:1.15rem;color:#e8e8e8;line-height:1.2;flex:1;}
+.ex-card-name{font-family:var(--font-body);font-weight:700;font-size:1.2rem;color:#e8e8e8;line-height:1.2;flex:1;}
 .ex-card-meta{display:flex;gap:0.4rem;align-items:center;margin-top:4px;flex-wrap:wrap;}
 .ex-name-row{display:flex;align-items:center;gap:0.55rem;flex-wrap:nowrap;}
 
@@ -318,37 +318,37 @@ const CSS=`
 .qf-chip{flex-shrink:0;font-family:var(--font-mono);font-size:0.6rem;padding:0.25rem 0.5rem;border:1px solid var(--border2);background:var(--s3);color:#d0d0e0;cursor:pointer;border-radius:3px;transition:all 0.15s;}
 .qf-chip:active{border-color:var(--push);color:var(--push);transform:scale(0.94);}
 
-.set-header{display:grid;grid-template-columns:28px 1fr 1fr 36px 48px 40px 44px;gap:0.3rem;padding:0.22rem 0.85rem;background:var(--s2);border-bottom:1px solid var(--border);}
+.set-header{display:grid;grid-template-columns:32px 1fr 1fr 40px 44px;gap:0.3rem;padding:0.25rem 0.85rem;background:var(--s2);border-bottom:1px solid var(--border);}
 .set-header-lbl{font-family:var(--font-mono);font-size:0.55rem;color:var(--label);text-align:center;}
 
 /* SET ROWS */
 .sets-table{width:100%;}
-.set-row{display:grid;grid-template-columns:28px 1fr 1fr 36px 48px 40px 44px;gap:0.3rem;padding:0.3rem 0.85rem;border-bottom:1px solid var(--border);align-items:center;transition:background 0.2s;}
+.set-row{display:grid;grid-template-columns:32px 1fr 1fr 40px 44px;gap:0.3rem;padding:0.35rem 0.85rem;border-bottom:1px solid var(--border);align-items:center;transition:background 0.2s;}
 .set-row:last-child{border-bottom:none;}
 .set-row.set-done-row{background:rgba(178,255,89,0.04);}
 .set-row.pr-row{animation:prFlash 1.2s ease;}
-.set-num{font-family:var(--font-mono);font-size:0.78rem;color:#c0c0d0;font-weight:500;}
+.set-num{font-family:var(--font-mono);font-size:0.82rem;color:#c0c0d0;font-weight:500;}
 
 /* STEPPER INPUTS — replaces raw number fields */
 .stepper-wrap{display:flex;align-items:center;gap:0;border:1px solid var(--border2);background:var(--s3);border-radius:4px;overflow:hidden;}
 .stepper-wrap.has-val{border-color:var(--faint);}
 .stepper-wrap:focus-within{border-color:var(--push);}
-.step-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.9rem;width:22px;height:36px;display:flex;align-items:center;justify-content:center;transition:color 0.15s;flex-shrink:0;padding:0;}
+.step-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;width:32px;height:40px;display:flex;align-items:center;justify-content:center;transition:color 0.15s;flex-shrink:0;padding:0;}
 .step-btn:active{color:var(--push);}
-.set-field{background:transparent;border:none;color:#e8e8e8;font-family:var(--font-mono);font-size:0.88rem;font-weight:500;width:100%;text-align:center;padding:0;height:36px;-webkit-appearance:none;outline:none;}
+.set-field{background:transparent;border:none;color:#e8e8e8;font-family:var(--font-mono);font-size:1rem;font-weight:500;width:100%;text-align:center;padding:0;height:40px;-webkit-appearance:none;outline:none;}
 .set-field::placeholder{color:#666666;}
 
 /* CHECK BTN — bigger tap target */
-.check-btn{width:36px;height:36px;border:1.5px solid #585868;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.85rem;color:transparent;transition:all 0.2s;flex-shrink:0;border-radius:5px;}
-.check-btn.checked{background:#2979ff;border-color:#2979ff;color:#fff;font-weight:700;}
+.check-btn{width:40px;height:40px;border:1.5px solid #585868;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;color:transparent;transition:all 0.2s;flex-shrink:0;border-radius:5px;}
+.check-btn.checked{background:var(--legs);border-color:var(--legs);color:#000;font-weight:700;}
 
 /* TIMER BTN */
-.timer-btn{width:36px;height:36px;background:none;border:none;cursor:pointer;font-size:1rem;opacity:0.8;transition:opacity 0.15s;padding:0;display:flex;align-items:center;justify-content:center;color:#fff;}
+.timer-btn{width:40px;height:40px;background:none;border:none;cursor:pointer;font-size:1.1rem;opacity:0.8;transition:opacity 0.15s;padding:0;display:flex;align-items:center;justify-content:center;color:#fff;}
 .timer-btn:active{opacity:1;}
 
 /* NOTES */
-.notes-row{padding:0.35rem 0.85rem;}
-.notes-field{width:100%;background:transparent;border:none;border-top:1px solid var(--border);color:#aaaaaa;font-family:var(--font-mono);font-size:0.62rem;padding:0.35rem 0;resize:none;height:26px;transition:color 0.15s;}
+.notes-row{padding:0.4rem 0.85rem;}
+.notes-field{width:100%;background:transparent;border:none;border-top:1px solid var(--border);color:#aaaaaa;font-family:var(--font-mono);font-size:0.7rem;padding:0.4rem 0;resize:none;height:30px;transition:color 0.15s;}
 .notes-field:focus{outline:none;color:var(--text);}
 .notes-field::placeholder{color:#666666;}
 
@@ -613,8 +613,10 @@ function App(){
   const day=DAYS[dayIdx];
   const allDone=weekData.every(d=>d.done);
   const weekNums=Object.keys(store.weeks).map(Number).sort((a,b)=>a-b);
-  const totalWeeks=weekNums.length;
-  const completedDays=weekNums.reduce((a,wn)=>a+(store.weeks[wn]||[]).filter(d=>d.done).length,0);
+  // Only show weeks that have at least one completed day (for history/compare/stats)
+  const activeWeekNums=weekNums.filter(wn=>(store.weeks[wn]||[]).some(d=>d.done));
+  const totalWeeks=activeWeekNums.length||1;
+  const completedDays=activeWeekNums.reduce((a,wn)=>a+(store.weeks[wn]||[]).filter(d=>d.done).length,0);
 
   // Previous week data for this day (for inline reference)
   const prevWeekSets=useMemo(()=>{
@@ -629,7 +631,7 @@ function App(){
     DAYS.forEach((d,di)=>{
       d.exercises.forEach((ex,ei)=>{
         let best=0;
-        weekNums.forEach(wn=>{
+        activeWeekNums.forEach(wn=>{
           const wd=store.weeks[wn]||[];
           (wd[di]?.sets[ei]||[]).forEach(s=>{const v=parseFloat(s.kg)||0;if(v>best)best=v;});
         });
@@ -644,7 +646,7 @@ function App(){
     const v=parseFloat(kg)||0;
     if(!v)return false;
     const allPrev=[];
-    weekNums.forEach(wn=>{
+    activeWeekNums.forEach(wn=>{
       if(wn===week)return;
       DAYS.forEach((d,di)=>{
         d.exercises.forEach((ex,ei)=>{
@@ -765,13 +767,7 @@ function App(){
     const dt=Date.now()-weekSwipeTime.current;
     const velocity=Math.abs(dx)/dt;
     const isTap=Math.abs(dx)<10&&Math.abs(dy)<10&&dt<300;
-    if(isTap){
-      // Tap: jump back to current training week + next workout day
-      setViewWeek(storeRef.current.currentWeek);
-      setDayIdx(getNextWorkoutDay(storeRef.current));
-      weekSwipeStartX.current=null;
-      return;
-    }
+    if(isTap){weekSwipeStartX.current=null;return;}
     if(Math.abs(dy)>Math.abs(dx)*0.8){weekSwipeStartX.current=null;return;}
     if(Math.abs(dx)>30||velocity>0.3){
       changeWeek(dx<0?1:-1);
@@ -802,6 +798,57 @@ function App(){
       else setDayIdx(i=>Math.max(i-1,0));
     }
     swipeStartX.current=null;
+  },[]);
+
+  // ── WAKE LOCK (keep screen on during workout) ─────────────────
+  const[wakeLockActive,setWakeLockActive]=useState(false);
+  const wakeLockRef=useRef(null);
+  useEffect(()=>{
+    if(!('wakeLock' in navigator))return;
+    const acquire=async()=>{
+      try{
+        if(tab==='workout'&&!wakeLockRef.current){
+          wakeLockRef.current=await navigator.wakeLock.request('screen');
+          setWakeLockActive(true);
+          wakeLockRef.current.addEventListener('release',()=>{wakeLockRef.current=null;setWakeLockActive(false);});
+        }
+      }catch(e){}
+    };
+    const release=async()=>{
+      if(wakeLockRef.current){try{await wakeLockRef.current.release();}catch(e){}wakeLockRef.current=null;setWakeLockActive(false);}
+    };
+    if(tab==='workout'){acquire();}else{release();}
+    // Re-acquire if page becomes visible again (e.g. after screen lock)
+    const onVisible=()=>{if(tab==='workout'&&document.visibilityState==='visible')acquire();};
+    document.addEventListener('visibilitychange',onVisible);
+    return()=>{document.removeEventListener('visibilitychange',onVisible);release();};
+  },[tab]);
+
+  // ── SWIPE BETWEEN TABS ────────────────────────────────────────
+  const TABS=['workout','history','compare','stats'];
+  const tabSwipeStartX=useRef(null);
+  const tabSwipeStartY=useRef(null);
+  const tabSwipeTime=useRef(null);
+  const tabTouchStart=useCallback(e=>{
+    tabSwipeStartX.current=e.touches[0].clientX;
+    tabSwipeStartY.current=e.touches[0].clientY;
+    tabSwipeTime.current=Date.now();
+  },[]);
+  const tabTouchEnd=useCallback(e=>{
+    if(tabSwipeStartX.current===null)return;
+    const dx=e.changedTouches[0].clientX-tabSwipeStartX.current;
+    const dy=e.changedTouches[0].clientY-tabSwipeStartY.current;
+    const dt=Date.now()-tabSwipeTime.current;
+    const velocity=Math.abs(dx)/dt;
+    tabSwipeStartX.current=null;
+    // Must be clearly horizontal
+    if(Math.abs(dy)>Math.abs(dx)*0.6)return;
+    if(Math.abs(dx)<40&&velocity<0.3)return;
+    setTab(prev=>{
+      const idx=TABS.indexOf(prev);
+      if(dx<0)return TABS[Math.min(idx+1,TABS.length-1)];
+      return TABS[Math.max(idx-1,0)];
+    });
   },[]);
 
   // ── FIND NEXT INCOMPLETE SET ──────────────────────────────────
@@ -837,12 +884,13 @@ function App(){
         {/* TOP BAR */}
         <div className="topbar">
           <div className="topbar-inner">
-            <div className="app-title">PPL <span>BEAST</span></div>
+            <div className="app-title">PPL <span>BEAST</span>{wakeLockActive&&<span title="Screen kept on" style={{display:'inline-block',width:'6px',height:'6px',borderRadius:'50%',background:'var(--legs)',marginLeft:'6px',verticalAlign:'middle',boxShadow:'0 0 6px var(--legs)',animation:'pulse 2s infinite'}}/>}</div>
             <div className="topbar-center">
-              <div className="week-label-tap" onTouchStart={weekTouchStart} onTouchEnd={weekTouchEnd} onClick={()=>{setViewWeek(store.currentWeek);setDayIdx(getNextWorkoutDay(store));}}>
-                WEEK {viewWeek}
-                {viewWeek!==store.currentWeek&&<span style={{fontFamily:'var(--font-mono)',fontSize:'0.45rem',color:'var(--push)',display:'block',letterSpacing:'0.06em',marginTop:'1px'}}>TAP → WK{store.currentWeek}</span>}
-              </div>
+              {tab==='workout'&&(
+                <div className="week-label-tap" onTouchStart={weekTouchStart} onTouchEnd={weekTouchEnd} >
+                  WEEK {viewWeek}
+                </div>
+              )}
             </div>
             {tab==='workout'&&(
               <button className={`copy-btn ${copied?'copied':''}`} onClick={copyLastWeek}>
@@ -957,7 +1005,7 @@ function App(){
                     })()}
 
                     {/* Set headers */}
-                    <div className="set-header" style={{gridTemplateColumns:'28px 1fr 1fr 40px 44px'}}>
+                    <div className="set-header" style={{gridTemplateColumns:'32px 1fr 1fr 40px 44px'}}>
                       <div className="set-header-lbl" style={{textAlign:'left'}}>#</div>
                       <div className="set-header-lbl">KG</div>
                       <div className="set-header-lbl">REPS</div>
@@ -967,13 +1015,12 @@ function App(){
                     <div className="sets-table">
                       {sets.map((s,si)=>{
                         const prThisSet=isPR(ex.name,s.kg);
-                        // Working set = not done; use day color for border. Done = green bg.
                         const rowBg=s.done?'rgba(198,255,107,0.05)':'transparent';
                         const rowBorder=s.done?'rgba(198,255,107,0.15)':hex+'22';
                         return(
                           <div key={si} id={`set-${dayIdx}-${ei}-${si}`}
                             className={`set-row ${prThisSet&&s.kg?'pr-row':''}`}
-                            style={{gridTemplateColumns:'28px 1fr 1fr 40px 44px',background:rowBg,borderBottomColor:rowBorder}}
+                            style={{gridTemplateColumns:'32px 1fr 1fr 40px 44px',background:rowBg,borderBottomColor:rowBorder}}
                           >
                             <div className="set-num" style={{color:s.done?'var(--legs)':hex}}>S{si+1}</div>
                             {/* KG stepper */}
@@ -1049,11 +1096,11 @@ function App(){
 
         {/* HISTORY TAB */}
         {tab==='history'&&(
-          <div className="screen">
+          <div className="screen" onTouchStart={tabTouchStart} onTouchEnd={tabTouchEnd}>
             <div className="history-wrap">
               <div className="hist-title">HISTORY</div>
               <div className="hist-sub">ALL WEEKS · {completedDays} TOTAL DAYS COMPLETED</div>
-              {[...weekNums].reverse().map(wn=>{
+              {[...activeWeekNums].reverse().map(wn=>{
                 const wd=store.weeks[wn]||mkWeekData();
                 const doneCount=wd.filter(d=>d.done).length;
                 const weekVol=wd.reduce((a,dayD)=>a+dayD.sets.reduce((b,setArr)=>b+setArr.reduce((c,s)=>{
@@ -1094,18 +1141,18 @@ function App(){
 
         {/* COMPARE TAB */}
         {tab==='compare'&&(
-          <div className="screen">
+          <div className="screen" onTouchStart={tabTouchStart} onTouchEnd={tabTouchEnd}>
             <div className="compare-wrap">
               <div className="hist-title">COMPARE</div>
               <div className="hist-sub">WEEK VS WEEK PERFORMANCE</div>
               <div className="compare-sel">
                 <select value={compareA} onChange={e=>setCompareA(Number(e.target.value))}>
-                  {weekNums.map(wn=><option key={wn} value={wn}>WEEK {wn}</option>)}
+                  {activeWeekNums.map(wn=><option key={wn} value={wn}>WEEK {wn}</option>)}
                 </select>
                 <div style={{fontFamily:'var(--font-display)',fontSize:'1.2rem',color:'var(--muted)'}}>VS</div>
                 <select value={compareB??''} onChange={e=>setCompareB(e.target.value?Number(e.target.value):null)}>
                   <option value="">SELECT WEEK</option>
-                  {weekNums.filter(wn=>wn!==compareA).map(wn=><option key={wn} value={wn}>WEEK {wn}</option>)}
+                  {activeWeekNums.filter(wn=>wn!==compareA).map(wn=><option key={wn} value={wn}>WEEK {wn}</option>)}
                 </select>
               </div>
               {compareB!==null
@@ -1118,7 +1165,7 @@ function App(){
 
         {/* STATS TAB */}
         {tab==='stats'&&(
-          <div className="screen">
+          <div className="screen" onTouchStart={tabTouchStart} onTouchEnd={tabTouchEnd}>
             <div className="stats-wrap">
               <div className="hist-title">STATS</div>
               <div className="stat-grid">
@@ -1130,7 +1177,7 @@ function App(){
               <div style={{background:'var(--s1)',border:'1px solid var(--border)',padding:'0.85rem',marginBottom:'0.7rem',borderRadius:'8px'}}>
                 <div style={{fontFamily:'var(--font-display)',fontSize:'0.9rem',letterSpacing:'0.06em',color:'#c8c8d8',marginBottom:'0.5rem'}}>WEEKLY STREAK</div>
                 <div className="streak-bar">
-                  {weekNums.map(wn=>{
+                  {activeWeekNums.map(wn=>{
                     const wd=store.weeks[wn]||[];
                     const n=wd.filter(d=>d.done).length;
                     return<div key={wn} className="streak-dot" style={{background:`rgba(178,255,89,${0.2+n/7*0.8})`}} title={`Week ${wn}: ${n}/7`}/>;
@@ -1156,7 +1203,7 @@ function App(){
         )}
 
         {/* BOTTOM NAV */}
-        <div className="bottomnav" onTouchStart={weekTouchStart} onTouchEnd={weekTouchEnd}>
+        <div className="bottomnav" onTouchStart={tabTouchStart} onTouchEnd={tabTouchEnd}>
           {[{id:'workout',icon:'🏋️',label:'WORKOUT'},{id:'history',icon:'📅',label:'HISTORY'},{id:'compare',icon:'📊',label:'COMPARE'},{id:'stats',icon:'⚡',label:'STATS'}].map(n=>(
             <button key={n.id} className={`nav-item ${tab===n.id?'active':''}`} onClick={()=>setTab(n.id)}>
               <span className="nav-icon">{n.icon}</span>

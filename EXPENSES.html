@@ -62,7 +62,7 @@ const monthName = m => ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','O
 
 function loadStore() {
   try { const r=localStorage.getItem('spent_v2'); if(r) return JSON.parse(r); } catch(e){}
-  return { expenses:[], weekBudget:200, monthBudget:800 };
+  return { expenses:[], weekBudget:200, monthBudget:800, catBudgets:{} };
 }
 function loadShiftsIncome() {
   // Pull weekly earnings from shifts data for income vs spend crossover
@@ -86,7 +86,7 @@ function saveStore(s) {
   try { localStorage.setItem('spent_v2', JSON.stringify(s)); } catch(e){}
 }
 let _id = Date.now();
-const uid = () => String(++_id);
+const uid = () => (typeof crypto!=='undefined'&&crypto.randomUUID) ? crypto.randomUUID() : String(++_id);
 
 const CSS = `
   @keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
@@ -97,6 +97,7 @@ const CSS = `
   @keyframes toastOut{from{opacity:1}to{opacity:0}}
   @keyframes slideLeft{from{transform:translateX(0)}to{transform:translateX(-70px)}}
   @keyframes revealDelete{from{opacity:0}to{opacity:1}}
+  @keyframes donutSpin{from{stroke-dashoffset:251.2}to{}}
 
   .app{display:flex;flex-direction:column;height:100vh;height:100dvh;background:var(--bg);overflow:hidden;}
 
@@ -475,6 +476,8 @@ function TapExpItem({e, onDelete, onEdit}) {
 
 /* ── DONUT CHART ── */
 function DonutChart({data, size=120}) {
+  const [animated, setAnimated] = useState(false);
+  useEffect(()=>{ const t=setTimeout(()=>setAnimated(true),30); return ()=>clearTimeout(t); },[data]);
   const total = data.reduce((a,b)=>a+b.val,0);
   if (!total) return (
     <div style={{width:size,height:size,background:'var(--s2)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
@@ -497,10 +500,11 @@ function DonutChart({data, size=120}) {
       {data.map((d,i) => (
         <circle key={i} cx={cx} cy={cy} r={r} fill="none"
           stroke={d.color} strokeWidth={stroke}
-          strokeDasharray={`${slices[i].dash} ${circ-slices[i].dash}`}
+          strokeDasharray={animated ? `${slices[i].dash} ${circ-slices[i].dash}` : `0 ${circ}`}
           strokeDashoffset={-slices[i].offset}
           transform="rotate(-90 60 60)"
           opacity={0.9}
+          style={{transition:`stroke-dasharray ${0.5+i*0.08}s cubic-bezier(0.4,0,0.2,1)`}}
         />
       ))}
       <text x={cx} y={cy-4} textAnchor="middle" fill="#f5f5f5" fontFamily="'Bebas Neue'" fontSize="13">{fmtShort(total)}</text>
@@ -539,6 +543,8 @@ function App() {
   const [showBudget, setShowBudget] = useState(false);
   const [bwInput, setBwInput] = useState('');
   const [bmInput, setBmInput] = useState('');
+  const [catBudgetInputs, setCatBudgetInputs] = useState({});
+  const [budgetTab, setBudgetTab] = useState('overall');
   // history expand
   const [expandedWeek, setExpandedWeek] = useState(null);
   // toast
@@ -550,6 +556,36 @@ function App() {
   const [editCat, setEditCat] = useState('');
   const [editNote, setEditNote] = useState('');
   const [editDate, setEditDate] = useState('');
+
+  // recurring prompt
+  const [recurringDue, setRecurringDue] = useState([]);
+  const [showRecurring, setShowRecurring] = useState(false);
+
+  useEffect(()=>{
+    // Find recurring expenses not yet logged this month
+    const thisMonth = today().slice(0,7);
+    const recurringExps = store.expenses.filter(e=>e.recurring);
+    // Get unique recurring templates (most recent per cat+note combo)
+    const seen = new Map();
+    [...recurringExps].sort((a,b)=>b.date.localeCompare(a.date)).forEach(e=>{
+      const key = `${e.cat}||${e.note||''}`;
+      if (!seen.has(key)) seen.set(key, e);
+    });
+    // Filter those not already added this month
+    const alreadyThisMonth = new Set(
+      store.expenses.filter(e=>e.date.startsWith(thisMonth)&&e.recurring).map(e=>`${e.cat}||${e.note||''}`)
+    );
+    const due = [...seen.values()].filter(e=>!alreadyThisMonth.has(`${e.cat}||${e.note||''}`));
+    if (due.length > 0) { setRecurringDue(due); setShowRecurring(true); }
+  // eslint-disable-next-line
+  }, []);
+
+  function addRecurringExpense(e) {
+    const exp = { id:uid(), amount:e.amount, cat:e.cat, note:e.note, date:today(), recurring:true };
+    update(s => { s.expenses = [exp, ...s.expenses]; });
+    setRecurringDue(prev => prev.filter(x=>`${x.cat}||${x.note||''}`!==`${e.cat}||${e.note||''}`));
+    showToast(`✓ ${fmt(e.amount)} added`);
+  }
 
   function showToast(msg, isErr=false) {
     clearTimeout(toastTimer.current);
@@ -608,6 +644,12 @@ function App() {
     update(s => {
       if (bwInput) s.weekBudget = parseFloat(bwInput);
       if (bmInput) s.monthBudget = parseFloat(bmInput);
+      const cb = {...(s.catBudgets||{})};
+      Object.entries(catBudgetInputs).forEach(([id,v])=>{
+        if (v===''||v===null) { delete cb[id]; }
+        else if (!isNaN(parseFloat(v))) cb[id]=parseFloat(v);
+      });
+      s.catBudgets = cb;
     });
     setShowBudget(false);
     showToast('✓ Budgets saved');
@@ -746,10 +788,10 @@ function App() {
 
         {/* TOP BAR */}
         <div className="topbar">
-          <div className="topbar-inner" style={{justifyContent:'center',position:'relative'}}>
+          <div className="topbar-inner">
             <div className="app-title">SP<span>E</span>NT</div>
-            <div className="topbar-right" style={{position:'absolute',right:'1rem'}}>
-              <button className="settings-btn" onClick={()=>{setBwInput(String(store.weekBudget));setBmInput(String(store.monthBudget));setShowBudget(true);}}>
+            <div className="topbar-right">
+              <button className="settings-btn" onClick={()=>{setBwInput(String(store.weekBudget));setBmInput(String(store.monthBudget));setCatBudgetInputs(Object.fromEntries(CATS.map(c=>[c.id,store.catBudgets?.[c.id]!=null?String(store.catBudgets[c.id]):''])));setBudgetTab('overall');setShowBudget(true);}}>
                 ⚙ BUDGET
               </button>
             </div>
@@ -1037,6 +1079,42 @@ function App() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Category budgets */}
+                  {Object.keys(store.catBudgets||{}).length > 0 && (
+                    <div className="chart-card">
+                      <div className="chart-title">CATEGORY BUDGETS · THIS MONTH</div>
+                      {CATS.filter(c=>(store.catBudgets||{})[c.id]>0).map(c=>{
+                        const spent = expenses.filter(e=>e.cat===c.id&&e.date.startsWith(today().slice(0,7))).reduce((a,e)=>a+e.amount,0);
+                        const limit = store.catBudgets[c.id];
+                        const pct = Math.min(100,(spent/limit)*100);
+                        const over = spent > limit;
+                        return (
+                          <div key={c.id} style={{marginBottom:'0.85rem'}}>
+                            <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.3rem',alignItems:'center'}}>
+                              <span style={{fontFamily:'var(--font-b)',fontWeight:600,fontSize:'0.9rem',color:c.color}}>{c.icon} {c.label}</span>
+                              <span style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:over?'var(--red)':'var(--text3)'}}>
+                                {fmt(spent)} / {fmt(limit)}{over&&' ⚠'}
+                              </span>
+                            </div>
+                            <div className="budget-bar-track">
+                              <div className="budget-bar-fill" style={{width:pct+'%',background:over?'var(--red)':pct>80?'var(--orange)':c.color,transition:'width 0.5s ease'}}/>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div style={{fontFamily:'var(--font-m)',fontSize:'0.55rem',color:'var(--text3)',marginTop:'0.25rem',letterSpacing:'0.04em',cursor:'pointer',opacity:0.7}}
+                        onClick={()=>{setCatBudgetInputs(Object.fromEntries(CATS.map(c=>[c.id,store.catBudgets?.[c.id]!=null?String(store.catBudgets[c.id]):''])));setBudgetTab('category');setShowBudget(true);}}>
+                        ⚙ EDIT CATEGORY BUDGETS →
+                      </div>
+                    </div>
+                  )}
+                  {Object.keys(store.catBudgets||{}).length === 0 && (
+                    <div style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:'var(--text3)',textAlign:'center',padding:'0.5rem 0 0.75rem',cursor:'pointer',letterSpacing:'0.06em',opacity:0.7}}
+                      onClick={()=>{setCatBudgetInputs(Object.fromEntries(CATS.map(c=>[c.id,''])));setBudgetTab('category');setShowBudget(true);}}>
+                      + SET CATEGORY BUDGETS →
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -1209,16 +1287,74 @@ function App() {
       {/* BUDGET MODAL */}
       {showBudget && (
         <div className="modal-overlay" onClick={()=>setShowBudget(false)}>
-          <div className="modal" onClick={e=>e.stopPropagation()}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxHeight:'88vh',overflowY:'auto'}}>
             <div className="modal-title">SET BUDGETS</div>
-            <div className="modal-sub">LEAVE BLANK TO KEEP CURRENT</div>
-            <div className="modal-lbl">WEEKLY BUDGET (£) — CURRENT: {fmt(store.weekBudget)}</div>
-            <input className="modal-input" type="number" inputMode="decimal" value={bwInput} onChange={e=>setBwInput(e.target.value)} placeholder={store.weekBudget}/>
-            <div className="modal-lbl">MONTHLY BUDGET (£) — CURRENT: {fmt(store.monthBudget)}</div>
-            <input className="modal-input" type="number" inputMode="decimal" value={bmInput} onChange={e=>setBmInput(e.target.value)} placeholder={store.monthBudget}/>
+            {/* Tab switcher */}
+            <div className="tab-row" style={{marginBottom:'0.85rem'}}>
+              <button className={`tab-btn ${budgetTab==='overall'?'active-tab':''}`} onClick={()=>setBudgetTab('overall')}>OVERALL</button>
+              <button className={`tab-btn ${budgetTab==='category'?'active-tab':''}`} onClick={()=>setBudgetTab('category')}>BY CATEGORY</button>
+            </div>
+            {budgetTab==='overall' ? (
+              <>
+                <div className="modal-sub">LEAVE BLANK TO KEEP CURRENT</div>
+                <div className="modal-lbl">WEEKLY BUDGET (£) — CURRENT: {fmt(store.weekBudget)}</div>
+                <input className="modal-input" type="number" inputMode="decimal" value={bwInput} onChange={e=>setBwInput(e.target.value)} placeholder={store.weekBudget}/>
+                <div className="modal-lbl">MONTHLY BUDGET (£) — CURRENT: {fmt(store.monthBudget)}</div>
+                <input className="modal-input" type="number" inputMode="decimal" value={bmInput} onChange={e=>setBmInput(e.target.value)} placeholder={store.monthBudget}/>
+              </>
+            ) : (
+              <>
+                <div className="modal-sub">SET A MONTHLY LIMIT PER CATEGORY · LEAVE BLANK FOR NONE</div>
+                {CATS.map(c=>(
+                  <div key={c.id}>
+                    <div className="modal-lbl" style={{display:'flex',alignItems:'center',gap:'0.4rem'}}>
+                      <span>{c.icon}</span><span style={{color:c.color}}>{c.label.toUpperCase()}</span>
+                      {store.catBudgets?.[c.id]>0&&<span style={{color:'var(--muted)',marginLeft:'auto'}}>current: {fmt(store.catBudgets[c.id])}</span>}
+                    </div>
+                    <input className="modal-input" type="number" inputMode="decimal"
+                      value={catBudgetInputs[c.id]||''}
+                      onChange={e=>setCatBudgetInputs(v=>({...v,[c.id]:e.target.value}))}
+                      placeholder="no limit"
+                      style={{fontSize:'1.1rem',padding:'0.45rem 0.75rem'}}
+                    />
+                  </div>
+                ))}
+              </>
+            )}
             <div className="modal-btns">
               <button className="modal-btn" onClick={()=>setShowBudget(false)}>CANCEL</button>
               <button className="modal-btn primary" onClick={saveBudget}>SAVE</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RECURRING DUE MODAL */}
+      {showRecurring && recurringDue.length > 0 && (
+        <div className="modal-overlay" onClick={()=>setShowRecurring(false)}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxHeight:'88vh',overflowY:'auto'}}>
+            <div className="modal-title">↻ RECURRING</div>
+            <div className="modal-sub">{recurringDue.length} EXPENSE{recurringDue.length>1?'S':''} DUE THIS MONTH — ADD THEM NOW?</div>
+            <div style={{display:'flex',flexDirection:'column',gap:'0.5rem',margin:'0.85rem 0'}}>
+              {recurringDue.map(e=>{
+                const c=CAT[e.cat];
+                return (
+                  <div key={e.id} style={{display:'flex',alignItems:'center',gap:'0.75rem',background:'var(--s2)',border:'1px solid var(--border)',padding:'0.75rem 1rem',borderLeft:`3px solid ${c?.color||'#444'}`}}>
+                    <span style={{fontSize:'1.3rem'}}>{c?.icon}</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontFamily:'var(--font-b)',fontWeight:700,fontSize:'1rem',color:c?.color||'var(--text)'}}>{c?.label}</div>
+                      {e.note&&<div style={{fontFamily:'var(--font-m)',fontSize:'0.58rem',color:'var(--text3)'}}>{e.note}</div>}
+                    </div>
+                    <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--text)',marginRight:'0.5rem'}}>{fmt(e.amount)}</div>
+                    <button className="modal-btn primary" style={{padding:'0.4rem 0.75rem',fontSize:'0.75rem',fontFamily:'var(--font-m)',letterSpacing:'0.04em',minWidth:'auto'}}
+                      onClick={()=>addRecurringExpense(e)}>ADD</button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="modal-btns">
+              <button className="modal-btn" onClick={()=>setShowRecurring(false)}>DISMISS</button>
+              <button className="modal-btn primary" onClick={()=>{recurringDue.forEach(e=>addRecurringExpense(e));setShowRecurring(false);}}>ADD ALL</button>
             </div>
           </div>
         </div>
