@@ -104,7 +104,7 @@ const CSS = `
   /* TOP BAR */
   .topbar{background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;z-index:10;
     padding-top:env(safe-area-inset-top,0);}
-  .topbar-inner{display:flex;align-items:center;justify-content:space-between;padding:0.65rem 1rem;}
+  .topbar-inner{display:flex;align-items:center;justify-content:space-between;padding:0.65rem 1rem;position:relative;}
   .app-title{font-family:var(--font-d);font-size:1.8rem;letter-spacing:0.08em;line-height:1;color:var(--text);}
   .app-title span{color:var(--red);}
   .topbar-right{display:flex;align-items:center;gap:0.5rem;}
@@ -812,6 +812,14 @@ function App() {
         <div className="topbar">
           <div className="topbar-inner">
             <div className="app-title">SP<span>E</span>NT</div>
+            {tab==='monthly' && (
+              <div
+                onClick={()=>{setMonthAnimDir(viewMonth>today().slice(0,7)?'right':'left');setViewMonth(today().slice(0,7));setSelMonthDay(today());setShowAllMonthDays(false);}}
+                style={{fontFamily:'var(--font-d)',fontSize:'1.4rem',letterSpacing:'0.06em',color:viewMonth!==today().slice(0,7)?'var(--orange)':'var(--text)',cursor:'pointer',transition:'color 0.2s',lineHeight:1,position:'absolute',left:'50%',transform:'translateX(-50%)'}}
+              >
+                {monthName(viewMonth)} {viewMonth.split('-')[0]}
+              </div>
+            )}
             <div className="topbar-right">
               <button className="settings-btn" onClick={()=>{setBwInput(String(store.weekBudget));setBmInput(String(store.monthBudget));setCatBudgetInputs(Object.fromEntries(CATS.map(c=>[c.id,store.catBudgets?.[c.id]!=null?String(store.catBudgets[c.id]):''])));setBudgetTab('overall');setShowBudget(true);}}>
                 ⚙ BUDGET
@@ -1157,18 +1165,6 @@ function App() {
             }}
           >
               <div className="mon-wrap" style={{animation:`${monthAnimDir==='left'?'slideMonthLeft':'slideMonthRight'} 0.22s ease`}}>
-              <div className="month-nav" style={{justifyContent:'center'}}>
-                <div style={{textAlign:'center'}}>
-                  <div
-                    className="month-title"
-                    onClick={viewMonth!==today().slice(0,7)?()=>{setMonthAnimDir('right');setViewMonth(today().slice(0,7));setSelMonthDay(null);setShowAllMonthDays(false);}:undefined}
-                    style={{cursor:viewMonth!==today().slice(0,7)?'pointer':'default',transition:'color 0.2s',color:viewMonth!==today().slice(0,7)?'var(--orange)':'var(--text)'}}
-                  >
-                    {monthName(viewMonth)} {viewMonth.split('-')[0]}
-                  </div>
-                </div>
-              </div>
-
               <div className="month-hero">
                 <div className="month-total-lbl">TOTAL SPENT</div>
                 <div className="month-total">{fmt(monthTotal)}</div>
@@ -1184,17 +1180,6 @@ function App() {
                   <div>
                     <div style={{fontFamily:'var(--font-m)',fontSize:'0.58rem',color:'var(--text3)',letterSpacing:'0.08em'}}>BUDGET</div>
                     <div style={{fontFamily:'var(--font-d)',fontSize:'1rem',color:monthOver?'var(--red)':'var(--text2)'}}>{fmt(store.monthBudget)}</div>
-                  </div>
-                </div>
-                <div className="month-budget-bar">
-                  <div className="budget-bar-track">
-                    <div className="budget-bar-fill" style={{width:monthPct+'%',background:monthPct>90?'var(--red)':monthPct>70?'var(--orange)':'var(--green)'}}/>
-                  </div>
-                  <div className="budget-bar-labels">
-                    <span className="bbl">{fmt(monthTotal)} spent</span>
-                    <span className="bbl" style={{color:monthOver?'var(--red)':'var(--text3)'}}>
-                      {monthOver?`${fmt(monthTotal-store.monthBudget)} over budget`:`${fmt(store.monthBudget-monthTotal)} remaining`}
-                    </span>
                   </div>
                 </div>
               </div>

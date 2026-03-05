@@ -468,7 +468,6 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
             <button className="mdl-del" style={{margin:0,flex:1}} onClick={()=>onDelete(shift.id)}>DELETE</button>
             <button className="mdl-save edit" style={{flex:1,marginTop:0}} disabled={!s0||!e0||pH<=0} onClick={doSave}>SAVE</button>
           </div>
-          <button className="mdl-del" style={{marginTop:'.4rem',background:'transparent',border:'1px solid rgba(56,189,248,.35)',color:'var(--sky)'}} onClick={()=>onDuplicate&&onDuplicate({...shift,id:uid(),date:TODAY})}>⧉ DUPLICATE TO TODAY</button>
           </>
         ) : (
           <button className="mdl-save" disabled={!s0||!e0||pH<=0} onClick={doSave}>SAVE</button>
@@ -672,6 +671,16 @@ function App(){
       <div className="topbar">
         <div className="tb-inner" style={{justifyContent:'flex-start',position:'relative'}}>
           <div className="title">SHI<span>FT</span>S</div>
+          {tab==='week'&&<div onClick={wOff!==0?()=>setWOff(0):undefined} style={{position:'absolute',left:'50%',transform:'translateX(-50%)',textAlign:'center',cursor:wOff!==0?'pointer':'default',userSelect:'none'}}>
+            <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:wOff!==0?'var(--accent)':'var(--text)',lineHeight:1}}>{wOff===0?'THIS WEEK':wOff===-1?'LAST WEEK':wOff<0?`${Math.abs(wOff)} WKS AGO`:`${wOff} WKS AHEAD`}</div>
+            <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',marginTop:'.15rem',letterSpacing:'.04em'}}>{wLabel}</div>
+          </div>}
+          {tab==='monthly'&&<div onClick={vm!==new Date().toISOString().slice(0,7)?()=>{setVm(new Date().toISOString().slice(0,7));setSel(null);}:undefined} style={{position:'absolute',left:'50%',transform:'translateX(-50%)',textAlign:'center',cursor:vm!==new Date().toISOString().slice(0,7)?'pointer':'default',userSelect:'none'}}>
+            <div style={{fontFamily:'var(--font-d)',fontSize:'1.3rem',letterSpacing:'.06em',color:vm!==new Date().toISOString().slice(0,7)?'var(--gold)':'var(--text)',lineHeight:1,transition:'color .2s'}}>{mkName(vm)}</div>
+          </div>}
+          {tab==='stats'&&<div style={{position:'absolute',left:'50%',transform:'translateX(-50%)',textAlign:'center',userSelect:'none'}}>
+            <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--text)',lineHeight:1}}>{(()=>{const now=new Date();const curTY=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;return`${curTY}/${String(curTY+1).slice(2)} TAX YEAR`;})()}</div>
+          </div>}
           <button onClick={()=>{setRIn(String(rate));setTgtIn(String(weeklyTarget||''));setShowR(true);}} style={{position:'absolute',right:'1rem',background:'none',border:'none',cursor:'pointer',color:'var(--muted)',fontSize:'1.1rem',padding:'.25rem',lineHeight:1}} title="Settings">⚙️</button>
         </div>
       </div>
@@ -734,21 +743,13 @@ function App(){
 
       {/* WEEK */}
       {tab==='week'&&<div className="screen" ref={weekRef}><div className="w-wrap">
-        <div className="wnav" style={{justifyContent:'center',flexDirection:'column',alignItems:'center',gap:'.3rem'}}>
-          <div
-            onClick={wOff!==0?()=>setWOff(0):undefined}
-            style={{cursor:wOff!==0?'pointer':'default',textAlign:'center',userSelect:'none'}}
-          >
-            <div className="wntit" style={{color:wOff!==0?'var(--accent)':'var(--text)',transition:'color .2s'}}>{wOff===0?'THIS WEEK':wOff===-1?'LAST WEEK':wOff<0?`${Math.abs(wOff)} WKS AGO`:`${wOff} WKS AHEAD`}</div>
-            <div className="wnsub">{wLabel}</div>
-          </div>
-        </div>
         <div key={`sh-w-${swipeKey}`} className="swipe-hint">{'<'} swipe to change week {'>'}</div>
         <div className="who">
           <div className="wc" style={{borderTop:'2px solid var(--accent)'}}><div className="wcv" style={{color:'var(--accent)'}}>{fmtH(wHours)}</div><div className="wcl">TOTAL HRS</div></div>
           <div className="wc" style={{borderTop:'2px solid var(--green)'}}><div className="wcv" style={{color:'var(--green)',fontSize:'1.3rem'}}>{wHours>0?fmtP(wPay):'£0.00'}</div><div className="wcl">GROSS PAY</div></div>
           <div className="wc" style={{borderTop:'2px solid var(--gold)'}}><div className="wcv" style={{color:'var(--gold)'}}>{wShifts.length}</div><div className="wcl">SHIFTS</div></div>
         </div>
+
         {weeklyTarget>0&&(()=>{const pct=Math.min(100,wHours/weeklyTarget*100),done=wHours>=weeklyTarget,rem=Math.max(0,weeklyTarget-wHours);return(
           <div className="wtarget">
             <div className="wt-row">
@@ -765,24 +766,7 @@ function App(){
           <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--muted)',letterSpacing:'.08em'}}>NO SHIFTS THIS WEEK</div>
           <div style={{fontFamily:'var(--font-m)',fontSize:'.62rem',color:'var(--dim)',marginTop:'.35rem',letterSpacing:'.06em'}}>TAP A DAY TO LOG ONE</div>
         </div>}
-        {wOff===0&&upcomingShifts.length>0&&<div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--sky)',padding:'1rem',marginBottom:'.6rem',borderRadius:'7px'}}>
-          <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--sky)',marginBottom:'.5rem'}}>UPCOMING SHIFTS</div>
-          {upcomingShifts.map(s=>{
-            const col=LCOL[s.loc]||'#888';
-            const du=daysUntil(s.date);
-            return<div key={s.id} className="upcoming-item" onClick={()=>setEditShift(s)}>
-              <div className="upcoming-bar" style={{background:col}}/>
-              <div className="upcoming-info">
-                <div className="upcoming-loc" style={{color:col}}>{LICO[s.loc]} {s.loc}</div>
-                <div className="upcoming-sub">{dayName(s.date)}, {+s.date.slice(8)} {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+s.date.slice(5,7)-1]} · {s.start}–{s.end}</div>
-              </div>
-              <div>
-                <div className="upcoming-tag">{du===1?'TOMORROW':`IN ${du}D`}</div>
-                <div className="upcoming-hrs">{fmtH(s.hours)}</div>
-              </div>
-            </div>;
-          })}
-        </div>}
+
         {[...wDates].sort((a,b)=>{
           // Today first, future next in order, past days at bottom
           const aP=a<TODAY,bP=b<TODAY;
@@ -791,41 +775,33 @@ function App(){
           return a.localeCompare(b);
         }).map(d=>{
           const ds=wByDay[d]||[],dh=ds.reduce((a,s)=>a+s.hours,0),has=ds.length>0,isT=d===TODAY,isFut=d>TODAY,isPast=d<TODAY;
-          return<div key={d} className={`db${isT?' td':''}`}>
-            <div className="dbh" style={{cursor:'pointer'}} onClick={()=>setEditShift({date:d,start:'',end:'',loc:'TR',note:''})}>
+          // Hide past days with no shifts
+          if(isPast&&!has)return null;
+          return<div key={d} className={`db${isT?' td':''}`} style={isPast?{opacity:.45}:{}}>
+            <div className="dbh" style={{cursor:'pointer'}} onClick={()=>isPast?null:setEditShift({date:d,start:'',end:'',loc:'TR',note:''})}>
               <div style={{display:'flex',alignItems:'center',gap:'.4rem'}}>
-                <span className="dbh-d" style={{color:isT?'var(--accent)':isPast?'#666':'#38bdf8',letterSpacing:'.04em'}}>
+                <span className="dbh-d" style={{color:isT?'var(--accent)':isPast?'#555':'#38bdf8',letterSpacing:'.04em'}}>
                   {dayName(d)}
                 </span>
-                <span style={{fontFamily:'var(--font-m)',fontSize:'.72rem',color:isT?'var(--accent)':isPast?'#555':'#2090c0',marginLeft:'.1rem'}}>
+                <span style={{fontFamily:'var(--font-m)',fontSize:'.72rem',color:isT?'var(--accent)':isPast?'#444':'#2090c0',marginLeft:'.1rem'}}>
                   {d.slice(8)} {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+d.slice(5,7)-1]}
                 </span>
                 {isT&&<span className="tdtag">TODAY</span>}
-
               </div>
-              {has&&<div className="dbh-t">{fmtH(dh)}</div>}
+              {has&&<div className="dbh-t" style={{fontSize:'1rem',color:isPast?'var(--muted)':'var(--accent)'}}>{fmtH(dh)}</div>}
             </div>
-            <div className="db-body">
+            {!isPast&&<div className="db-body">
               {has
                 ? ds.map(s=><ShiftRow key={s.id} s={s} rate={rate} onDel={delShift} onEdit={setEditShift}/>)
                 : <div className="eday">no shifts</div>
               }
-            </div>
+            </div>}
           </div>;
         })}
       </div></div>}
 
       {/* MONTHLY */}
       {tab==='monthly'&&<div className="screen" ref={monthRef}><div className="m-wrap">
-        <div className="mnav" style={{justifyContent:'center'}}>
-          <div
-            className="mtit"
-            onClick={vm!==new Date().toISOString().slice(0,7)?()=>{setVm(new Date().toISOString().slice(0,7));setSel(null);}:undefined}
-            style={{cursor:vm!==new Date().toISOString().slice(0,7)?'pointer':'default',color:vm!==new Date().toISOString().slice(0,7)?'var(--gold)':'var(--text)',transition:'color .2s',textAlign:'center'}}
-          >
-            {mkName(vm)}
-          </div>
-        </div>
         <div key={`sh-m-${swipeKey}`} className="swipe-hint">{'<'} swipe to change month {'>'}</div>
 
         <div className="mhero">
@@ -869,11 +845,11 @@ function App(){
         </div>
 
         {sel&&<div className="cdet">
-          <div className="cdet-h">
+          <div className="cdet-h" style={{cursor:'pointer'}} onClick={()=>setEditShift({date:sel,start:'',end:'',loc:'TR',note:''})}>
             <div className="cdet-d">{dayName(sel)} {+sel.slice(8)} {mkName(sel.slice(0,7))}{sel===TODAY&&<span className="tdtag" style={{marginLeft:'.5rem'}}>TODAY</span>}</div>
             {selH>0&&<div className="cdet-t">{fmtH(selH)}</div>}
           </div>
-          {selS.length===0?<div className="eday" style={{cursor:'pointer'}} onClick={()=>setEditShift({date:sel,start:'',end:'',loc:'TR',note:''})}>+ tap to add shift</div>:selS.map(s=><div key={s.id} onClick={e=>{e.stopPropagation();setEditShift(s);}}><ShiftRow s={s} rate={rate} onDel={delShift} onEdit={setEditShift}/></div>)}
+          {selS.length===0?<div className="eday" style={{cursor:'pointer'}} onClick={()=>setEditShift({date:sel,start:'',end:'',loc:'TR',note:''})}>add shift</div>:selS.map(s=><div key={s.id} onClick={e=>{e.stopPropagation();setEditShift(s);}}><ShiftRow s={s} rate={rate} onDel={delShift} onEdit={setEditShift}/></div>)}
         </div>}
 
         {/* WEEK BREAKDOWN */}
@@ -931,10 +907,6 @@ function App(){
           const curTYData=tyMap[curTY]||{hours:0,pay:0,shifts:0,months:[]};
 
           return(<>
-            {/* Current tax year headline */}
-            <div style={{fontFamily:'var(--font-d)',fontSize:'1.5rem',letterSpacing:'.06em',marginBottom:'.5rem',color:'var(--text)'}}>
-              {curTY}/{String(curTY+1).slice(2)} TAX YEAR
-            </div>
             <div className="stg" style={{marginBottom:'.65rem'}}>
               <div className="stc" style={{borderTop:'2px solid var(--accent)'}}><div className="stv" style={{color:'var(--accent)'}}>{fmtH(curTYData.hours)}</div><div className="stl">HOURS</div></div>
               <div className="stc" style={{borderTop:'2px solid var(--green)'}}><div className="stv" style={{color:'var(--green)',fontSize:'1.4rem'}}>{fmtP(curTYData.pay)}</div><div className="stl">EARNED</div></div>
