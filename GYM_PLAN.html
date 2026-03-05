@@ -594,7 +594,11 @@ function App(){
     const s=loadStore();
     return getNextWorkoutDay(s);
   });
-  const[showReset,setShowReset]=useState(false);
+  const[showReset,setShowReset]=useState(()=>{
+    const s=loadStore();
+    const wd=s.weeks[s.currentWeek]||mkWeekData();
+    return wd.every(d=>d.done);
+  });
   const[compareA,setCompareA]=useState(()=>store.currentWeek);
   const[compareB,setCompareB]=useState(()=>store.currentWeek>1?store.currentWeek-1:null);
   const[histDetail,setHistDetail]=useState(null);
