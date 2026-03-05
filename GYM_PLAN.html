@@ -618,12 +618,13 @@ function App(){
   const allDone=weekData.every(d=>d.done);
 
   const handleReset=useCallback(()=>{
-    const nw=week+1;
+    const currentWeek=storeRef.current.currentWeek;
+    const nw=currentWeek+1;
     update(s=>{s.weeks[nw]=mkWeekData();s.currentWeek=nw;});
     setViewWeek(nw);
     setDayIdx(0);
     setShowReset(false);
-  },[week,update]);
+  },[update]);
 
   useEffect(()=>{if(allDone&&weekData.length===7&&viewWeek===week)setShowReset(true);},[allDone,viewWeek,week]);
   const weekNums=Object.keys(store.weeks).map(Number).sort((a,b)=>a-b);
