@@ -51,7 +51,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .card-body{flex:1;}
 .card-title{font-family:var(--font-d);font-size:28px;letter-spacing:2px;color:var(--text);line-height:1;margin-bottom:4px;}
 .card-desc{font-family:var(--font-m);font-size:10px;color:var(--muted);letter-spacing:1px;}
-.card-live{font-family:var(--font-m);font-size:9px;letter-spacing:0.5px;margin-top:5px;padding:2px 7px;border-radius:2px;display:inline-block;}
+.card-live{font-family:var(--font-m);font-size:9px;letter-spacing:0.5px;margin-top:5px;padding:2px 7px;border-radius:2px;display:inline-block;background:rgba(255,255,255,0.06)!important;border:1px solid currentColor;opacity:0.9;}
 .card-arrow{font-family:var(--font-m);font-size:14px;color:var(--dim);transition:color 0.2s,transform 0.2s;flex-shrink:0;}
 .card:hover .card-arrow,.card:active .card-arrow{color:var(--card-color,var(--blue));transform:translateX(4px);}
 
@@ -79,7 +79,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 
   <div class="header" onclick="runExport(false)" style="cursor:pointer;">
     <div class="header-eyebrow">personal dashboard</div>
-    <div class="header-title">MY<br><span>HUB</span></div>
+    <div class="header-title">MY<br><span>HUB</span> <span style="font-size:0.55em;vertical-align:middle;background:linear-gradient(135deg,var(--yellow),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">₿</span></div>
     <div class="header-sub" id="header-sub">TAP TO BACKUP · SELECT MODULE</div>
   </div>
 
@@ -90,7 +90,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
       <div class="card-body">
         <div class="card-title">PPL BEAST</div>
         <div class="card-desc">GYM PLAN · WORKOUT TRACKER</div>
-        <div class="card-live" id="gym-live" style="background:rgba(178,255,89,0.08);color:#b2ff59;display:none"></div>
+        <div class="card-live" id="gym-live" style="color:#b2ff59;display:none"></div>
       </div>
       <div class="card-arrow">→</div>
     </a>
@@ -100,7 +100,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
       <div class="card-body">
         <div class="card-title">SHIFTS</div>
         <div class="card-desc">WORK SCHEDULE · TIME TRACKING</div>
-        <div class="card-live" id="shifts-live" style="background:rgba(0,229,255,0.08);color:#00e5ff;display:none"></div>
+        <div class="card-live" id="shifts-live" style="color:#00e5ff;display:none"></div>
       </div>
       <div class="card-arrow">→</div>
     </a>
@@ -110,7 +110,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
       <div class="card-body">
         <div class="card-title">SPENT</div>
         <div class="card-desc">EXPENSES · BUDGET TRACKER</div>
-        <div class="card-live" id="spent-live" style="background:rgba(255,61,0,0.08);color:#ff3d00;display:none"></div>
+        <div class="card-live" id="spent-live" style="color:#ff3d00;display:none"></div>
       </div>
       <div class="card-arrow">→</div>
     </a>
@@ -190,21 +190,20 @@ function loadStats(){
           return shiftMins>nowMins;
         }).sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
         if(upcoming.length>0){
-          let todayIdx=0;
-          const lines=upcoming.slice(0,2).map((x,i)=>{
+          const todayShifts=upcoming.filter(x=>x.date===today);
+          const futureShifts=upcoming.filter(x=>x.date!==today);
+          let parts=[];
+          if(todayShifts.length>0){
+            const shiftStrs=todayShifts.map(x=>'('+x.start+(x.loc?' '+x.loc:'')+')');
+            parts.push('Today '+shiftStrs.join(' | '));
+          } else if(futureShifts.length>0){
+            const x=futureShifts[0];
             const dow=days[new Date(x.date+'T12:00:00').getDay()];
             const dd=+x.date.slice(8);
             const mon=mons[+x.date.slice(5,7)-1];
-            let label;
-            if(x.date===today){
-              label=todayIdx===0?'Today shift details':'Shift details';
-              todayIdx++;
-            } else {
-              label=i===0?'Next':dow+' '+dd+' '+mon;
-            }
-            return label+': '+x.start+(x.loc?' · '+x.loc:'');
-          });
-          el.textContent=lines.join('  |  ');
+            parts.push('Next '+dow+' '+dd+' '+mon+': '+x.start+(x.loc?' · '+x.loc:''));
+          }
+          el.textContent=parts.join('  |  ');
           el.style.color='#00e5ff';
           el.style.display='inline-block';
         } else {
