@@ -618,15 +618,24 @@ function App(){
   const allDone=weekData.every(d=>d.done);
 
   const handleReset=useCallback(()=>{
-    const currentWeek=storeRef.current.currentWeek;
-    const nw=currentWeek+1;
+    const nw=week+1;
     update(s=>{s.weeks[nw]=mkWeekData();s.currentWeek=nw;});
     setViewWeek(nw);
     setDayIdx(0);
     setShowReset(false);
-  },[update]);
+  },[week,update]);
 
   useEffect(()=>{if(allDone&&weekData.length===7&&viewWeek===week)setShowReset(true);},[allDone,viewWeek,week]);
+
+  // Scroll to working set when workout tab becomes active
+  useEffect(()=>{
+    if(tab!=='workout')return;
+    const inc=nextIncomplete;
+    if(!inc)return;
+    const id=`set-${dayIdx}-${inc.ei}-${inc.si}`;
+    const el=document.getElementById(id);
+    if(el)setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'center'}),120);
+  },[tab]);
   const weekNums=Object.keys(store.weeks).map(Number).sort((a,b)=>a-b);
   // Only show weeks that have at least one completed day (for history/compare/stats)
   const activeWeekNums=weekNums.filter(wn=>(store.weeks[wn]||[]).some(d=>d.done));
@@ -897,7 +906,25 @@ function App(){
                     setViewWeek(currentWeek);
                     const wd = storeRef.current.weeks[currentWeek] || mkWeekData();
                     const first = wd.findIndex(d => !d.done);
-                    setDayIdx(first >= 0 ? first : 0);
+                    const di = first >= 0 ? first : 0;
+                    setDayIdx(di);
+                    // Scroll to working set after state settles
+                    setTimeout(()=>{
+                      const day2 = DAYS[di];
+                      const sets2 = wd[di]?.sets || [];
+                      let found = null;
+                      for(let ei=0;ei<day2.exercises.length;ei++){
+                        const s2 = sets2[ei]||[];
+                        for(let si=0;si<s2.length;si++){
+                          if(!s2[si].done){found={ei,si};break;}
+                        }
+                        if(found)break;
+                      }
+                      if(found){
+                        const el=document.getElementById(`set-${di}-${found.ei}-${found.si}`);
+                        if(el)el.scrollIntoView({behavior:'smooth',block:'center'});
+                      }
+                    },200);
                   }} >
                   WEEK {viewWeek}
                 </div>

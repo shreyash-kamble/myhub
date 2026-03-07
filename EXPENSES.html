@@ -736,6 +736,17 @@ function App() {
 
   const weekKeys = allWeeks.map(w=>w.week);
 
+  const allMonths = useMemo(()=>{
+    const m={};
+    expenses.forEach(e=>{
+      const mk=e.date.slice(0,7);
+      if(!m[mk]) m[mk]={key:mk,total:0,count:0,cats:{}};
+      m[mk].total+=e.amount; m[mk].count++;
+      m[mk].cats[e.cat]=(m[mk].cats[e.cat]||0)+e.amount;
+    });
+    return Object.values(m).sort((a,b)=>a.key.localeCompare(b.key));
+  },[expenses]);
+
   const monthExps = useMemo(()=>expenses.filter(e=>e.date.startsWith(viewMonth)),[expenses,viewMonth]);
   const monthTotal = useMemo(()=>monthExps.reduce((a,e)=>a+e.amount,0),[monthExps]);
   const monthPct = Math.min(100,(monthTotal/store.monthBudget)*100);
@@ -1089,6 +1100,106 @@ function App() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Month-to-month comparison */}
+                  {allMonths.length >= 1 && (()=>{
+                    const recent = allMonths.slice(-6);
+                    const maxM = Math.max(1,...recent.map(m=>m.total));
+                    const thisM = recent[recent.length-1];
+                    const lastM = recent.length>=2 ? recent[recent.length-2] : null;
+                    const diff = lastM ? thisM.total - lastM.total : 0;
+                    const diffPct = lastM && lastM.total>0 ? (diff/lastM.total)*100 : 0;
+                    const up = diff > 0;
+                    // Category changes: compare thisM vs lastM
+                    const catChanges = lastM ? CATS.map(c=>({
+                      ...c,
+                      thisVal: thisM.cats[c.id]||0,
+                      lastVal: lastM.cats[c.id]||0,
+                      delta: (thisM.cats[c.id]||0)-(lastM.cats[c.id]||0),
+                    })).filter(c=>c.thisVal>0||c.lastVal>0).sort((a,b)=>b.thisVal-a.thisVal) : [];
+                    return (
+                      <div className="chart-card" style={{marginBottom:'0.6rem'}}>
+                        <div className="chart-title">MONTH vs MONTH</div>
+
+                        {/* Summary row */}
+                        {lastM && (
+                          <div style={{display:'flex',alignItems:'flex-end',gap:'1rem',marginBottom:'1rem',paddingBottom:'0.75rem',borderBottom:'1px solid var(--border)'}}>
+                            <div style={{flex:1}}>
+                              <div style={{fontFamily:'var(--font-m)',fontSize:'0.52rem',color:'var(--text3)',letterSpacing:'0.08em',marginBottom:'0.2rem'}}>{monthName(lastM.key)+' '+lastM.key.split('-')[0]}</div>
+                              <div style={{fontFamily:'var(--font-d)',fontSize:'1.5rem',color:'var(--text2)'}}>{fmt(lastM.total)}</div>
+                              <div style={{fontFamily:'var(--font-m)',fontSize:'0.52rem',color:'var(--text3)',marginTop:'2px'}}>{lastM.count} items</div>
+                            </div>
+                            <div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:up?'var(--red)':'var(--green)',flexShrink:0,paddingBottom:'0.4rem'}}>
+                              {up?'▲':'▼'} {fmt(Math.abs(diff))}
+                              <span style={{fontFamily:'var(--font-m)',fontSize:'0.52rem',display:'block',textAlign:'center',marginTop:'1px'}}>{Math.abs(diffPct).toFixed(0)}%</span>
+                            </div>
+                            <div style={{flex:1,textAlign:'right'}}>
+                              <div style={{fontFamily:'var(--font-m)',fontSize:'0.52rem',color:'var(--text3)',letterSpacing:'0.08em',marginBottom:'0.2rem'}}>{monthName(thisM.key)+' '+thisM.key.split('-')[0]}</div>
+                              <div style={{fontFamily:'var(--font-d)',fontSize:'1.5rem',color:'var(--text)'}}>{fmt(thisM.total)}</div>
+                              <div style={{fontFamily:'var(--font-m)',fontSize:'0.52rem',color:'var(--text3)',marginTop:'2px'}}>{thisM.count} items</div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Bar chart of recent months */}
+                        <div style={{display:'flex',alignItems:'flex-end',gap:'4px',height:'72px',marginBottom:'0.75rem'}}>
+                          {recent.map((m,i)=>{
+                            const h=Math.max(4,Math.round((m.total/maxM)*64));
+                            const isCur=i===recent.length-1;
+                            const isPrev=i===recent.length-2;
+                            return(
+                              <div key={m.key} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'3px',height:'100%',justifyContent:'flex-end'}}>
+                                {isCur&&<div style={{fontFamily:'var(--font-m)',fontSize:'0.44rem',color:'var(--orange)'}}>{fmtShort(m.total)}</div>}
+                                <div style={{width:'100%',height:h+'px',background:isCur?'var(--orange)':isPrev?'var(--s4)':'var(--dim)',borderRadius:'2px 2px 0 0',transition:'height 0.4s ease'}}/>
+                                <div style={{fontFamily:'var(--font-m)',fontSize:'0.44rem',color:isCur?'var(--orange)':'var(--text3)',whiteSpace:'nowrap'}}>{monthName(m.key).slice(0,3)}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Category comparison table */}
+                        {lastM && catChanges.length>0 && (
+                          <>
+                            <div style={{fontFamily:'var(--font-m)',fontSize:'0.55rem',color:'var(--text3)',letterSpacing:'0.08em',marginBottom:'0.5rem',paddingTop:'0.5rem',borderTop:'1px solid var(--border)'}}>
+                              BY CATEGORY · {monthName(lastM.key)} → {monthName(thisM.key)}
+                            </div>
+                            {catChanges.map(c=>{
+                              const maxVal=Math.max(1,...catChanges.map(x=>Math.max(x.thisVal,x.lastVal)));
+                              return(
+                                <div key={c.id} style={{marginBottom:'0.6rem'}}>
+                                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.25rem'}}>
+                                    <span style={{fontFamily:'var(--font-b)',fontWeight:600,fontSize:'0.85rem',color:c.color}}>{c.icon} {c.label}</span>
+                                    <span style={{fontFamily:'var(--font-m)',fontSize:'0.58rem',color:c.delta>0?'var(--red)':c.delta<0?'var(--green)':'var(--text3)'}}>
+                                      {c.delta>0?'+':''}{c.delta===0?'—':fmt(c.delta)}
+                                    </span>
+                                  </div>
+                                  <div style={{display:'flex',flexDirection:'column',gap:'2px'}}>
+                                    <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+                                      <div style={{fontFamily:'var(--font-m)',fontSize:'0.48rem',color:'var(--text3)',width:'24px',textAlign:'right',flexShrink:0}}>{fmtShort(c.lastVal)}</div>
+                                      <div style={{flex:1,height:'4px',background:'var(--dim)',borderRadius:'2px'}}>
+                                        <div style={{height:'100%',width:`${(c.lastVal/maxVal)*100}%`,background:'var(--s4)',borderRadius:'2px',transition:'width 0.4s'}}/>
+                                      </div>
+                                    </div>
+                                    <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+                                      <div style={{fontFamily:'var(--font-m)',fontSize:'0.48rem',color:c.color,width:'24px',textAlign:'right',flexShrink:0}}>{fmtShort(c.thisVal)}</div>
+                                      <div style={{flex:1,height:'4px',background:'var(--dim)',borderRadius:'2px'}}>
+                                        <div style={{height:'100%',width:`${(c.thisVal/maxVal)*100}%`,background:c.color,borderRadius:'2px',transition:'width 0.4s'}}/>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            <div style={{display:'flex',gap:'1rem',marginTop:'0.4rem'}}>
+                              <div style={{display:'flex',alignItems:'center',gap:'4px'}}><div style={{width:'10px',height:'4px',background:'var(--s4)',borderRadius:'2px'}}/><span style={{fontFamily:'var(--font-m)',fontSize:'0.48rem',color:'var(--text3)'}}>{monthName(lastM.key)}</span></div>
+                              <div style={{display:'flex',alignItems:'center',gap:'4px'}}><div style={{width:'10px',height:'4px',background:'var(--orange)',borderRadius:'2px'}}/><span style={{fontFamily:'var(--font-m)',fontSize:'0.48rem',color:'var(--text3)'}}>{monthName(thisM.key)}</span></div>
+                            </div>
+                          </>
+                        )}
+                        {!lastM && <div style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:'var(--text3)'}}>ADD MORE MONTHS OF DATA TO COMPARE</div>}
+                      </div>
+                    );
+                  })()}
 
                   {/* Category budgets */}
                   {Object.keys(store.catBudgets||{}).length > 0 && (

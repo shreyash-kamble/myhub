@@ -190,15 +190,22 @@ function loadStats(){
           return shiftMins>nowMins;
         }).sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
         if(upcoming.length>0){
+          let todayIdx=0;
           const lines=upcoming.slice(0,2).map((x,i)=>{
             const dow=days[new Date(x.date+'T12:00:00').getDay()];
             const dd=+x.date.slice(8);
             const mon=mons[+x.date.slice(5,7)-1];
-            const label=x.date===today?'Today':i===0?'Next':dow+' '+dd+' '+mon;
+            let label;
+            if(x.date===today){
+              label=todayIdx===0?'Today shift details':'Shift details';
+              todayIdx++;
+            } else {
+              label=i===0?'Next':dow+' '+dd+' '+mon;
+            }
             return label+': '+x.start+(x.loc?' · '+x.loc:'');
           });
           el.textContent=lines.join('  |  ');
-          el.style.color='';
+          el.style.color='#00e5ff';
           el.style.display='inline-block';
         } else {
           el.style.display='none';
