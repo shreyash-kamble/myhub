@@ -1074,26 +1074,6 @@ function App() {
                   </div>
 
                   <div className="chart-card">
-                    <div className="chart-title">LAST 7 DAYS</div>
-                    <div className="bar-chart">
-                      {last7.map(d=>{
-                        const amt=dayTotals[d]||0;
-                        const maxAmt=Math.max(1,...last7.map(x=>dayTotals[x]||0));
-                        const h=Math.max(4,(amt/maxAmt)*80);
-                        return (
-                          <div key={d} className="bar-wrap">
-                            <div className="bar-amt">{amt>0?fmtShort(amt):''}</div>
-                            <div className="bar-col">
-                              <div className="bar-fill" style={{height:h+'px',background:d===today()?'var(--red)':d===selectedDay?'var(--orange)':'var(--dim)'}}/>
-                            </div>
-                            <div className="bar-lbl">{dayName(d)}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="chart-card">
                     <div className="chart-title">BY CATEGORY</div>
                     <div className="donut-wrap">
                       <DonutChart size={120} data={CATS.filter(c=>weekCatTotals[c.id]>0).map(c=>({label:c.label,val:weekCatTotals[c.id],color:c.color}))}/>

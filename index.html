@@ -8,8 +8,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>HUB</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23080808'/%3E%3Crect x='1' y='1' width='62' height='62' rx='13' fill='none' stroke='%2300c8ff' stroke-width='1.5' opacity='0.5'/%3E%3Ctext x='32' y='44' font-family='Arial Black,sans-serif' font-size='28' font-weight='900' fill='url(%23g)' text-anchor='middle' letter-spacing='1'%3EHUB%3C/text%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='0%25'%3E%3Cstop offset='0%25' stop-color='%2300c8ff'/%3E%3Cstop offset='100%25' stop-color='%23c084fc'/%3E%3C/linearGradient%3E%3C/defs%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%23080808'/%3E%3Crect x='3' y='3' width='174' height='174' rx='37' fill='none' stroke='%2300c8ff' stroke-width='3' opacity='0.5'/%3E%3Ctext x='90' y='120' font-family='Arial Black,sans-serif' font-size='72' font-weight='900' fill='url(%23g)' text-anchor='middle' letter-spacing='2'%3EHUB%3C/text%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='0%25'%3E%3Cstop offset='0%25' stop-color='%2300c8ff'/%3E%3Cstop offset='100%25' stop-color='%23c084fc'/%3E%3C/linearGradient%3E%3C/defs%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@300;400;500;700&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -24,12 +22,14 @@ html,body{height:100%;background:#080808;overflow:hidden;}
 ::-webkit-scrollbar{width:2px;}::-webkit-scrollbar-thumb{background:var(--dim);}
 body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:var(--font-b);position:relative;}
 body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
-.blob{position:fixed;border-radius:50%;filter:blur(80px);opacity:0.12;pointer-events:none;z-index:0;animation:pulse 8s ease-in-out infinite;}
+.blob{position:fixed;border-radius:50%;filter:blur(80px);opacity:0.12;pointer-events:none;z-index:0;animation:bpulse 8s ease-in-out infinite;}
 .blob1{width:400px;height:400px;background:var(--blue);top:-100px;left:-100px;animation-delay:0s;}
 .blob2{width:350px;height:350px;background:var(--red);bottom:-80px;right:-80px;animation-delay:3s;}
 .blob3{width:250px;height:250px;background:var(--purple);top:50%;left:60%;animation-delay:6s;}
-@keyframes pulse{0%,100%{transform:scale(1);opacity:0.12;}50%{transform:scale(1.15);opacity:0.18;}}
+@keyframes bpulse{0%,100%{transform:scale(1);opacity:0.12;}50%{transform:scale(1.15);opacity:0.18;}}
 @keyframes cardIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
 .container{position:relative;z-index:1;width:100%;max-width:480px;padding:32px 20px;display:flex;flex-direction:column;align-items:center;gap:40px;}
 
 /* HEADER */
@@ -55,6 +55,15 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .card-arrow{font-family:var(--font-m);font-size:14px;color:var(--dim);transition:color 0.2s,transform 0.2s;flex-shrink:0;}
 .card:hover .card-arrow,.card:active .card-arrow{color:var(--card-color,var(--blue));transform:translateX(4px);}
 
+/* HEADER TAP EXPORT */
+@keyframes exppulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.header-sub.exporting{color:var(--yellow);animation:exppulse 0.6s ease infinite;}
+
+/* TOAST */
+.toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:var(--s2);border:1px solid var(--green);color:var(--green);font-family:var(--font-m);font-size:10px;letter-spacing:1px;padding:8px 16px;border-radius:3px;z-index:9999;white-space:nowrap;animation:slideUp 0.2s ease;pointer-events:none;}
+.toast.err{border-color:var(--red);color:var(--red);}
+.toast.hidden{display:none;}
+
 .footer{font-family:var(--font-m);font-size:9px;color:var(--faint);letter-spacing:3px;text-transform:uppercase;}
 body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:999;}
 </style>
@@ -64,13 +73,14 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 <div class="blob blob1"></div>
 <div class="blob blob2"></div>
 <div class="blob blob3"></div>
+<div class="toast hidden" id="toast"></div>
 
 <div class="container">
 
-  <div class="header">
+  <div class="header" onclick="runExport(false)" style="cursor:pointer;">
     <div class="header-eyebrow">personal dashboard</div>
     <div class="header-title">MY<br><span>HUB</span></div>
-    <div class="header-sub">SELECT A MODULE</div>
+    <div class="header-sub" id="header-sub">TAP TO BACKUP · SELECT MODULE</div>
   </div>
 
   <div class="cards">
@@ -107,11 +117,26 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 
   </div>
 
-  <div class="footer">v2.0 · personal use only</div>
+  <div class="footer" id="footer-ver">v2.0 · personal use only</div>
 
 </div>
 
 <script>
+// ─────────────────────────────────────────────
+// STORAGE KEY for backup log
+// ─────────────────────────────────────────────
+const BACKUP_LOG_KEY = 'hub_backup_log';
+
+function getBackupLog() {
+  try { return JSON.parse(localStorage.getItem(BACKUP_LOG_KEY) || '[]'); } catch(e) { return []; }
+}
+function saveBackupLog(log) {
+  try { localStorage.setItem(BACKUP_LOG_KEY, JSON.stringify(log.slice(-30))); } catch(e) {} // keep last 30
+}
+
+// ─────────────────────────────────────────────
+// STATS (unchanged from your original)
+// ─────────────────────────────────────────────
 function weekDates(){
   const now=new Date(),day=now.getDay();
   const mon=new Date(now);
@@ -120,12 +145,9 @@ function weekDates(){
   for(let i=0;i<7;i++){const d=new Date(mon);d.setDate(mon.getDate()+i);out.push(d.toISOString().slice(0,10));}
   return out;
 }
-function fmtH(h){const w=Math.floor(h),m=Math.round((h-w)*60);return m?w+'h '+m+'m':w+'h';}
 
 function loadStats(){
   const wDates=weekDates();
-
-  // GYM
   try{
     const g=JSON.parse(localStorage.getItem('pplbeast_v3')||'null');
     if(g&&g.weeks&&g.currentWeek){
@@ -135,27 +157,55 @@ function loadStats(){
       if(done>0){el.textContent=done+'/'+wd.length+' days done · Week '+g.currentWeek;el.style.display='inline-block';}
     }
   }catch(e){}
-
-  // SHIFTS — always show next upcoming shift
   try{
     const s=JSON.parse(localStorage.getItem('shifts_v4')||'null');
     if(s&&s.shifts){
-      const today=new Date().toISOString().slice(0,10);
+      const now=new Date();
+      const today=now.toISOString().slice(0,10);
+      const nowMins=now.getHours()*60+now.getMinutes();
       const el=document.getElementById('shifts-live');
-      const next=s.shifts.filter(x=>x.date>=today).sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start))[0];
-      if(next){
-        const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-        const dow=days[new Date(next.date).getDay()];
-        const dd=+next.date.slice(8);
-        const mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+next.date.slice(5,7)-1];
-        const label=next.date===today?'Today':'Next';
-        el.textContent=label+': '+dow+' '+dd+' '+mon+' @ '+next.start+' · '+next.loc;
+      const card=document.querySelector('a[href="SHIFTS.html"]');
+      const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const mons=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      // Check if currently mid-shift
+      const activeShift=s.shifts.find(x=>{
+        if(x.date!==today) return false;
+        const startM=parseInt(x.start)*60+(parseInt((x.start.split(':')[1])||0));
+        let endM=parseInt(x.end)*60+(parseInt((x.end.split(':')[1])||0));
+        if(endM<=startM) endM+=1440;
+        return nowMins>=startM && nowMins<endM;
+      });
+      if(activeShift){
+        el.textContent='🟢 ON SHIFT · ends '+activeShift.end+(activeShift.loc?' · '+activeShift.loc:'');
+        el.style.color='#39d98a';
         el.style.display='inline-block';
+        if(card) card.style.setProperty('--card-color','#39d98a');
+      } else {
+        if(card) card.style.setProperty('--card-color','#00e5ff');
+        const upcoming=s.shifts.filter(x=>{
+          if(x.date>today) return true;
+          if(x.date<today) return false;
+          const parts=x.start.split(':');
+          const shiftMins=parseInt(parts[0])*60+parseInt(parts[1]||0);
+          return shiftMins>nowMins;
+        }).sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
+        if(upcoming.length>0){
+          const lines=upcoming.slice(0,2).map((x,i)=>{
+            const dow=days[new Date(x.date+'T12:00:00').getDay()];
+            const dd=+x.date.slice(8);
+            const mon=mons[+x.date.slice(5,7)-1];
+            const label=x.date===today?'Today':i===0?'Next':dow+' '+dd+' '+mon;
+            return label+': '+x.start+(x.loc?' · '+x.loc:'');
+          });
+          el.textContent=lines.join('  |  ');
+          el.style.color='';
+          el.style.display='inline-block';
+        } else {
+          el.style.display='none';
+        }
       }
     }
   }catch(e){}
-
-  // EXPENSES
   try{
     const e=JSON.parse(localStorage.getItem('spent_v2')||'null');
     if(e&&e.expenses){
@@ -171,7 +221,165 @@ function loadStats(){
     }
   }catch(e){}
 }
+
+// ─────────────────────────────────────────────
+// EXPORT CORE
+// ─────────────────────────────────────────────
+function gatherAllData() {
+  const snapshot = {
+    exportedAt: new Date().toISOString(),
+    exportedDate: new Date().toISOString().slice(0, 10),
+    sources: {}
+  };
+
+  const keys = {
+    gym:      'pplbeast_v3',
+    shifts:   'shifts_v4',
+    expenses: 'spent_v2'
+  };
+
+  for (const [name, key] of Object.entries(keys)) {
+    try {
+      const raw = localStorage.getItem(key);
+      snapshot.sources[name] = raw ? JSON.parse(raw) : null;
+    } catch(e) {
+      snapshot.sources[name] = null;
+    }
+  }
+
+  return snapshot;
+}
+
+function downloadJSON(data, filename) {
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// isMidnight = true means this was triggered by the auto scheduler
+function runExport(isMidnight) {
+  const sub = document.getElementById('header-sub');
+
+  sub.textContent = 'SAVING BACKUP...';
+  sub.classList.add('exporting');
+
+  setTimeout(() => {
+    try {
+      const data = gatherAllData();
+      const fileDate = data.exportedDate;
+      const filename = `hub-backup-${fileDate}.json`;
+
+      downloadJSON(data, filename);
+
+      const log = getBackupLog();
+      log.push({ ts: data.exportedAt, date: fileDate, auto: isMidnight });
+      saveBackupLog(log);
+
+      updateBackupUI();
+      showToast(isMidnight ? '✓ MIDNIGHT BACKUP SAVED' : '✓ BACKUP SAVED');
+    } catch(err) {
+      showToast('✗ EXPORT FAILED', true);
+    }
+
+    sub.classList.remove('exporting');
+    updateBackupUI();
+  }, 300);
+}
+
+// ─────────────────────────────────────────────
+// MIDNIGHT SCHEDULER
+// ─────────────────────────────────────────────
+let midnightTimer = null;
+
+function msUntilMidnight() {
+  const now  = new Date();
+  const next = new Date(now);
+  next.setHours(24, 0, 0, 0); // next midnight (start of tomorrow)
+  return next - now;
+}
+
+function scheduleMidnightExport() {
+  if (midnightTimer) clearTimeout(midnightTimer);
+
+  const ms = msUntilMidnight();
+
+  midnightTimer = setTimeout(() => {
+    runExport(true);
+    // reschedule for the following midnight
+    scheduleMidnightExport();
+  }, ms);
+}
+
+// ─────────────────────────────────────────────
+// STATUS UI
+// ─────────────────────────────────────────────
+function updateBackupUI() {
+  const sub    = document.getElementById('header-sub');
+  const footer = document.getElementById('footer-ver');
+  const log    = getBackupLog();
+
+  if (log.length === 0) {
+    sub.textContent    = 'TAP TO BACKUP · SELECT MODULE';
+    footer.textContent = 'v2.0 · never backed up';
+    return;
+  }
+
+  const last     = log[log.length - 1];
+  const lastDate = new Date(last.ts);
+  const today    = new Date().toISOString().slice(0, 10);
+  const wasToday = last.date === today;
+  const timeStr  = lastDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const label    = last.auto ? 'auto' : 'manual';
+
+  sub.textContent = 'TAP TO BACKUP · SELECT MODULE';
+
+  if (wasToday) {
+    footer.textContent = `✓ backed up today @ ${timeStr} (${label})`;
+    footer.style.color = 'var(--green)';
+  } else {
+    footer.textContent = `last backup: ${last.date} @ ${timeStr}`;
+    footer.style.color = '';
+  }
+}
+
+// ─────────────────────────────────────────────
+// TOAST
+// ─────────────────────────────────────────────
+let _toastTimer = null;
+function showToast(msg, isErr) {
+  const el = document.getElementById('toast');
+  clearTimeout(_toastTimer);
+  el.textContent = msg;
+  el.className   = 'toast' + (isErr ? ' err' : '');
+  _toastTimer = setTimeout(() => { el.className = 'toast hidden'; }, 2500);
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
 loadStats();
+updateBackupUI();
+scheduleMidnightExport();
+// Refresh shift display every minute so started shifts disappear automatically
+setInterval(loadStats, 60000);
+
+// ─────────────────────────────────────────────
+// RE-SCHEDULE if page was hidden and comes back
+// (e.g. phone locked, then unlocked after midnight)
+// ─────────────────────────────────────────────
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    scheduleMidnightExport();
+    updateBackupUI();
+  }
+});
 </script>
 </body>
 </html>
