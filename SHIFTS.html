@@ -34,7 +34,7 @@ const {useState,useCallback,useMemo,useRef,useEffect}=React;
 
 const LOCS=['TR','Byker','NUFC','Boiler Shop','O2 City Hall','Arena','Other'];
 const LCOL={'TR':'#00e5ff','Byker':'#c084fc','NUFC':'#94a3b8','Boiler Shop':'#ff8c00','O2 City Hall':'#3dffa0','Arena':'#ffd600','Other':'#f472b6'};
-const LICO={'TR':'🎪','Byker':'🍺','NUFC':'⚽','Boiler Shop':'🔧','O2 City Hall':'🎵','Arena':'🏟️','Other':'📍'};
+const LICO={'TR':'🎪','Byker':'🍔','NUFC':'⚽','Boiler Shop':'🔧','O2 City Hall':'🎵','Arena':'🏟️','Other':'📍'};
 
 const uid=()=>crypto.randomUUID();
 
@@ -77,6 +77,12 @@ function calcH(s,e){
   if(b<=a)b+=1440;
   return Math.round((b-a)/60*100)/100;
 }
+function calcHNet(s,e,loc,payRate){
+  const raw=calcH(s,e);
+  if(!raw)return 0;
+  if(loc==='Byker'&&parseFloat(payRate)===12){return Math.round((raw-0.75)*100)/100;}
+  return raw;
+}
 function wkNum(ds){const d=new Date(ds),j=new Date(d.getFullYear(),0,1);return Math.ceil(((d-j)/86400000+j.getDay()+1)/7);}
 function mkKey(ds){return ds.slice(0,7);}
 function mkName(mk){const[y,m]=mk.split('-');return`${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]} ${y}`;}
@@ -85,7 +91,7 @@ function localDateStr(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padSta
 const TODAY=localDateStr(new Date());
 
 const STORE_KEY='shifts_v4';
-function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.lastPayRate)d.lastPayRate=0;return d;}}catch(e){}return{shifts:[],hourlyRate:12.21,weeklyTarget:0,lastPayRate:0};}
+function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.lastPayRate)d.lastPayRate=0;return d;}}catch(e){}return{shifts:[],hourlyRate:13,weeklyTarget:0,lastPayRate:0};}
 function saveStore(s){try{localStorage.setItem(STORE_KEY,JSON.stringify(s));}catch(e){}}
 
 function calDays(mk){
@@ -399,17 +405,23 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
   const[date,setDate]=useState(shift.date);
   const[s0,setS0]=useState(shift.start||'');
   const[e0,setE0]=useState(shift.end||'');
-  const[loc,setLoc]=useState(shift.loc||'TR');
+  // If existing shift has a loc not in LOCS, treat as custom Other
+  const knownLoc=LOCS.includes(shift.loc||'TR');
+  const[loc,setLoc]=useState(knownLoc?shift.loc||'TR':'Other');
+  const[otherName,setOtherName]=useState(knownLoc?'':(shift.loc||''));
   const[note,setNote]=useState(shift.note||'');
   const[payRateIn,setPayRateIn]=useState(
     shift.payRate>0?String(shift.payRate):lastPayRate>0?String(lastPayRate):''
   );
   const effectiveRate=parseFloat(payRateIn)>0?parseFloat(payRateIn):rate;
-  const pH=calcH(s0,e0),pP=pH*effectiveRate;
+  const finalLoc=loc==='Other'?(otherName.trim()||'Other'):loc;
+  const pH=calcHNet(s0,e0,finalLoc,effectiveRate),pP=pH*effectiveRate;
   function doSave(){
-    if(!s0||!e0||pH<=0)return;
+    if(!s0||!e0||calcH(s0,e0)<=0)return;
     const pr=parseFloat(payRateIn);
-    onSave({...shift,id:shift.id||uid(),date,start:s0,end:e0,loc,hours:pH,note,payRate:pr>0?pr:0});
+    const er=pr>0?pr:rate;
+    const h=calcHNet(s0,e0,finalLoc,er);
+    onSave({...shift,id:shift.id||uid(),date,start:s0,end:e0,loc:finalLoc,hours:h,note,payRate:pr>0?pr:0});
   }
   return(
     <div className="mo" onClick={onClose}>
@@ -431,7 +443,7 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
             <div className="mdl-tsep">→</div>
             <TimeInput className="mdl-i-sm" value={e0} onChange={setE0} placeholder="17:00"/>
           </div>
-          {s0&&e0&&pH>0&&<div style={{marginTop:'.35rem',fontFamily:'var(--font-m)',fontSize:'.63rem',color:'var(--accent)'}}>{fmtH(pH)} · {fmtP(pP)}</div>}
+          {s0&&e0&&calcH(s0,e0)>0&&<div style={{marginTop:'.35rem',fontFamily:'var(--font-m)',fontSize:'.63rem',color:'var(--accent)'}}>{fmtH(pH)} · {fmtP(pP)}{loc==='Byker'&&effectiveRate===12?<span style={{color:'var(--muted)',marginLeft:'.4em'}}>(-45min break)</span>:null}</div>}
           <div className="mdl-divider"/>
           <div className="mdl-l">PAY RATE (£/HR)</div>
           <div style={{display:'flex',alignItems:'center',gap:'.4rem'}}>
@@ -447,14 +459,29 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
         <div className="mdl-box">
           <div className="mdl-l">LOCATION</div>
           <div className="mdl-lgrid">
-            {LOCS.map(l=>(
-              <div key={l} className={`mdl-lbtn ${loc===l?'sel':''}`}
-                style={loc===l?{borderColor:LCOL[l],color:LCOL[l]}:{}}
-                onClick={()=>{setLoc(l);if(l==='Boiler Shop'){setS0('18:15');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}}}>
+            {LOCS.map(l=>{
+              const isSel=loc===l;
+              const col=LCOL[l]||LCOL['Other'];
+              return(
+              <div key={l} className={`mdl-lbtn ${isSel?'sel':''}`}
+                style={isSel?{borderColor:col,color:col}:{}}
+                onClick={()=>{
+                  if(l==='Other'){setLoc('Other');setOtherName('');setPayRateIn('13');}
+                  else{setLoc(l);setOtherName('');setPayRateIn(l==='Byker'?'12':'13');if(l==='Boiler Shop'){setS0('18:15');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}}
+                }}>
                 <span>{LICO[l]}</span>{l}
-              </div>
-            ))}
+              </div>);
+            })}
           </div>
+          {loc==='Other'&&<input
+            className="mdl-i-sm"
+            style={{marginTop:'.5rem',width:'100%'}}
+            type="text"
+            placeholder="Enter venue name..."
+            value={otherName}
+            onChange={e=>setOtherName(e.target.value)}
+            autoFocus
+          />}
         </div>
 
         {/* NOTES box */}
@@ -467,11 +494,12 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
           <>
           <div style={{display:'flex',gap:'.5rem',marginTop:'.25rem'}}>
             <button className="mdl-del" style={{margin:0,flex:1}} onClick={()=>onDelete(shift.id)}>DELETE</button>
-            <button className="mdl-save edit" style={{flex:1,marginTop:0}} disabled={!s0||!e0||pH<=0} onClick={doSave}>SAVE</button>
+            <button className="mdl-save edit" style={{flex:1,marginTop:0}} disabled={!s0||!e0||calcH(s0,e0)<=0} onClick={doSave}>SAVE</button>
           </div>
+          <button className="mdl-save" style={{background:'var(--s2)',border:'1px solid var(--border2)',color:'var(--text2)',marginTop:'.4rem'}} onClick={()=>{const pr=parseFloat(payRateIn);const er=pr>0?pr:rate;const h=calcHNet(s0,e0,finalLoc,er);onDuplicate({...shift,id:uid(),date,start:s0,end:e0,loc:finalLoc,hours:h,note,payRate:pr>0?pr:0});}}>DUPLICATE</button>
           </>
         ) : (
-          <button className="mdl-save" disabled={!s0||!e0||pH<=0} onClick={doSave}>SAVE</button>
+          <button className="mdl-save" disabled={!s0||!e0||calcH(s0,e0)<=0} onClick={doSave}>SAVE</button>
         )}
       </div>
     </div>
@@ -514,6 +542,7 @@ function App(){
   const[s0,setS0]=useState('');
   const[e0,setE0]=useState('');
   const[loc,setLoc]=useState('TR');
+  const[otherName,setOtherName]=useState('');
   const[note,setNote]=useState('');
   const[ok,setOk]=useState(false);
   const[payRateIn,setPayRateIn]=useState('');
@@ -528,18 +557,21 @@ function App(){
   const[copyMsg,setCopyMsg]=useState('');
   const[saveFlash,setSaveFlash]=useState(false);
 
+  const rate=store.hourlyRate,shifts=store.shifts,weeklyTarget=store.weeklyTarget||0;
+
   const up=useCallback(fn=>{
     setStore(p=>{const n={...p,shifts:[...p.shifts]};fn(n);saveStore(n);return{...n};});
   },[]);
 
   function addShift(){
-    const h=calcH(s0,e0);if(!h||h<=0)return;
+    const finalLoc=loc==='Other'?(otherName.trim()||'Other'):loc;
+    const h=calcHNet(s0,e0,finalLoc,parseFloat(payRateIn)>0?parseFloat(payRateIn):rate);if(!h||h<=0)return;
     const pr=parseFloat(payRateIn);const shiftRate=pr>0?pr:rate;
     up(st=>{
       if(pr>0)st.lastPayRate=pr;
-      st.shifts=[...st.shifts,{id:uid(),date,start:s0,end:e0,loc,hours:h,note,payRate:shiftRate}].sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
+      st.shifts=[...st.shifts,{id:uid(),date,start:s0,end:e0,loc:finalLoc,hours:h,note,payRate:shiftRate}].sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
     });
-    setS0('');setE0('');setNote('');setOk(true);setTimeout(()=>setOk(false),700);
+    setS0('');setE0('');setNote('');setOtherName('');setLoc('TR');setOk(true);setTimeout(()=>setOk(false),700);
   }
   const delShift=id=>up(st=>{st.shifts=st.shifts.filter(x=>x.id!==id);setEditShift(null);});
   const dupShift=s=>up(st=>{st.shifts=[...st.shifts,s].sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));setEditShift(null);setSaveFlash(true);setTimeout(()=>setSaveFlash(false),400);});
@@ -583,9 +615,8 @@ function App(){
     navigator.clipboard.writeText(lines.join('\n')).then(()=>{setCopyMsg('COPIED!');setTimeout(()=>setCopyMsg(''),1500);});
   }
 
-  const rate=store.hourlyRate,shifts=store.shifts,weeklyTarget=store.weeklyTarget||0;
   // Initialize payRateIn from last saved rate on first render
-  useEffect(()=>{if(payRateIn===''&&store.lastPayRate>0)setPayRateIn(String(store.lastPayRate));},[]);
+  useEffect(()=>{if(payRateIn==='')setPayRateIn(store.lastPayRate>0?String(store.lastPayRate):'13');},[]);
 
   const wStart=useMemo(()=>{
     const d=new Date(TODAY),day=d.getDay(),m=new Date(d);
@@ -663,10 +694,11 @@ function App(){
   const selH=selS.reduce((a,s)=>a+s.hours,0);
 
   const shiftPayRate=parseFloat(payRateIn)>0?parseFloat(payRateIn):rate;
-  const pH=calcH(s0,e0),pP=pH*shiftPayRate;
+  const finalLoc=loc==='Other'?(otherName.trim()||'Other'):loc;
+  const pH=calcHNet(s0,e0,finalLoc,shiftPayRate),pP=pH*shiftPayRate;
 
   return(<>
-    <style>{CSS}</style>
+    <style dangerouslySetInnerHTML={{__html:CSS}}/>
     <div className="app">
 
       <div className="topbar">
@@ -699,7 +731,7 @@ function App(){
             <div className="tsep">→</div>
             <TimeInput className="finp" value={e0} onChange={setE0} placeholder="17:00"/>
           </div>
-          {s0&&e0&&pH>0&&<div style={{marginTop:'.5rem',fontFamily:'var(--font-m)',fontSize:'.67rem',color:'var(--accent)'}}>{fmtH(pH)} · ends {e0==='00:00'?'00:00':e0}</div>}
+          {s0&&e0&&pH>0&&<div style={{marginTop:'.5rem',fontFamily:'var(--font-m)',fontSize:'.67rem',color:'var(--accent)'}}>{fmtH(pH)} · ends {e0==='00:00'?'00:00':e0}{finalLoc==='Byker'&&shiftPayRate===12?<span style={{color:'var(--muted)',marginLeft:'.4em'}}>(-45min break)</span>:null}</div>}
           <div style={{height:'1px',background:'var(--border)',margin:'.75rem 0'}}/>
           <div className="flbl" style={{marginBottom:'.4rem'}}>PAY RATE (£/HR)</div>
           <div style={{display:'flex',alignItems:'center',gap:'.5rem'}}>
@@ -722,14 +754,30 @@ function App(){
         <div className="fcard">
           <div className="flbl">LOCATION</div>
           <div className="lgrid">
-            {LOCS.map(l=>(
-              <div key={l} className={`lbtn ${loc===l?'sel':''}`}
-                style={loc===l?{borderColor:LCOL[l],color:LCOL[l]}:{}}
-                onClick={()=>{setLoc(l);if(l==='Boiler Shop'){setS0('18:15');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}}}>
+            {LOCS.map(l=>{
+              const isOtherSel=l==='Other'&&loc==='Other';
+              const isSel=loc===l||isOtherSel;
+              const col=LCOL[l]||LCOL['Other'];
+              return(
+              <div key={l} className={`lbtn ${isSel?'sel':''}`}
+                style={isSel?{borderColor:col,color:col}:{}}
+                onClick={()=>{
+                  if(l==='Other'){setLoc('Other');setOtherName('');setPayRateIn('13');}
+                  else{setLoc(l);setOtherName('');setPayRateIn(l==='Byker'?'12':'13');if(l==='Boiler Shop'){setS0('18:15');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}}
+                }}>
                 <span>{LICO[l]}</span>{l}
-              </div>
-            ))}
+              </div>);
+            })}
           </div>
+          {loc==='Other'&&<input
+            className="finp"
+            style={{marginTop:'.5rem'}}
+            type="text"
+            placeholder="Enter venue name..."
+            value={otherName}
+            onChange={e=>setOtherName(e.target.value)}
+            autoFocus
+          />}
         </div>
         <div className="fcard">
           <div className="flbl">NOTES (OPTIONAL)</div>
@@ -739,7 +787,7 @@ function App(){
           <div><div className="pv-l">HOURS</div><div className="pv-h">{fmtH(pH)}</div></div>
           <div style={{textAlign:'right'}}><div className="pv-l">EST. PAY</div><div className="pv-p">{fmtP(pP)}</div></div>
         </div>}
-        <button className="add-btn ok" disabled={!s0||!e0||pH<=0} onClick={addShift}>{ok?'✓ SAVED':'SAVE'}</button>
+        <button className="add-btn ok" disabled={!s0||!e0||calcH(s0,e0)<=0} onClick={addShift}>{ok?'✓ SAVED':'SAVE'}</button>
       </div></div>}
 
       {/* WEEK */}
@@ -1003,7 +1051,7 @@ function App(){
     {showR&&<div className="mo" onClick={()=>setShowR(false)}>
       <div className="mdl" onClick={e=>e.stopPropagation()}>
         <div className="mdl-t">SETTINGS</div>
-        <div className="mdl-s">Hourly rate & weekly hours target</div>
+        <div className="mdl-s">Hourly rate &amp; weekly hours target</div>
         <div className="mdl-box">
           <div className="mdl-l">HOURLY RATE (£)</div>
           <input className="mdl-i" type="number" inputMode="decimal" step="0.01" value={rIn} onChange={e=>setRIn(e.target.value)} placeholder={rate.toFixed(2)}/>

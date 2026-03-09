@@ -79,7 +79,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 
   <div class="header" onclick="runExport(false)" style="cursor:pointer;">
     <div class="header-eyebrow">personal dashboard</div>
-    <div class="header-title">MY<br><span>HUB</span> <span style="font-size:0.55em;vertical-align:middle;background:linear-gradient(135deg,var(--yellow),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">₿</span></div>
+    <div class="header-title">MY<br><span>HUB</span></div>
     <div class="header-sub" id="header-sub">TAP TO BACKUP · SELECT MODULE</div>
   </div>
 
@@ -194,14 +194,14 @@ function loadStats(){
           const futureShifts=upcoming.filter(x=>x.date!==today);
           let parts=[];
           if(todayShifts.length>0){
-            const shiftStrs=todayShifts.map(x=>'('+x.start+(x.loc?' '+x.loc:'')+')');
+            const shiftStrs=todayShifts.map(x=>'('+x.start+'–'+x.end+(x.loc?' '+x.loc:'')+')');
             parts.push('Today '+shiftStrs.join(' | '));
           } else if(futureShifts.length>0){
             const x=futureShifts[0];
             const dow=days[new Date(x.date+'T12:00:00').getDay()];
             const dd=+x.date.slice(8);
             const mon=mons[+x.date.slice(5,7)-1];
-            parts.push('Next '+dow+' '+dd+' '+mon+': '+x.start+(x.loc?' · '+x.loc:''));
+            parts.push('Next '+dow+' '+dd+' '+mon+': '+x.start+'–'+x.end+(x.loc?' · '+x.loc:''));
           }
           el.textContent=parts.join('  |  ');
           el.style.color='#00e5ff';
