@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#080808">
+<meta name="theme-color" content="#020408">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -11,379 +11,441 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@300;400;500;700&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;background:#080808;overflow:hidden;}
+html,body{height:100%;background:#020408;overflow:hidden;}
 :root{
-  --bg:#080808;--s1:#111111;--s2:#181818;--s3:#1e1e1e;
-  --border:#2a2a2a;--border2:#333;
+  --bg:#020408;--s1:rgba(10,14,26,0.82);--s2:rgba(16,22,38,0.88);
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
   --red:#ff3d00;--orange:#ff8c00;--green:#39d98a;--blue:#00c8ff;--yellow:#ffd600;--purple:#c084fc;
-  --text:#f5f5f5;--text2:#d0d0d0;--text3:#a8a8a8;--dim:#444;--muted:#888;--faint:#2a2a2a;
+  --text:#f0f4ff;--text2:#c8d4f0;--muted:#6a7a9a;--dim:#3a4a6a;--faint:rgba(255,255,255,0.06);
   --font-d:'Bebas Neue',sans-serif;--font-m:'JetBrains Mono',monospace;--font-b:'Barlow Condensed',sans-serif;
 }
 ::-webkit-scrollbar{width:2px;}::-webkit-scrollbar-thumb{background:var(--dim);}
+#space-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.05) 3px,rgba(0,0,0,0.05) 4px);pointer-events:none;z-index:999;}
 body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:var(--font-b);position:relative;}
-body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
-.blob{position:fixed;border-radius:50%;filter:blur(80px);opacity:0.12;pointer-events:none;z-index:0;animation:bpulse 8s ease-in-out infinite;}
-.blob1{width:400px;height:400px;background:var(--blue);top:-100px;left:-100px;animation-delay:0s;}
-.blob2{width:350px;height:350px;background:var(--red);bottom:-80px;right:-80px;animation-delay:3s;}
-.blob3{width:250px;height:250px;background:var(--purple);top:50%;left:60%;animation-delay:6s;}
-@keyframes bpulse{0%,100%{transform:scale(1);opacity:0.12;}50%{transform:scale(1.15);opacity:0.18;}}
 @keyframes cardIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 @keyframes slideUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
-.container{position:relative;z-index:1;width:100%;max-width:480px;padding:32px 20px;display:flex;flex-direction:column;align-items:center;gap:40px;}
+@keyframes pulseDot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.5;transform:scale(0.7);}}
+@keyframes exppulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+
+.container{position:relative;z-index:1;width:100%;max-width:480px;padding:32px 20px;display:flex;flex-direction:column;align-items:center;gap:32px;}
 
 /* HEADER */
-.header{text-align:center;}
+.header{text-align:center;animation:fadeIn 0.8s ease both 0.2s;opacity:0;}
 .header-eyebrow{font-family:var(--font-m);font-size:10px;letter-spacing:4px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:10px;}
 .header-eyebrow::before,.header-eyebrow::after{content:'';display:block;width:30px;height:1px;background:var(--border2);}
-.header-title{font-family:var(--font-d);font-size:clamp(72px,18vw,100px);letter-spacing:6px;color:var(--text);line-height:0.9;}
-.header-title span{background:linear-gradient(135deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.header-sub{font-family:var(--font-m);font-size:11px;color:var(--muted);letter-spacing:2px;margin-top:12px;}
-
-/* CARDS */
-.cards{width:100%;display:flex;flex-direction:column;gap:12px;}
-.card{display:flex;align-items:center;gap:20px;padding:20px 24px;background:var(--s1);border:1px solid var(--border);border-radius:4px;text-decoration:none;position:relative;overflow:hidden;transition:border-color 0.2s,background 0.2s,transform 0.15s;cursor:pointer;}
-.card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--card-color,var(--blue));transition:width 0.2s;}
-.card:hover,.card:active{background:var(--s2);border-color:var(--card-color,var(--blue));transform:translateX(4px);}
-.card:hover::before,.card:active::before{width:4px;}
-.card-active{animation:cardIn 0.5s ease both;}
-.card-icon{font-size:28px;min-width:40px;text-align:center;line-height:1;}
-.card-body{flex:1;}
-.card-title{font-family:var(--font-d);font-size:28px;letter-spacing:2px;color:var(--text);line-height:1;margin-bottom:4px;}
-.card-desc{font-family:var(--font-m);font-size:10px;color:var(--muted);letter-spacing:1px;}
-.card-live{font-family:var(--font-m);font-size:9px;letter-spacing:0.5px;margin-top:5px;padding:2px 7px;border-radius:2px;display:inline-block;background:rgba(255,255,255,0.06)!important;border:1px solid currentColor;opacity:0.9;}
-.card-arrow{font-family:var(--font-m);font-size:14px;color:var(--dim);transition:color 0.2s,transform 0.2s;flex-shrink:0;}
-.card:hover .card-arrow,.card:active .card-arrow{color:var(--card-color,var(--blue));transform:translateX(4px);}
-
-/* HEADER TAP EXPORT */
-@keyframes exppulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.header-title{font-family:var(--font-d);font-size:clamp(72px,18vw,100px);letter-spacing:6px;color:var(--text);line-height:0.9;cursor:pointer;user-select:none;text-shadow:0 0 60px rgba(0,200,255,0.15);}
+.header-title:active{opacity:0.8;}
+.header-title span{background:linear-gradient(135deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 14px rgba(0,200,255,0.45));}
+.header-sub{font-family:var(--font-m);font-size:11px;color:var(--muted);letter-spacing:2px;margin-top:12px;min-height:16px;}
 .header-sub.exporting{color:var(--yellow);animation:exppulse 0.6s ease infinite;}
 
-/* TOAST */
-.toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:var(--s2);border:1px solid var(--green);color:var(--green);font-family:var(--font-m);font-size:10px;letter-spacing:1px;padding:8px 16px;border-radius:3px;z-index:9999;white-space:nowrap;animation:slideUp 0.2s ease;pointer-events:none;}
-.toast.err{border-color:var(--red);color:var(--red);}
-.toast.hidden{display:none;}
+/* CARDS */
+.cards{width:100%;display:flex;flex-direction:column;gap:10px;}
+.card{display:flex;align-items:center;gap:20px;padding:18px 22px;background:var(--s1);border:1px solid var(--border);border-radius:4px;text-decoration:none;position:relative;overflow:hidden;transition:border-color 0.2s,background 0.2s,transform 0.15s,box-shadow 0.2s;cursor:pointer;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
+.card::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 80% 50%,rgba(255,255,255,0.035) 0%,transparent 65%);opacity:0;transition:opacity 0.3s;pointer-events:none;}
+.card:hover::after{opacity:1;}
+.card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--card-color,var(--blue));transition:width 0.2s;}
+.card:hover{background:var(--s2);border-color:var(--card-color,var(--blue));transform:translateX(4px);box-shadow:0 0 24px -6px var(--card-color,var(--blue)),inset 0 0 30px -20px var(--card-color,var(--blue));}
+.card:active{transform:translateX(2px);opacity:0.9;}
+.card:hover::before{width:4px;}
+.card-active{animation:cardIn 0.5s ease both;}
+.card-icon{font-size:26px;min-width:38px;text-align:center;line-height:1;}
+.card-body{flex:1;min-width:0;}
+.card-title{font-family:var(--font-d);font-size:27px;letter-spacing:2px;color:var(--text);line-height:1;margin-bottom:3px;}
+.card-desc{font-family:var(--font-m);font-size:10px;color:var(--muted);letter-spacing:1px;}
+.card-live{font-family:var(--font-m);font-size:9px;letter-spacing:0.5px;margin-top:5px;padding:2px 7px;border-radius:2px;display:none;background:rgba(255,255,255,0.04)!important;border:1px solid currentColor;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.card-arrow{font-family:var(--font-m);font-size:14px;color:var(--dim);transition:color 0.2s,transform 0.2s;flex-shrink:0;}
+.card:hover .card-arrow{color:var(--card-color,var(--blue));transform:translateX(4px);}
+.pulse-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:5px;vertical-align:middle;animation:pulseDot 1.2s ease-in-out infinite;}
 
-.footer{font-family:var(--font-m);font-size:9px;color:var(--faint);letter-spacing:3px;text-transform:uppercase;}
-body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:999;}
+/* FOOTER */
+.footer-row{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;animation:fadeIn 0.6s ease both 0.6s;opacity:0;}
+.footer{font-family:var(--font-m);font-size:9px;color:var(--dim);letter-spacing:2px;text-transform:uppercase;}
+.import-btn{font-family:var(--font-m);font-size:9px;letter-spacing:1.5px;color:var(--dim);background:none;border:1px solid rgba(255,255,255,0.08);border-radius:2px;padding:3px 8px;cursor:pointer;transition:color 0.2s,border-color 0.2s;text-transform:uppercase;}
+.import-btn:hover{color:var(--blue);border-color:var(--blue);}
+#import-input{display:none;}
+
+/* TOAST */
+.toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:rgba(10,14,26,0.95);border:1px solid var(--green);color:var(--green);font-family:var(--font-m);font-size:10px;letter-spacing:1px;padding:8px 16px;border-radius:3px;z-index:9999;white-space:nowrap;animation:slideUp 0.2s ease;pointer-events:none;backdrop-filter:blur(8px);}
+.toast.err{border-color:var(--red);color:var(--red);}
+.toast.warn{border-color:var(--yellow);color:var(--yellow);}
+.toast.hidden{display:none;}
 </style>
 </head>
 <body>
 
-<div class="blob blob1"></div>
-<div class="blob blob2"></div>
-<div class="blob blob3"></div>
+<canvas id="space-canvas"></canvas>
 <div class="toast hidden" id="toast"></div>
+<input type="file" id="import-input" accept=".json">
 
 <div class="container">
 
-  <div class="header" onclick="runExport(false)" style="cursor:pointer;">
+  <div class="header">
     <div class="header-eyebrow">personal dashboard</div>
-    <div class="header-title">MY<br><span>HUB</span></div>
-    <div class="header-sub" id="header-sub">TAP TO BACKUP · SELECT MODULE</div>
+    <div class="header-title" onclick="runExport(false)">MY<br><span>HUB</span></div>
+    <div class="header-sub" id="header-sub"></div>
   </div>
 
   <div class="cards">
 
-    <a class="card card-active" href="GYM_PLAN.html" style="--card-color:#b2ff59;animation-delay:0.1s">
+    <a class="card card-active" href="GYM_PLAN.html" style="--card-color:#b2ff59;animation-delay:0.15s">
       <div class="card-icon">💪</div>
       <div class="card-body">
         <div class="card-title">PPL BEAST</div>
         <div class="card-desc">GYM PLAN · WORKOUT TRACKER</div>
-        <div class="card-live" id="gym-live" style="color:#b2ff59;display:none"></div>
+        <div class="card-live" id="gym-live" style="color:#b2ff59;"></div>
       </div>
       <div class="card-arrow">→</div>
     </a>
 
-    <a class="card card-active" href="SHIFTS.html" style="--card-color:#00e5ff;animation-delay:0.2s">
+    <a class="card card-active" href="SHIFTS.html" style="--card-color:#00e5ff;animation-delay:0.25s">
       <div class="card-icon">⏱️</div>
       <div class="card-body">
         <div class="card-title">SHIFTS</div>
         <div class="card-desc">WORK SCHEDULE · TIME TRACKING</div>
-        <div class="card-live" id="shifts-live" style="color:#00e5ff;display:none"></div>
+        <div class="card-live" id="shifts-live" style="color:#00e5ff;"></div>
       </div>
       <div class="card-arrow">→</div>
     </a>
 
-    <a class="card card-active" href="EXPENSES.html" style="--card-color:#ff3d00;animation-delay:0.3s">
+    <a class="card card-active" href="EXPENSES.html" style="--card-color:#ff3d00;animation-delay:0.35s">
       <div class="card-icon">💸</div>
       <div class="card-body">
         <div class="card-title">SPENT</div>
         <div class="card-desc">EXPENSES · BUDGET TRACKER</div>
-        <div class="card-live" id="spent-live" style="color:#ff3d00;display:none"></div>
+        <div class="card-live" id="spent-live" style="color:#ff3d00;"></div>
       </div>
       <div class="card-arrow">→</div>
     </a>
 
   </div>
 
-  <div class="footer" id="footer-ver">v2.0 · personal use only</div>
+  <div class="footer-row">
+    <div class="footer" id="footer-ver">v2.1 · personal use only</div>
+    <button class="import-btn" onclick="document.getElementById('import-input').click()">↑ RESTORE</button>
+  </div>
 
 </div>
 
 <script>
 // ─────────────────────────────────────────────
-// STORAGE KEY for backup log
+// SPACE BACKGROUND — starfield + nebula + shooting stars
+// ─────────────────────────────────────────────
+(function () {
+  const canvas = document.getElementById('space-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, nebulaCanvas = null;
+  const STAR_COUNT = 300;
+  const stars = [];
+  const shooters = [];
+  let nextShooterAt = 0;
+
+  function rand(a, b) { return Math.random() * (b - a) + a; }
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    buildStars();
+    buildNebula();
+  }
+
+  function buildStars() {
+    stars.length = 0;
+    for (let i = 0; i < STAR_COUNT; i++) {
+      stars.push({
+        x: rand(0, W), y: rand(0, H),
+        r: rand(0.25, 1.5),
+        base: rand(0.15, 0.95),
+        speed: rand(0.3, 1.4),
+        phase: rand(0, Math.PI * 2),
+        hue: Math.random() > 0.8 ? rand(200, 280) : null
+      });
+    }
+  }
+
+  function buildNebula() {
+    nebulaCanvas = document.createElement('canvas');
+    nebulaCanvas.width  = W;
+    nebulaCanvas.height = H;
+    const nc = nebulaCanvas.getContext('2d');
+    const blobs = [
+      { x: W * 0.12, y: H * 0.22, rx: W * 0.38, ry: H * 0.30, r: 0, g: 60, b: 180, a: 0.06 },
+      { x: W * 0.78, y: H * 0.68, rx: W * 0.34, ry: H * 0.32, r: 110, g: 0, b: 210, a: 0.055 },
+      { x: W * 0.50, y: H * 0.42, rx: W * 0.26, ry: H * 0.24, r: 0, g: 150, b: 255, a: 0.038 },
+      { x: W * 0.88, y: H * 0.12, rx: W * 0.22, ry: H * 0.20, r: 200, g: 60, b: 255, a: 0.045 },
+      { x: W * 0.30, y: H * 0.80, rx: W * 0.24, ry: H * 0.18, r: 0, g: 100, b: 200, a: 0.04 },
+    ];
+    blobs.forEach(b => {
+      nc.save();
+      const scaleY = b.ry / b.rx;
+      nc.scale(1, scaleY);
+      const cy = b.y / scaleY;
+      const g = nc.createRadialGradient(b.x, cy, 0, b.x, cy, b.rx);
+      g.addColorStop(0, `rgba(${b.r},${b.g},${b.b},${b.a})`);
+      g.addColorStop(1, 'transparent');
+      nc.beginPath();
+      nc.arc(b.x, cy, b.rx, 0, Math.PI * 2);
+      nc.fillStyle = g;
+      nc.fill();
+      nc.restore();
+    });
+  }
+
+  function spawnShooter() {
+    const angle = rand(-0.55, -0.25);
+    const spd   = rand(7, 15);
+    shooters.push({
+      x: rand(W * 0.05, W * 0.85),
+      y: rand(0, H * 0.45),
+      vx: Math.cos(angle) * spd,
+      vy: Math.abs(Math.sin(angle)) * spd,
+      len: rand(70, 160),
+      life: 1,
+      decay: rand(0.010, 0.022)
+    });
+  }
+
+  function draw(ts) {
+    ctx.clearRect(0, 0, W, H);
+
+    // Deep space base
+    const bg = ctx.createLinearGradient(0, 0, W * 0.4, H);
+    bg.addColorStop(0,   '#020408');
+    bg.addColorStop(0.5, '#030711');
+    bg.addColorStop(1,   '#020408');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Nebula
+    if (nebulaCanvas) ctx.drawImage(nebulaCanvas, 0, 0);
+
+    // Twinkle stars
+    stars.forEach(s => {
+      const alpha = s.base * (0.55 + 0.45 * Math.sin(ts * 0.001 * s.speed + s.phase));
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = s.hue ? `hsl(${s.hue},70%,85%)` : '#ffffff';
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+
+    // Shooting stars
+    if (ts > nextShooterAt) {
+      spawnShooter();
+      nextShooterAt = ts + rand(2000, 5500);
+    }
+    for (let i = shooters.length - 1; i >= 0; i--) {
+      const s    = shooters[i];
+      const steps = s.len / 12;
+      const tx   = s.x - s.vx * steps;
+      const ty   = s.y - s.vy * steps;
+      const g    = ctx.createLinearGradient(tx, ty, s.x, s.y);
+      g.addColorStop(0, 'transparent');
+      g.addColorStop(1, `rgba(190,225,255,${s.life * 0.92})`);
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(s.x, s.y);
+      ctx.strokeStyle = g;
+      ctx.lineWidth   = 1.4;
+      ctx.stroke();
+      s.x    += s.vx;
+      s.y    += s.vy;
+      s.life -= s.decay;
+      if (s.life <= 0 || s.x > W + 80 || s.y > H + 80) shooters.splice(i, 1);
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(draw);
+})();
+
+// ─────────────────────────────────────────────
+// BACKUP LOG
 // ─────────────────────────────────────────────
 const BACKUP_LOG_KEY = 'hub_backup_log';
-
 function getBackupLog() {
   try { return JSON.parse(localStorage.getItem(BACKUP_LOG_KEY) || '[]'); } catch(e) { return []; }
 }
 function saveBackupLog(log) {
-  try { localStorage.setItem(BACKUP_LOG_KEY, JSON.stringify(log.slice(-30))); } catch(e) {} // keep last 30
+  try { localStorage.setItem(BACKUP_LOG_KEY, JSON.stringify(log.slice(-30))); } catch(e) {}
 }
 
 // ─────────────────────────────────────────────
-// STATS (unchanged from your original)
+// STATS
 // ─────────────────────────────────────────────
-function weekDates(){
-  const now=new Date(),day=now.getDay();
-  const mon=new Date(now);
-  mon.setDate(now.getDate()-(day===0?6:day-1));
-  const out=[];
-  for(let i=0;i<7;i++){const d=new Date(mon);d.setDate(mon.getDate()+i);out.push(d.toISOString().slice(0,10));}
+const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function weekDates() {
+  const now = new Date(), day = now.getDay();
+  const mon = new Date(now);
+  mon.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+  const out = [];
+  for (let i = 0; i < 7; i++) { const d = new Date(mon); d.setDate(mon.getDate() + i); out.push(d.toISOString().slice(0, 10)); }
   return out;
 }
 
-function loadStats(){
-  const wDates=weekDates();
-  try{
-    const g=JSON.parse(localStorage.getItem('pplbeast_v3')||'null');
-    if(g&&g.weeks&&g.currentWeek){
-      const wd=g.weeks[g.currentWeek]||[];
-      const done=wd.filter(d=>d.done).length;
-      const el=document.getElementById('gym-live');
-      if(done>0){el.textContent=done+'/'+wd.length+' days done · Week '+g.currentWeek;el.style.display='inline-block';}
+function setLive(id, html, color, show) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = html; el.style.color = color || ''; el.style.display = show ? 'inline-block' : 'none';
+}
+
+function loadStats() {
+  const wDates = weekDates();
+  // GYM
+  try {
+    const g = JSON.parse(localStorage.getItem('pplbeast_v3') || 'null');
+    if (g && g.weeks && g.currentWeek) {
+      const wd = g.weeks[g.currentWeek] || [], done = wd.filter(d => d.done).length;
+      done > 0 ? setLive('gym-live', `${done}/${wd.length} days done · Week ${g.currentWeek}`, '#b2ff59', true)
+               : setLive('gym-live', '', '', false);
     }
-  }catch(e){}
-  try{
-    const s=JSON.parse(localStorage.getItem('shifts_v4')||'null');
-    if(s&&s.shifts){
-      const now=new Date();
-      const today=now.toISOString().slice(0,10);
-      const nowMins=now.getHours()*60+now.getMinutes();
-      const el=document.getElementById('shifts-live');
-      const card=document.querySelector('a[href="SHIFTS.html"]');
-      const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-      const mons=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      // Check if currently mid-shift
-      const activeShift=s.shifts.find(x=>{
-        if(x.date!==today) return false;
-        const startM=parseInt(x.start)*60+(parseInt((x.start.split(':')[1])||0));
-        let endM=parseInt(x.end)*60+(parseInt((x.end.split(':')[1])||0));
-        if(endM<=startM) endM+=1440;
-        return nowMins>=startM && nowMins<endM;
+  } catch(e) {}
+  // SHIFTS
+  try {
+    const s = JSON.parse(localStorage.getItem('shifts_v4') || 'null');
+    if (s && s.shifts) {
+      const now = new Date(), today = now.toISOString().slice(0, 10);
+      const nowMins = now.getHours() * 60 + now.getMinutes();
+      const card = document.querySelector('a[href="SHIFTS.html"]');
+      const active = s.shifts.find(x => {
+        if (x.date !== today) return false;
+        const sm = parseInt(x.start) * 60 + (parseInt(x.start.split(':')[1]) || 0);
+        let em   = parseInt(x.end)   * 60 + (parseInt(x.end.split(':')[1])   || 0);
+        if (em <= sm) em += 1440;
+        return nowMins >= sm && nowMins < em;
       });
-      if(activeShift){
-        el.textContent='🟢 ON SHIFT · ends '+activeShift.end+(activeShift.loc?' · '+activeShift.loc:'');
-        el.style.color='#39d98a';
-        el.style.display='inline-block';
-        if(card) card.style.setProperty('--card-color','#39d98a');
+      if (active) {
+        setLive('shifts-live', `<span class="pulse-dot"></span>ON SHIFT · ends ${active.end}${active.loc ? ' · ' + active.loc : ''}`, '#39d98a', true);
+        if (card) card.style.setProperty('--card-color', '#39d98a');
       } else {
-        if(card) card.style.setProperty('--card-color','#00e5ff');
-        const upcoming=s.shifts.filter(x=>{
-          if(x.date>today) return true;
-          if(x.date<today) return false;
-          const parts=x.start.split(':');
-          const shiftMins=parseInt(parts[0])*60+parseInt(parts[1]||0);
-          return shiftMins>nowMins;
-        }).sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
-        if(upcoming.length>0){
-          const todayShifts=upcoming.filter(x=>x.date===today);
-          const futureShifts=upcoming.filter(x=>x.date!==today);
-          let parts=[];
-          if(todayShifts.length>0){
-            const shiftStrs=todayShifts.map(x=>'('+x.start+'–'+x.end+(x.loc?' '+x.loc:'')+')');
-            parts.push('Today '+shiftStrs.join(' | '));
-          } else if(futureShifts.length>0){
-            const x=futureShifts[0];
-            const dow=days[new Date(x.date+'T12:00:00').getDay()];
-            const dd=+x.date.slice(8);
-            const mon=mons[+x.date.slice(5,7)-1];
-            parts.push('Next '+dow+' '+dd+' '+mon+': '+x.start+'–'+x.end+(x.loc?' · '+x.loc:''));
+        if (card) card.style.setProperty('--card-color', '#00e5ff');
+        const upcoming = s.shifts.filter(x => {
+          if (x.date > today) return true; if (x.date < today) return false;
+          const p = x.start.split(':');
+          return parseInt(p[0]) * 60 + parseInt(p[1] || 0) > nowMins;
+        }).sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+        if (upcoming.length > 0) {
+          const ts = upcoming.filter(x => x.date === today), fs = upcoming.filter(x => x.date !== today);
+          let parts = [];
+          if (ts.length > 0) parts.push('Today ' + ts.map(x => '(' + x.start + '–' + x.end + (x.loc ? ' ' + x.loc : '') + ')').join(' | '));
+          else if (fs.length > 0) {
+            const x = fs[0], dow = DAYS[new Date(x.date + 'T12:00:00').getDay()];
+            parts.push('Next ' + dow + ' ' + +x.date.slice(8) + ' ' + MONTHS[+x.date.slice(5,7)-1] + ': ' + x.start + '–' + x.end + (x.loc ? ' · ' + x.loc : ''));
           }
-          el.textContent=parts.join('  |  ');
-          el.style.color='#00e5ff';
-          el.style.display='inline-block';
-        } else {
-          el.style.display='none';
-        }
+          setLive('shifts-live', parts.join('  |  '), '#00e5ff', true);
+        } else setLive('shifts-live', '', '', false);
       }
     }
-  }catch(e){}
-  try{
-    const e=JSON.parse(localStorage.getItem('spent_v2')||'null');
-    if(e&&e.expenses){
-      const wt=e.expenses.filter(x=>wDates.includes(x.date)).reduce((a,x)=>a+x.amount,0);
-      const budget=e.weekBudget||200;
-      const left=budget-wt;
-      if(wt>0){
-        const el=document.getElementById('spent-live');
-        el.textContent=left>=0?'£'+left.toFixed(0)+' left of £'+budget+' budget':'£'+Math.abs(left).toFixed(0)+' over budget!';
-        el.style.color=left<0?'#ff3d00':'#39d98a';
-        el.style.display='inline-block';
-      }
+  } catch(e) {}
+  // EXPENSES
+  try {
+    const e = JSON.parse(localStorage.getItem('spent_v2') || 'null');
+    if (e && e.expenses) {
+      const wt = e.expenses.filter(x => wDates.includes(x.date)).reduce((a, x) => a + x.amount, 0);
+      const budget = e.weekBudget || 200, left = budget - wt;
+      if (wt > 0) setLive('spent-live', left >= 0 ? `£${left.toFixed(0)} left of £${budget} budget` : `£${Math.abs(left).toFixed(0)} over budget!`, left < 0 ? '#ff3d00' : '#39d98a', true);
+      else setLive('spent-live', '', '', false);
     }
-  }catch(e){}
+  } catch(e) {}
 }
 
 // ─────────────────────────────────────────────
-// EXPORT CORE
+// EXPORT
 // ─────────────────────────────────────────────
 function gatherAllData() {
-  const snapshot = {
-    exportedAt: new Date().toISOString(),
-    exportedDate: new Date().toISOString().slice(0, 10),
-    sources: {}
-  };
-
-  const keys = {
-    gym:      'pplbeast_v3',
-    shifts:   'shifts_v4',
-    expenses: 'spent_v2'
-  };
-
-  for (const [name, key] of Object.entries(keys)) {
-    try {
-      const raw = localStorage.getItem(key);
-      snapshot.sources[name] = raw ? JSON.parse(raw) : null;
-    } catch(e) {
-      snapshot.sources[name] = null;
-    }
+  const snap = { exportedAt: new Date().toISOString(), exportedDate: new Date().toISOString().slice(0,10), sources: {} };
+  for (const [n, k] of Object.entries({ gym:'pplbeast_v3', shifts:'shifts_v4', expenses:'spent_v2' })) {
+    try { const r = localStorage.getItem(k); snap.sources[n] = r ? JSON.parse(r) : null; } catch(e) { snap.sources[n] = null; }
   }
-
-  return snapshot;
+  return snap;
 }
-
 function downloadJSON(data, filename) {
-  const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)], {type:'application/json'}));
+  const a = Object.assign(document.createElement('a'), {href:url, download:filename});
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-
-// isMidnight = true means this was triggered by the auto scheduler
 function runExport(isMidnight) {
   const sub = document.getElementById('header-sub');
-
-  sub.textContent = 'SAVING BACKUP...';
-  sub.classList.add('exporting');
-
+  sub.textContent = 'SAVING BACKUP...'; sub.classList.add('exporting');
   setTimeout(() => {
     try {
       const data = gatherAllData();
-      const fileDate = data.exportedDate;
-      const filename = `hub-backup-${fileDate}.json`;
-
-      downloadJSON(data, filename);
-
-      const log = getBackupLog();
-      log.push({ ts: data.exportedAt, date: fileDate, auto: isMidnight });
-      saveBackupLog(log);
-
-      updateBackupUI();
+      downloadJSON(data, `hub-backup-${data.exportedDate}.json`);
+      const log = getBackupLog(); log.push({ts:data.exportedAt, date:data.exportedDate, auto:isMidnight}); saveBackupLog(log);
       showToast(isMidnight ? '✓ MIDNIGHT BACKUP SAVED' : '✓ BACKUP SAVED');
-    } catch(err) {
-      showToast('✗ EXPORT FAILED', true);
-    }
-
-    sub.classList.remove('exporting');
-    updateBackupUI();
+    } catch(e) { showToast('✗ EXPORT FAILED','err'); }
+    sub.classList.remove('exporting'); updateBackupUI();
   }, 300);
 }
 
 // ─────────────────────────────────────────────
-// MIDNIGHT SCHEDULER
+// IMPORT
+// ─────────────────────────────────────────────
+document.getElementById('import-input').addEventListener('change', function(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.sources) throw 0;
+      let n = 0;
+      for (const [name, key] of Object.entries({gym:'pplbeast_v3',shifts:'shifts_v4',expenses:'spent_v2'}))
+        if (data.sources[name] != null) { localStorage.setItem(key, JSON.stringify(data.sources[name])); n++; }
+      loadStats(); showToast(`✓ RESTORED ${n} MODULE${n!==1?'S':''} FROM ${data.exportedDate||'BACKUP'}`);
+    } catch(e) { showToast('✗ INVALID BACKUP FILE','err'); }
+  };
+  reader.readAsText(file); this.value = '';
+});
+
+// ─────────────────────────────────────────────
+// MIDNIGHT + UI
 // ─────────────────────────────────────────────
 let midnightTimer = null;
-
-function msUntilMidnight() {
-  const now  = new Date();
-  const next = new Date(now);
-  next.setHours(24, 0, 0, 0); // next midnight (start of tomorrow)
-  return next - now;
-}
-
+function msUntilMidnight() { const n=new Date(),nx=new Date(n); nx.setHours(24,0,0,0); return nx-n; }
 function scheduleMidnightExport() {
   if (midnightTimer) clearTimeout(midnightTimer);
-
-  const ms = msUntilMidnight();
-
-  midnightTimer = setTimeout(() => {
-    runExport(true);
-    // reschedule for the following midnight
-    scheduleMidnightExport();
-  }, ms);
+  midnightTimer = setTimeout(() => { runExport(true); scheduleMidnightExport(); }, msUntilMidnight());
 }
-
-// ─────────────────────────────────────────────
-// STATUS UI
-// ─────────────────────────────────────────────
 function updateBackupUI() {
-  const sub    = document.getElementById('header-sub');
   const footer = document.getElementById('footer-ver');
-  const log    = getBackupLog();
-
-  if (log.length === 0) {
-    sub.textContent    = 'TAP TO BACKUP · SELECT MODULE';
-    footer.textContent = 'v2.0 · never backed up';
-    return;
-  }
-
-  const last     = log[log.length - 1];
-  const lastDate = new Date(last.ts);
-  const today    = new Date().toISOString().slice(0, 10);
-  const wasToday = last.date === today;
-  const timeStr  = lastDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const label    = last.auto ? 'auto' : 'manual';
-
-  sub.textContent = 'TAP TO BACKUP · SELECT MODULE';
-
-  if (wasToday) {
-    footer.textContent = `✓ backed up today @ ${timeStr} (${label})`;
-    footer.style.color = 'var(--green)';
-  } else {
-    footer.textContent = `last backup: ${last.date} @ ${timeStr}`;
-    footer.style.color = '';
-  }
+  const log = getBackupLog();
+  if (log.length === 0) { footer.textContent = 'v2.1 · never backed up'; footer.style.color=''; return; }
+  const last = log[log.length-1], today = new Date().toISOString().slice(0,10);
+  const t = new Date(last.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const label = last.auto ? 'auto' : 'manual';
+  footer.textContent = last.date===today ? `✓ backed up today @ ${t} (${label})` : `last backup: ${last.date} @ ${t}`;
+  footer.style.color  = last.date===today ? 'var(--green)' : '';
 }
 
 // ─────────────────────────────────────────────
 // TOAST
 // ─────────────────────────────────────────────
-let _toastTimer = null;
-function showToast(msg, isErr) {
-  const el = document.getElementById('toast');
-  clearTimeout(_toastTimer);
-  el.textContent = msg;
-  el.className   = 'toast' + (isErr ? ' err' : '');
-  _toastTimer = setTimeout(() => { el.className = 'toast hidden'; }, 2500);
+let _tt = null;
+function showToast(msg, type) {
+  const el = document.getElementById('toast'); clearTimeout(_tt);
+  el.textContent = msg; el.className = 'toast' + (type ? ' '+type : '');
+  _tt = setTimeout(() => { el.className = 'toast hidden'; }, 2800);
 }
 
 // ─────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────
-loadStats();
-updateBackupUI();
-scheduleMidnightExport();
-// Refresh shift display every minute so started shifts disappear automatically
+loadStats(); updateBackupUI(); scheduleMidnightExport();
 setInterval(loadStats, 60000);
-
-// ─────────────────────────────────────────────
-// RE-SCHEDULE if page was hidden and comes back
-// (e.g. phone locked, then unlocked after midnight)
-// ─────────────────────────────────────────────
+let _vt = null;
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
-    scheduleMidnightExport();
-    updateBackupUI();
+    clearTimeout(_vt);
+    _vt = setTimeout(() => { scheduleMidnightExport(); updateBackupUI(); loadStats(); }, 300);
   }
 });
 </script>
