@@ -491,13 +491,10 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
         </div>
 
         {!isNew ? (
-          <>
           <div style={{display:'flex',gap:'.5rem',marginTop:'.25rem'}}>
             <button className="mdl-del" style={{margin:0,flex:1}} onClick={()=>onDelete(shift.id)}>DELETE</button>
             <button className="mdl-save edit" style={{flex:1,marginTop:0}} disabled={!s0||!e0||calcH(s0,e0)<=0} onClick={doSave}>SAVE</button>
           </div>
-          <button className="mdl-save" style={{background:'var(--s2)',border:'1px solid var(--border2)',color:'var(--text2)',marginTop:'.4rem'}} onClick={()=>{const pr=parseFloat(payRateIn);const er=pr>0?pr:rate;const h=calcHNet(s0,e0,finalLoc,er);onDuplicate({...shift,id:uid(),date,start:s0,end:e0,loc:finalLoc,hours:h,note,payRate:pr>0?pr:0});}}>DUPLICATE</button>
-          </>
         ) : (
           <button className="mdl-save" disabled={!s0||!e0||calcH(s0,e0)<=0} onClick={doSave}>SAVE</button>
         )}
@@ -556,6 +553,7 @@ function App(){
   const[editShift,setEditShift]=useState(null);
   const[copyMsg,setCopyMsg]=useState('');
   const[saveFlash,setSaveFlash]=useState(false);
+  const[selLoc,setSelLoc]=useState(null);
 
   const rate=store.hourlyRate,shifts=store.shifts,weeklyTarget=store.weeklyTarget||0;
 
@@ -1022,15 +1020,44 @@ function App(){
             <div className="locs">
               <div className="loc-t">ALL TIME BY LOCATION</div>
               {(()=>{
-                const lt={};shifts.forEach(s=>{lt[s.loc]=(lt[s.loc]||0)+s.hours;});const mx=Math.max(1,...Object.values(lt));
-                return Object.entries(lt).sort((a,b)=>b[1]-a[1]).map(([l,h])=>(
-                  <div key={l} className="lr">
-                    <span className="li">{LICO[l]}</span>
-                    <span className="ln" style={{color:LCOL[l]||'#888'}}>{l}</span>
-                    <div className="lbw"><div className="lb" style={{width:`${h/mx*100}%`,background:LCOL[l]||'#888'}}/></div>
-                    <span className="lv">{fmtH(h)}</span>
-                  </div>
-                ));
+                const lt={};const lp={};shifts.forEach(s=>{lt[s.loc]=(lt[s.loc]||0)+s.hours;lp[s.loc]=(lp[s.loc]||0)+s.hours*(s.payRate&&s.payRate>0?s.payRate:rate);});const mx=Math.max(1,...Object.values(lt));
+                return Object.entries(lt).sort((a,b)=>b[1]-a[1]).map(([l,h])=>{
+                  const isSel=selLoc===l;
+                  const locShifts=shifts.filter(s=>s.loc===l).sort((a,b)=>b.date.localeCompare(a.date)||b.start.localeCompare(a.start));
+                  const col=LCOL[l]||'#888';
+                  return(<div key={l}>
+                    <div className="lr" style={{cursor:'pointer',padding:'.3rem .2rem',borderRadius:'5px',transition:'background .1s'}} onClick={()=>setSelLoc(isSel?null:l)}>
+                      <span className="li">{LICO[l]}</span>
+                      <span className="ln" style={{color:col}}>{l}</span>
+                      <div className="lbw"><div className="lb" style={{width:`${h/mx*100}%`,background:col}}/></div>
+                      <span className="lv">{fmtH(h)}</span>
+                      <span style={{fontFamily:'var(--font-m)',fontSize:'.65rem',color:isSel?col:'var(--dim)',marginLeft:'.3rem',transition:'color .15s'}}>{isSel?'▴':'▾'}</span>
+                    </div>
+                    {isSel&&<div style={{background:'var(--bg)',border:`1px solid ${col}33`,borderRadius:'6px',marginBottom:'.5rem',overflow:'hidden'}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'.5rem .75rem',background:`${col}11`,borderBottom:`1px solid ${col}22`}}>
+                        <span style={{fontFamily:'var(--font-b)',fontSize:'.85rem',fontWeight:700,color:col}}>{locShifts.length} SHIFTS</span>
+                        <span style={{fontFamily:'var(--font-d)',fontSize:'1rem',color:'var(--green)'}}>{fmtP(lp[l])}</span>
+                      </div>
+                      {locShifts.map(s=>{
+                        const er=s.payRate&&s.payRate>0?s.payRate:rate;
+                        return(<div key={s.id} style={{display:'flex',alignItems:'center',gap:'.6rem',padding:'.5rem .75rem',borderBottom:'1px solid var(--border)',cursor:'pointer',transition:'background .1s'}}
+                          onClick={()=>setEditShift(s)}
+                          onMouseEnter={e=>e.currentTarget.style.background='var(--s2)'}
+                          onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                          <div style={{width:'3px',alignSelf:'stretch',background:col,borderRadius:'2px',flexShrink:0}}/>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{fontFamily:'var(--font-d)',fontSize:'.95rem',color:'var(--text)',letterSpacing:'.03em'}}>{dayName(s.date)} {+s.date.slice(8)} {mkName(s.date.slice(0,7))}</div>
+                            <div style={{fontFamily:'var(--font-m)',fontSize:'.62rem',color:'var(--muted)',marginTop:'1px'}}>{s.start} – {s.end}{s.note?` · 📝 ${s.note}`:''}</div>
+                          </div>
+                          <div style={{textAlign:'right',flexShrink:0}}>
+                            <div style={{fontFamily:'var(--font-d)',fontSize:'1rem',color:col}}>{fmtH(s.hours)}</div>
+                            <div style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--green)'}}>{fmtP(s.hours*er)}</div>
+                          </div>
+                        </div>);
+                      })}
+                    </div>}
+                  </div>);
+                });
               })()}
             </div>
           </>);
@@ -1065,7 +1092,7 @@ function App(){
     </div>}
 
     {/* EDIT SHIFT MODAL */}
-    {editShift&&<EditModal shift={editShift} rate={rate} lastPayRate={store.lastPayRate||0} onSave={saveEdit} onDelete={delShift} onDuplicate={dupShift} onClose={()=>setEditShift(null)}/>}
+    {editShift&&<EditModal shift={editShift} rate={rate} lastPayRate={store.lastPayRate||0} onSave={saveEdit} onDelete={delShift} onClose={()=>setEditShift(null)}/>}
 
     {/* SAVE FLASH */}
     {saveFlash&&<div style={{position:'fixed',inset:0,display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,pointerEvents:'none'}}>
