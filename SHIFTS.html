@@ -1093,15 +1093,57 @@ function App(){
                   <div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--muted)'}}>{fmtH(activeTYData.hours)} · {activeTYData.shifts} shifts</div>
                 </div>
               </div>
-              {[...activeTYData.months].sort((a,b)=>a.k.localeCompare(b.k)).map(m=>(
-                <div key={m.k} className="pb-r">
-                  <div className="pb-l">{mkName(m.k)}</div>
-                  <div style={{textAlign:'right'}}>
-                    <div className="pb-v">{fmtP(m.pay)}</div>
-                    <div style={{fontFamily:'var(--font-m)',fontSize:'.62rem',color:'var(--muted)'}}>{fmtH(m.hours)} · {m.shifts} shifts</div>
+              {[...activeTYData.months].sort((a,b)=>{
+                const taxOrd=k=>{const[y,mo]=k.split('-').map(Number);return mo>=4?y*100+mo:(y-1)*100+mo+12;};
+                return taxOrd(a.k)-taxOrd(b.k);
+              }).map(m=>{
+                // Find this month's tax from txMonths (already computed above)
+                const txM=txMonths.find(x=>x.k===m.k);
+                const monthTax=txM?txM._taxThisMonth||0:0;
+                // Approximate NI for this month: 8% on earnings above monthly personal allowance
+                const MONTHLY_NI_THRESH=12570/12;
+                const monthNI=Math.max(0,(m.pay-MONTHLY_NI_THRESH)*0.08);
+                const monthTakeHome=m.pay-monthTax-monthNI;
+                const hasTax=monthTax>0||monthNI>0;
+                return(
+                  <div key={m.k} style={{background:'var(--s2)',border:'1px solid var(--border)',borderRadius:'7px',padding:'.75rem .85rem',marginBottom:'.45rem'}}>
+                    {/* Month header */}
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:hasTax?'.6rem':0}}>
+                      <div>
+                        <span style={{fontFamily:'var(--font-b)',fontWeight:700,fontSize:'1rem',color:'var(--text)'}}>{mkName(m.k)}</span>
+                        <span style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',marginLeft:'.55rem'}}>{fmtH(m.hours)} · {m.shifts} shift{m.shifts!==1?'s':''}</span>
+                      </div>
+                    </div>
+                    {/* Income → Tax → Take-home stacked */}
+                    <div style={{display:'flex',flexDirection:'column',gap:'.28rem'}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                        <span style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--muted)',letterSpacing:'.06em'}}>INCOME</span>
+                        <span style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',color:'var(--text)'}}>{fmtP(m.pay)}</span>
+                      </div>
+                      {hasTax&&<>
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                          <span style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--muted)',letterSpacing:'.06em'}}>INCOME TAX</span>
+                          <span style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',color:monthTax>0?'var(--red)':'var(--muted)'}}>{monthTax>0?`-${fmtP(monthTax)}`:'£0.00'}</span>
+                        </div>
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                          <span style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--muted)',letterSpacing:'.06em'}}>NAT. INSURANCE</span>
+                          <span style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',color:monthNI>0?'var(--orange)':'var(--muted)'}}>{monthNI>0?`-${fmtP(monthNI)}`:'£0.00'}</span>
+                        </div>
+                        <div style={{borderTop:'1px solid var(--border)',paddingTop:'.28rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                          <span style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--green)',letterSpacing:'.06em'}}>TAKE HOME</span>
+                          <span style={{fontFamily:'var(--font-d)',fontSize:'1.15rem',color:'var(--green)'}}>{fmtP(monthTakeHome)}</span>
+                        </div>
+                      </>}
+                      {!hasTax&&(
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                          <span style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--green)',letterSpacing:'.06em'}}>TAKE HOME</span>
+                          <span style={{fontFamily:'var(--font-d)',fontSize:'1.15rem',color:'var(--green)'}}>{fmtP(m.pay)}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>}
             {taxYears.length===0&&<div style={{fontFamily:'var(--font-m)',fontSize:'.68rem',color:'var(--muted)'}}>NO DATA YET</div>}
 

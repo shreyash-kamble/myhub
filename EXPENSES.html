@@ -62,7 +62,60 @@ const monthName = m => ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','O
 
 function loadStore() {
   try { const r=localStorage.getItem('spent_v2'); if(r) return JSON.parse(r); } catch(e){}
-  return { expenses:[], weekBudget:200, monthBudget:800, catBudgets:{} };
+  return { expenses:[], monthBudget:190, catBudgets:{} };
+}
+
+// Get Mon-Sun weeks that overlap with a calendar month (clipped to month boundaries)
+function getMonthWeeks(monthKey) {
+  const [y, m] = monthKey.split('-').map(Number);
+  const firstDay = new Date(y, m - 1, 1);
+  const lastDay = new Date(y, m, 0);
+  const weeks = [];
+  let weekStart = new Date(firstDay);
+  const dow = weekStart.getDay();
+  const daysBack = dow === 0 ? 6 : dow - 1;
+  weekStart.setDate(weekStart.getDate() - daysBack);
+  while (weekStart <= lastDay) {
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    const clippedStart = weekStart < firstDay ? new Date(firstDay) : new Date(weekStart);
+    const clippedEnd = weekEnd > lastDay ? new Date(lastDay) : new Date(weekEnd);
+    if (clippedStart <= lastDay) {
+      const days = [];
+      const d = new Date(clippedStart);
+      while (d <= clippedEnd) { days.push(d.toISOString().slice(0,10)); d.setDate(d.getDate()+1); }
+      weeks.push({ start:clippedStart.toISOString().slice(0,10), end:clippedEnd.toISOString().slice(0,10), days });
+    }
+    weekStart.setDate(weekStart.getDate() + 7);
+  }
+  return weeks;
+}
+
+// Compute rolling weekly budgets for a month — rollover/deficit carries forward each week
+function computeWeeklyBudgets(monthBudget, monthKey, expenses) {
+  const weeks = getMonthWeeks(monthKey);
+  const n = weeks.length;
+  const basePerWeek = monthBudget / n;
+  const result = [];
+  let rollover = 0;
+  const now = today();
+  for (let i = 0; i < n; i++) {
+    const w = weeks[i];
+    const adjustedBudget = Math.max(0, basePerWeek + rollover);
+    const spent = w.days.reduce((sum, d) => sum + expenses.filter(e=>e.date===d).reduce((a,e)=>a+e.amount, 0), 0);
+    const isCurrent = w.days.includes(now);
+    const isPast = w.end < now;
+    result.push({
+      ...w, weekNum:i+1, totalWeeks:n, basePerWeek,
+      rolloverIn: rollover, adjustedBudget, spent,
+      remaining: adjustedBudget - spent,
+      isCurrent, isPast,
+    });
+    // Only roll over if week is fully in the past (or currently ongoing — don't project future rollover)
+    if (isPast || isCurrent) rollover = adjustedBudget - spent;
+    else rollover = 0; // future weeks inherit from last known state
+  }
+  return result;
 }
 function loadShiftsIncome() {
   // Pull weekly earnings from shifts data for income vs spend crossover
@@ -649,10 +702,8 @@ function App() {
   }
 
   function saveBudget() {
-    if (bwInput && isNaN(parseFloat(bwInput))) return;
     if (bmInput && isNaN(parseFloat(bmInput))) return;
     update(s => {
-      if (bwInput) s.weekBudget = parseFloat(bwInput);
       if (bmInput) s.monthBudget = parseFloat(bmInput);
       const cb = {...(s.catBudgets||{})};
       Object.entries(catBudgetInputs).forEach(([id,v])=>{
@@ -714,8 +765,6 @@ function App() {
 
   const weekTotal = useMemo(()=>last7.reduce((a,d)=>a+(dayTotals[d]||0),0),[last7,dayTotals]);
   const selectedDayExps = useMemo(()=>expenses.filter(e=>e.date===selectedDay).sort((a,b)=>b.id.localeCompare(a.id)),[expenses,selectedDay]);
-  const weekPct = Math.min(100, (weekTotal/store.weekBudget)*100);
-  const weekOver = weekTotal > store.weekBudget;
 
   const weekCatTotals = useMemo(()=>{
     const m={};
@@ -751,6 +800,16 @@ function App() {
   const monthTotal = useMemo(()=>monthExps.reduce((a,e)=>a+e.amount,0),[monthExps]);
   const monthPct = Math.min(100,(monthTotal/store.monthBudget)*100);
   const monthOver = monthTotal > store.monthBudget;
+
+  // Rolling weekly budgets for the viewed month
+  const viewMonthWeeks = useMemo(()=>computeWeeklyBudgets(store.monthBudget, viewMonth, expenses),[store.monthBudget, viewMonth, expenses]);
+  // Rolling weekly budgets for the current month (for expenses tab)
+  const curMonthKey = today().slice(0,7);
+  const curMonthWeeks = useMemo(()=>computeWeeklyBudgets(store.monthBudget, curMonthKey, expenses),[store.monthBudget, curMonthKey, expenses]);
+  const currentWeekData = useMemo(()=>curMonthWeeks.find(w=>w.isCurrent)||curMonthWeeks[curMonthWeeks.length-1],[curMonthWeeks]);
+  const effectiveWeekBudget = currentWeekData ? currentWeekData.adjustedBudget : store.monthBudget / 4.33;
+  const weekPct = Math.min(100, (weekTotal / effectiveWeekBudget) * 100);
+  const weekOver = weekTotal > effectiveWeekBudget;
 
   const monthCatTotals = useMemo(()=>{
     const m={};
@@ -832,7 +891,7 @@ function App() {
               </div>
             )}
             <div className="topbar-right">
-              <button className="settings-btn" onClick={()=>{setBwInput(String(store.weekBudget));setBmInput(String(store.monthBudget));setCatBudgetInputs(Object.fromEntries(CATS.map(c=>[c.id,store.catBudgets?.[c.id]!=null?String(store.catBudgets[c.id]):''])));setBudgetTab('overall');setShowBudget(true);}}>
+              <button className="settings-btn" onClick={()=>{setBmInput(String(store.monthBudget));setCatBudgetInputs(Object.fromEntries(CATS.map(c=>[c.id,store.catBudgets?.[c.id]!=null?String(store.catBudgets[c.id]):''])));setBudgetTab('overall');setShowBudget(true);}}>
                 ⚙ BUDGET
               </button>
             </div>
@@ -951,7 +1010,7 @@ function App() {
                   <div className="today-hero">
                     <div className="today-lbl">THIS WEEK'S TOTAL</div>
                     <div className="today-amt">{fmt(weekTotal)}</div>
-                    <div className="today-count">{last7.reduce((a,d)=>a+(expenses.filter(e=>e.date===d).length),0)} transactions · {fmt(store.weekBudget-weekTotal>0?store.weekBudget-weekTotal:0)} left of {fmt(store.weekBudget)}</div>
+                    <div className="today-count">{last7.reduce((a,d)=>a+(expenses.filter(e=>e.date===d).length),0)} transactions · {fmt(Math.max(0,effectiveWeekBudget-weekTotal))} left of {fmt(effectiveWeekBudget)}</div>
                   </div>
 
                   {/* Week strip */}
@@ -967,16 +1026,28 @@ function App() {
                   {/* Budget bar with pace */}
                   <div style={{background:'var(--s1)',border:'1px solid var(--border)',padding:'0.75rem 1rem',marginBottom:'0.6rem'}}>
                     <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.45rem'}}>
-                      <span style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:'var(--text3)',letterSpacing:'0.08em'}}>WEEK BUDGET</span>
-                      <span style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:weekOver?'var(--red)':'var(--text2)'}}>{fmt(weekTotal)} / {fmt(store.weekBudget)}</span>
+                      <span style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:'var(--text3)',letterSpacing:'0.08em'}}>
+                        {currentWeekData ? `WEEK ${currentWeekData.weekNum} OF ${currentWeekData.totalWeeks}` : 'THIS WEEK'}
+                      </span>
+                      <span style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:weekOver?'var(--red)':'var(--text2)'}}>{fmt(weekTotal)} / {fmt(effectiveWeekBudget)}</span>
                     </div>
                     <div className="budget-bar-track" style={{position:'relative'}}>
                       <div className="budget-bar-fill" style={{width:weekPct+'%',background:weekPct>90?'var(--red)':weekPct>70?'var(--orange)':'var(--green)'}}/>
                       {(()=>{const dayOfWeek=new Date().getDay()||7;const pacePct=Math.min(100,(dayOfWeek/7)*100);return <div className="pace-marker" style={{left:pacePct+'%'}}/>;})()}
                     </div>
-                    <div style={{fontFamily:'var(--font-m)',fontSize:'0.52rem',color:'var(--muted)',marginTop:'0.25rem'}}>
-                      {(()=>{const d=new Date().getDay()||7;const expected=(d/7)*store.weekBudget;const diff=weekTotal-expected;return diff>0?`£${diff.toFixed(0)} ahead of pace`:`£${Math.abs(diff).toFixed(0)} under pace`;})()}
+                    <div style={{fontFamily:'var(--font-m)',fontSize:'0.52rem',color:'var(--muted)',marginTop:'0.25rem',display:'flex',justifyContent:'space-between',flexWrap:'wrap',gap:'0.25rem'}}>
+                      <span>{(()=>{const d=new Date().getDay()||7;const expected=(d/7)*effectiveWeekBudget;const diff=weekTotal-expected;return diff>0?`£${diff.toFixed(0)} ahead of pace`:`£${Math.abs(diff).toFixed(0)} under pace`;})()}</span>
+                      {currentWeekData && currentWeekData.rolloverIn !== 0 && (
+                        <span style={{color:currentWeekData.rolloverIn>0?'var(--green)':'var(--red)'}}>
+                          {currentWeekData.rolloverIn>0?`+${fmt(currentWeekData.rolloverIn)} rolled over`:`${fmt(currentWeekData.rolloverIn)} carried over`}
+                        </span>
+                      )}
                     </div>
+                    {currentWeekData && (
+                      <div style={{fontFamily:'var(--font-m)',fontSize:'0.52rem',color:'var(--text3)',marginTop:'0.2rem'}}>
+                        Base £{currentWeekData.basePerWeek.toFixed(2)}/wk · Monthly budget {fmt(store.monthBudget)}
+                      </div>
+                    )}
                   </div>
 
                   {/* Selected day expenses */}
@@ -1034,7 +1105,7 @@ function App() {
                       <div className="stat-val">{fmt(weekTotal)}</div>
                       <div className="stat-lbl">THIS WEEK</div>
                       <div className="stat-sub" style={{color:weekOver?'var(--red)':'var(--text3)'}}>
-                        {weekOver?`${fmt(weekTotal-store.weekBudget)} over`:`${fmt(store.weekBudget-weekTotal)} left`}
+                        {weekOver?`${fmt(weekTotal-effectiveWeekBudget)} over`:`${fmt(effectiveWeekBudget-weekTotal)} left`}
                       </div>
                     </div>
                     <div className="stat-card">
@@ -1273,6 +1344,62 @@ function App() {
                     <div style={{fontFamily:'var(--font-d)',fontSize:'1rem',color:monthOver?'var(--red)':'var(--text2)'}}>{fmt(store.monthBudget)}</div>
                   </div>
                 </div>
+                {/* Monthly budget bar */}
+                <div style={{marginTop:'0.75rem'}}>
+                  <div className="budget-bar-track">
+                    <div className="budget-bar-fill" style={{width:monthPct+'%',background:monthPct>90?'var(--red)':monthPct>70?'var(--orange)':'var(--green)'}}/>
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between',marginTop:'0.3rem'}}>
+                    <span style={{fontFamily:'var(--font-m)',fontSize:'0.55rem',color:'var(--text3)'}}>{fmt(monthTotal)} used</span>
+                    <span style={{fontFamily:'var(--font-m)',fontSize:'0.55rem',color:monthOver?'var(--red)':'var(--text3)'}}>{monthOver?`£${(monthTotal-store.monthBudget).toFixed(2)} over`:`£${(store.monthBudget-monthTotal).toFixed(2)} left`}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Weekly rollover breakdown */}
+              <div style={{background:'var(--s1)',border:'1px solid var(--border)',padding:'1rem',marginBottom:'0.6rem'}}>
+                <div style={{fontFamily:'var(--font-d)',fontSize:'1rem',letterSpacing:'0.06em',color:'var(--text2)',marginBottom:'0.75rem'}}>WEEKLY BREAKDOWN</div>
+                <div style={{fontFamily:'var(--font-m)',fontSize:'0.55rem',color:'var(--text3)',marginBottom:'0.75rem',letterSpacing:'0.04em'}}>
+                  BASE £{(store.monthBudget / viewMonthWeeks.length).toFixed(2)}/WEEK · UNSPENT ROLLS TO NEXT WEEK
+                </div>
+                {viewMonthWeeks.map((w, i) => {
+                  const pct = Math.min(100, (w.spent / w.adjustedBudget) * 100);
+                  const over = w.spent > w.adjustedBudget;
+                  const isNow = w.isCurrent;
+                  const isFuture = !w.isPast && !w.isCurrent;
+                  return (
+                    <div key={i} style={{marginBottom:'0.7rem',opacity:isFuture?0.6:1}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.25rem'}}>
+                        <span style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:isNow?'var(--orange)':'var(--text2)',letterSpacing:'0.06em',display:'flex',alignItems:'center',gap:'0.4rem'}}>
+                          WEEK {w.weekNum}{isNow&&<span style={{color:'var(--orange)',fontSize:'0.5rem',border:'1px solid var(--orange)',padding:'0 0.3rem',borderRadius:'2px'}}>NOW</span>}
+                          <span style={{color:'var(--text3)',fontSize:'0.52rem'}}>{w.start.slice(5)} – {w.end.slice(5)}</span>
+                        </span>
+                        <span style={{fontFamily:'var(--font-m)',fontSize:'0.6rem',color:over?'var(--red)':'var(--text2)'}}>
+                          {isFuture ? fmt(w.adjustedBudget) : `${fmt(w.spent)} / ${fmt(w.adjustedBudget)}`}
+                        </span>
+                      </div>
+                      <div style={{height:'5px',background:'var(--dim)',position:'relative'}}>
+                        {!isFuture && <div style={{height:'100%',width:pct+'%',background:over?'var(--red)':pct>80?'var(--orange)':'var(--green)',transition:'width 0.4s'}}/>}
+                        {isFuture && <div style={{height:'100%',width:'100%',background:'var(--s3)',borderLeft:'2px solid var(--border2)'}}/>}
+                      </div>
+                      <div style={{display:'flex',justifyContent:'space-between',marginTop:'0.2rem'}}>
+                        {!isFuture && (
+                          <span style={{fontFamily:'var(--font-m)',fontSize:'0.5rem',color:over?'var(--red)':'var(--green)'}}>
+                            {over ? `£${(w.spent-w.adjustedBudget).toFixed(2)} over` : `£${(w.adjustedBudget-w.spent).toFixed(2)} ${w.isPast?'rolled over':'remaining'}`}
+                          </span>
+                        )}
+                        {isFuture && (
+                          <span style={{fontFamily:'var(--font-m)',fontSize:'0.5rem',color:'var(--text3)'}}>projected budget</span>
+                        )}
+                        {w.rolloverIn !== 0 && !isFuture && (
+                          <span style={{fontFamily:'var(--font-m)',fontSize:'0.5rem',color:w.rolloverIn>0?'var(--green)':'var(--red)',marginLeft:'auto'}}>
+                            {w.rolloverIn>0?`+${fmt(w.rolloverIn)} carried in`:`${fmt(w.rolloverIn)} deficit carried in`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Calendar */}
@@ -1393,11 +1520,19 @@ function App() {
             </div>
             {budgetTab==='overall' ? (
               <>
-                <div className="modal-sub">LEAVE BLANK TO KEEP CURRENT</div>
-                <div className="modal-lbl">WEEKLY BUDGET (£) — CURRENT: {fmt(store.weekBudget)}</div>
-                <input className="modal-input" type="number" inputMode="decimal" value={bwInput} onChange={e=>setBwInput(e.target.value)} placeholder={store.weekBudget}/>
+                <div className="modal-sub">MONTHLY BUDGET · WEEKLY AMOUNTS AUTO-CALCULATED</div>
                 <div className="modal-lbl">MONTHLY BUDGET (£) — CURRENT: {fmt(store.monthBudget)}</div>
                 <input className="modal-input" type="number" inputMode="decimal" value={bmInput} onChange={e=>setBmInput(e.target.value)} placeholder={store.monthBudget}/>
+                {(() => {
+                  const wks = getMonthWeeks(today().slice(0,7));
+                  const base = (parseFloat(bmInput)||store.monthBudget) / wks.length;
+                  return (
+                    <div style={{fontFamily:'var(--font-m)',fontSize:'0.58rem',color:'var(--text3)',marginTop:'0.6rem',letterSpacing:'0.04em',lineHeight:1.6,background:'var(--s2)',padding:'0.65rem 0.75rem',border:'1px solid var(--border)'}}>
+                      THIS MONTH: {wks.length} WEEKS → £{base.toFixed(2)}/WK BASE<br/>
+                      <span style={{color:'var(--text3)',opacity:0.75}}>Unspent budget rolls to the next week. Overspend reduces next week. Monthly total stays fixed.</span>
+                    </div>
+                  );
+                })()}
               </>
             ) : (
               <>
