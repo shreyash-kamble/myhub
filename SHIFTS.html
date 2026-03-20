@@ -32,9 +32,10 @@ input::-webkit-inner-spin-button{-webkit-appearance:none;}
 <script type="text/babel">
 const {useState,useCallback,useMemo,useRef,useEffect}=React;
 
-const LOCS=['TR','Byker','NUFC','Boiler Shop','O2 City Hall','Arena','Other'];
-const LCOL={'TR':'#00e5ff','Byker':'#c084fc','NUFC':'#94a3b8','Boiler Shop':'#ff8c00','O2 City Hall':'#3dffa0','Arena':'#ffd600','Other':'#f472b6'};
-const LICO={'TR':'🎪','Byker':'🍔','NUFC':'⚽','Boiler Shop':'🔧','O2 City Hall':'🎵','Arena':'🏟️','Other':'📍'};
+const LOCS=['Arena','Boiler Shop','O2 City Hall','TR','NUFC','Byker','Other'];
+const EXTRA_LOCS=['BBC Radio','Silverstone','Lost Village','Playhouse','Durham'];
+const LCOL={'TR':'#00e5ff','Byker':'#c084fc','NUFC':'#94a3b8','Boiler Shop':'#ff8c00','O2 City Hall':'#3dffa0','Arena':'#ffd600','Other':'#f472b6','BBC Radio':'#ff4444','Silverstone':'#a3e635','Lost Village':'#fb923c','Playhouse':'#e879f9','Durham':'#60a5fa'};
+const LICO={'TR':'🎪','Byker':'🍔','NUFC':'⚽','Boiler Shop':'🔧','O2 City Hall':'🎵','Arena':'🏟️','Other':'📍','BBC Radio':'📻','Silverstone':'🏎️','Lost Village':'🌲','Playhouse':'🎭','Durham':'🏰'};
 
 const uid=()=>crypto.randomUUID();
 
@@ -405,14 +406,16 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
   const[date,setDate]=useState(shift.date);
   const[s0,setS0]=useState(shift.start||'');
   const[e0,setE0]=useState(shift.end||'');
-  // If existing shift has a loc not in LOCS, treat as custom Other
-  const knownLoc=LOCS.includes(shift.loc||'TR');
+  // If existing shift has a loc not in LOCS or EXTRA_LOCS, treat as custom Other
+  const knownLoc=LOCS.includes(shift.loc||'TR')||EXTRA_LOCS.includes(shift.loc||'');
+  const isExtraLoc=EXTRA_LOCS.includes(shift.loc||'');
   const[loc,setLoc]=useState(knownLoc?shift.loc||'TR':'Other');
   const[otherName,setOtherName]=useState(knownLoc?'':(shift.loc||''));
   const[note,setNote]=useState(shift.note||'');
   const[payRateIn,setPayRateIn]=useState(
     shift.payRate>0?String(shift.payRate):lastPayRate>0?String(lastPayRate):''
   );
+  const[showMoreLocs,setShowMoreLocs]=useState(isExtraLoc);
   const effectiveRate=parseFloat(payRateIn)>0?parseFloat(payRateIn):rate;
   const finalLoc=loc==='Other'?(otherName.trim()||'Other'):loc;
   const pH=calcHNet(s0,e0,finalLoc,effectiveRate),pP=pH*effectiveRate;
@@ -472,7 +475,28 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
                 <span>{LICO[l]}</span>{l}
               </div>);
             })}
+            {/* MORE VENUES — sits next to Other in the grid */}
+            <div onClick={()=>setShowMoreLocs(v=>!v)}
+              className="mdl-lbtn"
+              style={{borderStyle:'dashed',borderColor:EXTRA_LOCS.includes(loc)?'var(--purple)':'var(--border2)',color:EXTRA_LOCS.includes(loc)?'var(--purple)':'var(--muted)',justifyContent:'space-between'}}>
+              <span style={{fontSize:'.72rem',overflow:'hidden',textOverflow:'ellipsis',flex:1,fontFamily:'var(--font-b)',fontWeight:700,letterSpacing:'.03em'}}>
+                {EXTRA_LOCS.includes(loc)?`${LICO[loc]} ${loc}`:'+ More'}
+              </span>
+              <span style={{fontSize:'.62rem',display:'inline-block',transform:showMoreLocs?'rotate(180deg)':'rotate(0deg)',transition:'transform .2s',flexShrink:0}}>&#9662;</span>
+            </div>
           </div>
+          {showMoreLocs&&<div className="mdl-lgrid" style={{marginTop:'.4rem',animation:'fadeIn .15s ease'}}>
+            {EXTRA_LOCS.map(l=>{
+              const isSel=loc===l;
+              const col=LCOL[l];
+              return(
+              <div key={l} className={`mdl-lbtn ${isSel?'sel':''}`}
+                style={isSel?{borderColor:col,color:col}:{borderColor:'var(--border2)',color:'var(--muted)'}}
+                onClick={()=>{setLoc(l);setOtherName('');setPayRateIn('13');}}>
+                <span>{LICO[l]}</span>{l}
+              </div>);
+            })}
+          </div>}
           {loc==='Other'&&<input
             className="mdl-i-sm"
             style={{marginTop:'.5rem',width:'100%'}}
@@ -549,12 +573,13 @@ function App(){
   const[rIn,setRIn]=useState('');
   const[tgtIn,setTgtIn]=useState('');
   const[sel,setSel]=useState(null);
-  const[showTax,setShowTax]=useState(true);
+  const[showTax,setShowTax]=useState(false);
   const[editShift,setEditShift]=useState(null);
   const[copyMsg,setCopyMsg]=useState('');
   const[saveFlash,setSaveFlash]=useState(false);
   const[selLoc,setSelLoc]=useState(null);
   const[selTY,setSelTY]=useState(null);
+  const[showMoreLocs,setShowMoreLocs]=useState(false);
 
   const rate=store.hourlyRate,shifts=store.shifts,weeklyTarget=store.weeklyTarget||0;
 
@@ -753,7 +778,28 @@ function App(){
                 <span>{LICO[l]}</span>{l}
               </div>);
             })}
+            {/* MORE VENUES — sits next to Other in the grid */}
+            <div onClick={()=>setShowMoreLocs(v=>!v)}
+              className="lbtn"
+              style={{borderStyle:'dashed',borderColor:EXTRA_LOCS.includes(loc)?'var(--purple)':'var(--border2)',color:EXTRA_LOCS.includes(loc)?'var(--purple)':'var(--muted)',justifyContent:'space-between'}}>
+              <span style={{fontSize:'.75rem',overflow:'hidden',textOverflow:'ellipsis',flex:1,fontFamily:'var(--font-b)',fontWeight:700,letterSpacing:'.03em'}}>
+                {EXTRA_LOCS.includes(loc)?`${LICO[loc]} ${loc}`:'+ More'}
+              </span>
+              <span style={{fontSize:'.65rem',display:'inline-block',transform:showMoreLocs?'rotate(180deg)':'rotate(0deg)',transition:'transform .2s',flexShrink:0}}>&#9662;</span>
+            </div>
           </div>
+          {showMoreLocs&&<div className="lgrid" style={{marginTop:'.4rem',animation:'fadeIn .15s ease'}}>
+            {EXTRA_LOCS.map(l=>{
+              const isSel=loc===l;
+              const col=LCOL[l];
+              return(
+              <div key={l} className={`lbtn ${isSel?'sel':''}`}
+                style={isSel?{borderColor:col,color:col}:{borderColor:'var(--border2)',color:'var(--muted)'}}
+                onClick={()=>{setLoc(l);setOtherName('');setPayRateIn('13');}}>
+                <span>{LICO[l]}</span>{l}
+              </div>);
+            })}
+          </div>}
           {loc==='Other'&&<input
             className="finp"
             style={{marginTop:'.5rem'}}
@@ -811,18 +857,18 @@ function App(){
           const ds=wByDay[d]||[],dh=ds.reduce((a,s)=>a+s.hours,0),has=ds.length>0,isT=d===TODAY,isFut=d>TODAY,isPast=d<TODAY;
           // Hide past days with no shifts
           if(isPast&&!has)return null;
-          return<div key={d} className={`db${isT?' td':''}`} style={isPast?{opacity:.45}:{}}>
+          return<div key={d} className={`db${isT?' td':''}`}>
             <div className="dbh" style={{cursor:'pointer'}} onClick={()=>isPast?null:setEditShift({date:d,start:'',end:'',loc:'TR',note:''})}>
               <div style={{display:'flex',alignItems:'center',gap:'.4rem'}}>
-                <span className="dbh-d" style={{color:isT?'var(--accent)':isPast?'#555':'#38bdf8',letterSpacing:'.04em'}}>
+                <span className="dbh-d" style={{color:isT?'var(--accent)':isPast?'var(--text2)':'#38bdf8',letterSpacing:'.04em'}}>
                   {dayName(d)}
                 </span>
-                <span style={{fontFamily:'var(--font-m)',fontSize:'.72rem',color:isT?'var(--accent)':isPast?'#444':'#2090c0',marginLeft:'.1rem'}}>
+                <span style={{fontFamily:'var(--font-m)',fontSize:'.72rem',color:isT?'var(--accent)':isPast?'var(--muted)':'#2090c0',marginLeft:'.1rem'}}>
                   {d.slice(8)} {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+d.slice(5,7)-1]}
                 </span>
                 {isT&&<span className="tdtag">TODAY</span>}
               </div>
-              {has&&<div className="dbh-t" style={{fontSize:'1rem',color:isPast?'var(--muted)':'var(--accent)'}}>{fmtH(dh)}</div>}
+              {has&&<div className="dbh-t" style={{fontSize:'1rem',color:isPast?'var(--accent)':'var(--accent)'}}>{fmtH(dh)}</div>}
             </div>
             {!isPast&&<div className="db-body">
               {has
