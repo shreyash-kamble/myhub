@@ -1102,31 +1102,33 @@ function App() {
                 <>
                   <div className="stat-row">
                     <div className="stat-card">
+                      <div className="stat-val">{fmt(monthTotal)}</div>
+                      <div className="stat-lbl">THIS MONTH</div>
+                      <div className="stat-sub" style={{color:monthOver?'var(--red)':'var(--text3)'}}>
+                        {monthOver?`${fmt(monthTotal-store.monthBudget)} over`:`${fmt(store.monthBudget-monthTotal)} left`}
+                      </div>
+                    </div>
+                    <div className="stat-card">
                       <div className="stat-val">{fmt(weekTotal)}</div>
                       <div className="stat-lbl">THIS WEEK</div>
                       <div className="stat-sub" style={{color:weekOver?'var(--red)':'var(--text3)'}}>
                         {weekOver?`${fmt(weekTotal-effectiveWeekBudget)} over`:`${fmt(effectiveWeekBudget-weekTotal)} left`}
                       </div>
                     </div>
-                    <div className="stat-card">
-                      <div className="stat-val">{fmt(todayTotal)}</div>
-                      <div className="stat-lbl">TODAY</div>
-                      <div className="stat-sub" style={{color:'var(--text3)'}}>{todayExps.length} items</div>
-                    </div>
                   </div>
                   <div className="stat-row">
                     <div className="stat-card">
-                      <div className="stat-val" style={{fontSize:'1.4rem'}}>{weekTotal>0?fmt(weekTotal/7):'£0'}</div>
+                      <div className="stat-val" style={{fontSize:'1.4rem'}}>{avgDailyMonth>0?fmt(avgDailyMonth):'£0'}</div>
                       <div className="stat-lbl">DAILY AVG</div>
-                      <div className="stat-sub" style={{color:'var(--text3)'}}>this week</div>
+                      <div className="stat-sub" style={{color:'var(--text3)'}}>this month</div>
                     </div>
                     <div className="stat-card">
                       <div className="stat-val" style={{fontSize:'1.4rem'}}>
-                        {(()=>{ const top=Object.entries(weekCatTotals).sort((a,b)=>b[1]-a[1])[0]; return top?CAT[top[0]]?.icon:'—'; })()}
+                        {(()=>{ const top=Object.entries(monthCatTotals).sort((a,b)=>b[1]-a[1])[0]; return top?CAT[top[0]]?.icon:'—'; })()}
                       </div>
                       <div className="stat-lbl">TOP CAT</div>
                       <div className="stat-sub" style={{color:'var(--text3)'}}>
-                        {(()=>{ const top=Object.entries(weekCatTotals).sort((a,b)=>b[1]-a[1])[0]; return top?CAT[top[0]]?.label:''; })()}
+                        {(()=>{ const top=Object.entries(monthCatTotals).sort((a,b)=>b[1]-a[1])[0]; return top?CAT[top[0]]?.label:''; })()}
                       </div>
                     </div>
                   </div>
