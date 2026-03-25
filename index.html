@@ -349,9 +349,11 @@ function loadStats() {
   try {
     const e = JSON.parse(localStorage.getItem('spent_v2') || 'null');
     if (e && e.expenses) {
-      const wt = e.expenses.filter(x => wDates.includes(x.date)).reduce((a, x) => a + x.amount, 0);
-      const budget = e.weekBudget || 200, left = budget - wt;
-      if (wt > 0) setLive('spent-live', left >= 0 ? `£${left.toFixed(0)} left of £${budget} budget` : `£${Math.abs(left).toFixed(0)} over budget!`, left < 0 ? '#ff3d00' : '#39d98a', true);
+      const thisMonth = new Date().toISOString().slice(0, 7);
+      const mt = e.expenses.filter(x => x.date.startsWith(thisMonth)).reduce((a, x) => a + x.amount, 0);
+      const budget = e.monthBudget || 200;
+      const over = mt > budget;
+      if (mt > 0) setLive('spent-live', over ? `£${mt.toFixed(0)} spent · £${(mt - budget).toFixed(0)} over!` : `£${mt.toFixed(0)} spent of £${budget}`, over ? '#ff3d00' : '#39d98a', true);
       else setLive('spent-live', '', '', false);
     }
   } catch(e) {}

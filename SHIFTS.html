@@ -566,7 +566,7 @@ function App(){
   const[otherName,setOtherName]=useState('');
   const[note,setNote]=useState('');
   const[ok,setOk]=useState(false);
-  const[payRateIn,setPayRateIn]=useState('');
+  const[payRateIn,setPayRateIn]=useState('12.5');
   const[wOff,setWOff]=useState(0);
   const[vm,setVm]=useState(()=>new Date().toISOString().slice(0,7));
   const[showR,setShowR]=useState(false);
@@ -663,9 +663,6 @@ function App(){
     allM.forEach(m=>lines.push(`  ${mkName(m.k)}: ${fmtH(m.hours)} · ${fmtP(m.pay)} (${m.shifts} shifts)`));
     navigator.clipboard.writeText(lines.join('\n')).then(()=>{setCopyMsg('COPIED!');setTimeout(()=>setCopyMsg(''),1500);});
   }
-
-  // Initialize payRateIn to default 12.5 on first render
-  useEffect(()=>{if(payRateIn==='')setPayRateIn('12.5');},[]);
 
   const wStart=useMemo(()=>{
     const d=new Date(TODAY),day=d.getDay(),m=new Date(d);
@@ -1125,7 +1122,7 @@ function App(){
                   </div>
                 </button>
                 {showPP&&<>
-                  <div style={{display:'flex',gap:'.4rem',margin:'.65rem 0'}}>
+                  <div style={{display:'flex',gap:'.4rem',margin:'.65rem 0 .4rem'}}>
                     <div style={{flex:1}}>
                       <div style={{fontFamily:'var(--font-m)',fontSize:'.5rem',color:'var(--muted)',letterSpacing:'.08em',marginBottom:'.25rem'}}>FROM</div>
                       <input type="date" value={ppStart} onChange={e=>savePP('start',e.target.value)}
@@ -1162,12 +1159,11 @@ function App(){
                       <div style={{fontFamily:'var(--font-m)',fontSize:'.48rem',color:'var(--muted)',letterSpacing:'.06em',marginTop:'1px'}}>SHIFTS</div>
                     </div>
                   </div>
-                  <div style={{borderTop:'1px solid var(--border)',paddingTop:'.4rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <div style={{borderTop:'1px solid var(--border)',paddingTop:'.4rem'}}>
                     <div style={{fontFamily:'var(--font-m)',fontSize:'.52rem',color:'var(--muted)',letterSpacing:'.04em'}}>{fmtD(ppStart)} → {fmtD(ppEnd)}{daysLeft>0?<span style={{color:'var(--gold)',marginLeft:'.4em'}}>· {daysLeft}d left</span>:null}</div>
-                    <button onClick={()=>{setPpStart(defaultPP.start);setPpEnd(defaultPP.end);setPpPayday(defaultPP.payday);}}
-                      style={{fontFamily:'var(--font-m)',fontSize:'.5rem',color:'var(--muted)',background:'none',border:'1px solid var(--border2)',padding:'.18rem .45rem',borderRadius:'4px',cursor:'pointer',letterSpacing:'.04em'}}>
-                      ↺ reset
-                    </button>
+                    <div style={{marginTop:'.35rem',fontFamily:'var(--font-m)',fontSize:'.52rem',letterSpacing:'.04em',color:paidIn!==null?'var(--gold)':'var(--green)'}}>
+                      {paidIn!==null?`💰 payday ${fmtD(ppPayday)} · in ${paidIn}d`:`✓ paid ${fmtD(ppPayday)}`}
+                    </div>
                   </div>
                 </>}
               </div>);
