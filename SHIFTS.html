@@ -92,7 +92,7 @@ function localDateStr(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padSta
 const TODAY=localDateStr(new Date());
 
 const STORE_KEY='shifts_v4';
-function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.lastPayRate)d.lastPayRate=0;if(!d.actualPay)d.actualPay={};return d;}}catch(e){}return{shifts:[],hourlyRate:12.5,weeklyTarget:0,lastPayRate:0,actualPay:{}};}
+function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.lastPayRate)d.lastPayRate=0;if(!d.actualPay)d.actualPay={};if(!d.payPeriod)d.payPeriod=null;return d;}}catch(e){}return{shifts:[],hourlyRate:12.5,weeklyTarget:0,lastPayRate:0,actualPay:{},payPeriod:null};}
 function saveStore(s){try{localStorage.setItem(STORE_KEY,JSON.stringify(s));}catch(e){}}
 
 function calDays(mk){
@@ -594,9 +594,17 @@ function App(){
     const pd=new Date(eY,eM+1,22);
     return{start:`${sY}-${pad(sM+1)}-12`,end:`${eY}-${pad(eM+1)}-13`,payday:`${pd.getFullYear()}-${pad(pd.getMonth()+1)}-22`};
   },[]);
-  const[ppStart,setPpStart]=useState(defaultPP.start);
-  const[ppEnd,setPpEnd]=useState(defaultPP.end);
-  const[ppPayday,setPpPayday]=useState(defaultPP.payday);
+  const[ppStart,setPpStart]=useState(()=>store.payPeriod?.start||defaultPP.start);
+  const[ppEnd,setPpEnd]=useState(()=>store.payPeriod?.end||defaultPP.end);
+  const[ppPayday,setPpPayday]=useState(()=>store.payPeriod?.payday||defaultPP.payday);
+
+  function savePP(field,val){
+    const next={start:ppStart,end:ppEnd,payday:ppPayday,[field]:val};
+    up(st=>{st.payPeriod=next;});
+    if(field==='start')setPpStart(val);
+    if(field==='end')setPpEnd(val);
+    if(field==='payday')setPpPayday(val);
+  }
 
   const rate=store.hourlyRate,shifts=store.shifts,weeklyTarget=store.weeklyTarget||0;
 
@@ -612,7 +620,7 @@ function App(){
       if(pr>0)st.lastPayRate=pr;
       st.shifts=[...st.shifts,{id:uid(),date,start:s0,end:e0,loc:finalLoc,hours:h,note,payRate:shiftRate}].sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
     });
-    setS0('');setE0('');setNote('');setOtherName('');setLoc('');setOk(true);setTimeout(()=>setOk(false),700);
+    setS0('');setE0('');setNote('');setOtherName('');setLoc('');setPayRateIn('12.5');setOk(true);setTimeout(()=>setOk(false),700);
   }
   const delShift=id=>up(st=>{st.shifts=st.shifts.filter(x=>x.id!==id);setEditShift(null);});
   const dupShift=s=>up(st=>{st.shifts=[...st.shifts,s].sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));setEditShift(null);setSaveFlash(true);setTimeout(()=>setSaveFlash(false),400);});
@@ -656,8 +664,8 @@ function App(){
     navigator.clipboard.writeText(lines.join('\n')).then(()=>{setCopyMsg('COPIED!');setTimeout(()=>setCopyMsg(''),1500);});
   }
 
-  // Initialize payRateIn from last saved rate on first render
-  useEffect(()=>{if(payRateIn==='')setPayRateIn(store.lastPayRate>0?String(store.lastPayRate):'12.5');},[]);
+  // Initialize payRateIn to default 12.5 on first render
+  useEffect(()=>{if(payRateIn==='')setPayRateIn('12.5');},[]);
 
   const wStart=useMemo(()=>{
     const d=new Date(TODAY),day=d.getDay(),m=new Date(d);
@@ -911,9 +919,9 @@ function App(){
             </div>
             <div style={{textAlign:'right'}}>
               <div style={{fontFamily:'var(--font-m)',fontSize:'.65rem',color:'var(--purple)',letterSpacing:'.08em'}}>SHIFTS</div>
-              <div style={{fontFamily:'var(--font-d)',fontSize:'1.7rem',color:'var(--purple)'}}>{mShifts.length}</div>
+              <div style={{fontFamily:'var(--font-d)',fontSize:'1.7rem',color:'var(--purple)',lineHeight:1}}>{mShifts.length}</div>
               <div style={{fontFamily:'var(--font-m)',fontSize:'.65rem',color:'var(--accent)',letterSpacing:'.08em',marginTop:'.5rem'}}>AVG/SHIFT</div>
-              <div style={{fontFamily:'var(--font-d)',fontSize:'1.4rem',color:'var(--accent)'}}>{mShifts.length>0?fmtH(mHours/mShifts.length):'—'}</div>
+              <div style={{fontFamily:'var(--font-d)',fontSize:'1.7rem',color:'var(--accent)',lineHeight:1}}>{mShifts.length>0?fmtH(mHours/mShifts.length):'—'}</div>
             </div>
           </div>
         </div>
@@ -1120,21 +1128,21 @@ function App(){
                   <div style={{display:'flex',gap:'.4rem',margin:'.65rem 0'}}>
                     <div style={{flex:1}}>
                       <div style={{fontFamily:'var(--font-m)',fontSize:'.5rem',color:'var(--muted)',letterSpacing:'.08em',marginBottom:'.25rem'}}>FROM</div>
-                      <input type="date" value={ppStart} onChange={e=>setPpStart(e.target.value)}
+                      <input type="date" value={ppStart} onChange={e=>savePP('start',e.target.value)}
                         style={{width:'100%',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-m)',fontSize:'.75rem',padding:'.35rem .5rem',borderRadius:'4px',outline:'none'}}
                         onFocus={e=>e.target.style.borderColor='var(--gold)'}
                         onBlur={e=>e.target.style.borderColor='var(--border2)'}/>
                     </div>
                     <div style={{flex:1}}>
                       <div style={{fontFamily:'var(--font-m)',fontSize:'.5rem',color:'var(--muted)',letterSpacing:'.08em',marginBottom:'.25rem'}}>TO</div>
-                      <input type="date" value={ppEnd} onChange={e=>setPpEnd(e.target.value)}
+                      <input type="date" value={ppEnd} onChange={e=>savePP('end',e.target.value)}
                         style={{width:'100%',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-m)',fontSize:'.75rem',padding:'.35rem .5rem',borderRadius:'4px',outline:'none'}}
                         onFocus={e=>e.target.style.borderColor='var(--gold)'}
                         onBlur={e=>e.target.style.borderColor='var(--border2)'}/>
                     </div>
                     <div style={{flex:1}}>
                       <div style={{fontFamily:'var(--font-m)',fontSize:'.5rem',color:'var(--muted)',letterSpacing:'.08em',marginBottom:'.25rem'}}>PAYDAY</div>
-                      <input type="date" value={ppPayday} onChange={e=>setPpPayday(e.target.value)}
+                      <input type="date" value={ppPayday} onChange={e=>savePP('payday',e.target.value)}
                         style={{width:'100%',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-m)',fontSize:'.75rem',padding:'.35rem .5rem',borderRadius:'4px',outline:'none'}}
                         onFocus={e=>e.target.style.borderColor='var(--gold)'}
                         onBlur={e=>e.target.style.borderColor='var(--border2)'}/>
@@ -1289,7 +1297,10 @@ function App(){
             {activeTYData.months.length>0&&<div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--sky)',padding:'1rem',marginBottom:'.65rem',borderRadius:'7px'}}>
               <button onClick={()=>setShowActualPay(v=>!v)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',padding:0,marginBottom:showActualPay?'.65rem':0}}>
                 <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--sky)'}}>ACTUAL MONEY RECEIVED</div>
-                <span style={{color:'var(--sky)',fontSize:'.8rem'}}>{showActualPay?'▴':'▾'}</span>
+                <div style={{display:'flex',alignItems:'center',gap:'.65rem'}}>
+                  {(()=>{const totalActualHdr=activeTYData.months.reduce((sum,m)=>{const v=store.actualPay&&store.actualPay[m.k]!=null?parseFloat(store.actualPay[m.k]):null;return v!=null&&!isNaN(v)?sum+v:sum;},0);const filledHdr=activeTYData.months.filter(m=>store.actualPay&&store.actualPay[m.k]!=null&&!isNaN(parseFloat(store.actualPay[m.k]))).length;return filledHdr>0?(<div style={{textAlign:'right'}}><div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:'var(--sky)'}}>{fmtP(totalActualHdr)}</div><div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--muted)'}}>{filledHdr} month{filledHdr!==1?'s':''} logged</div></div>):null;})()}
+                  <span style={{color:'var(--sky)',fontSize:'.8rem'}}>{showActualPay?'▴':'▾'}</span>
+                </div>
               </button>
               {showActualPay&&<>{[...activeTYData.months].sort((a,b)=>{
                 const taxOrd=k=>{const[y,mo]=k.split('-').map(Number);return mo>=4?y*100+mo:(y-1)*100+mo+12;};
