@@ -92,7 +92,7 @@ function localDateStr(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padSta
 const TODAY=localDateStr(new Date());
 
 const STORE_KEY='shifts_v4';
-function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.lastPayRate)d.lastPayRate=0;if(!d.actualPay)d.actualPay={};return d;}}catch(e){}return{shifts:[],hourlyRate:13,weeklyTarget:0,lastPayRate:0,actualPay:{}};}
+function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.lastPayRate)d.lastPayRate=0;if(!d.actualPay)d.actualPay={};return d;}}catch(e){}return{shifts:[],hourlyRate:12.5,weeklyTarget:0,lastPayRate:0,actualPay:{}};}
 function saveStore(s){try{localStorage.setItem(STORE_KEY,JSON.stringify(s));}catch(e){}}
 
 function calDays(mk){
@@ -407,17 +407,17 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
   const[s0,setS0]=useState(shift.start||'');
   const[e0,setE0]=useState(shift.end||'');
   // If existing shift has a loc not in LOCS or EXTRA_LOCS, treat as custom Other
-  const knownLoc=LOCS.includes(shift.loc||'TR')||EXTRA_LOCS.includes(shift.loc||'');
+  const knownLoc=shift.loc&&(LOCS.includes(shift.loc)||EXTRA_LOCS.includes(shift.loc));
   const isExtraLoc=EXTRA_LOCS.includes(shift.loc||'');
-  const[loc,setLoc]=useState(knownLoc?shift.loc||'TR':'Other');
-  const[otherName,setOtherName]=useState(knownLoc?'':(shift.loc||''));
+  const[loc,setLoc]=useState(!shift.loc?'':(knownLoc?shift.loc:'Other'));
+  const[otherName,setOtherName]=useState(knownLoc||!shift.loc?'':(shift.loc||''));
   const[note,setNote]=useState(shift.note||'');
   const[payRateIn,setPayRateIn]=useState(
     shift.payRate>0?String(shift.payRate):lastPayRate>0?String(lastPayRate):''
   );
   const[showMoreLocs,setShowMoreLocs]=useState(isExtraLoc);
   const effectiveRate=parseFloat(payRateIn)>0?parseFloat(payRateIn):rate;
-  const finalLoc=loc==='Other'?(otherName.trim()||'Other'):loc;
+  const finalLoc=loc==='Other'?(otherName.trim()||'Other'):(loc||'');
   const pH=calcHNet(s0,e0,finalLoc,effectiveRate),pP=pH*effectiveRate;
   function doSave(){
     if(!s0||!e0||calcH(s0,e0)<=0)return;
@@ -562,7 +562,7 @@ function App(){
   const[date,setDate]=useState(localDateStr(new Date()));
   const[s0,setS0]=useState('');
   const[e0,setE0]=useState('');
-  const[loc,setLoc]=useState('TR');
+  const[loc,setLoc]=useState('');
   const[otherName,setOtherName]=useState('');
   const[note,setNote]=useState('');
   const[ok,setOk]=useState(false);
@@ -582,6 +582,21 @@ function App(){
   const[showMoreLocs,setShowMoreLocs]=useState(false);
   const[showWkBreak,setShowWkBreak]=useState(false);
   const[showMonBreak,setShowMonBreak]=useState(false);
+  const[showActualPay,setShowActualPay]=useState(false);
+  const[showPP,setShowPP]=useState(false);
+
+  // Pay period: default 12th of prev month → 13th of current month, paid 22nd of current month
+  const defaultPP=useMemo(()=>{
+    const d=new Date(TODAY),day=d.getDate(),pad=n=>String(n).padStart(2,'0');
+    let sY,sM,eY,eM;
+    if(day>=14){sY=d.getFullYear();sM=d.getMonth();const ed=new Date(sY,sM+1,13);eY=ed.getFullYear();eM=ed.getMonth();}
+    else{const sd=new Date(d.getFullYear(),d.getMonth()-1,12);sY=sd.getFullYear();sM=sd.getMonth();eY=d.getFullYear();eM=d.getMonth();}
+    const pd=new Date(eY,eM+1,22);
+    return{start:`${sY}-${pad(sM+1)}-12`,end:`${eY}-${pad(eM+1)}-13`,payday:`${pd.getFullYear()}-${pad(pd.getMonth()+1)}-22`};
+  },[]);
+  const[ppStart,setPpStart]=useState(defaultPP.start);
+  const[ppEnd,setPpEnd]=useState(defaultPP.end);
+  const[ppPayday,setPpPayday]=useState(defaultPP.payday);
 
   const rate=store.hourlyRate,shifts=store.shifts,weeklyTarget=store.weeklyTarget||0;
 
@@ -597,7 +612,7 @@ function App(){
       if(pr>0)st.lastPayRate=pr;
       st.shifts=[...st.shifts,{id:uid(),date,start:s0,end:e0,loc:finalLoc,hours:h,note,payRate:shiftRate}].sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
     });
-    setS0('');setE0('');setNote('');setOtherName('');setLoc('TR');setOk(true);setTimeout(()=>setOk(false),700);
+    setS0('');setE0('');setNote('');setOtherName('');setLoc('');setOk(true);setTimeout(()=>setOk(false),700);
   }
   const delShift=id=>up(st=>{st.shifts=st.shifts.filter(x=>x.id!==id);setEditShift(null);});
   const dupShift=s=>up(st=>{st.shifts=[...st.shifts,s].sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));setEditShift(null);setSaveFlash(true);setTimeout(()=>setSaveFlash(false),400);});
@@ -818,7 +833,7 @@ function App(){
         </div>
         {pH>0&&<div className="prev">
           <div><div className="pv-l">HOURS</div><div className="pv-h">{fmtH(pH)}</div></div>
-          <div style={{textAlign:'right'}}><div className="pv-l">EST. PAY</div><div className="pv-p">{fmtP(pP)}</div></div>
+          <div style={{textAlign:'right'}}><div className="pv-l">PAY</div><div className="pv-p">{fmtP(pP)}</div></div>
         </div>}
         <button className="add-btn ok" disabled={!s0||!e0||calcH(s0,e0)<=0} onClick={addShift}>{ok?'✓ SAVED':'SAVE'}</button>
       </div></div>}
@@ -860,7 +875,7 @@ function App(){
           // Hide past days with no shifts
           if(isPast&&!has)return null;
           return<div key={d} className={`db${isT?' td':''}`}>
-            <div className="dbh" style={{cursor:'pointer'}} onClick={()=>isPast?null:setEditShift({date:d,start:'',end:'',loc:'TR',note:''})}>
+            <div className="dbh" style={{cursor:'pointer'}} onClick={()=>isPast?null:setEditShift({date:d,start:'',end:'',loc:'',note:''})}>
               <div style={{display:'flex',alignItems:'center',gap:'.4rem'}}>
                 <span className="dbh-d" style={{color:isT?'var(--accent)':isPast?'var(--text2)':'#38bdf8',letterSpacing:'.04em'}}>
                   {dayName(d)}
@@ -927,11 +942,11 @@ function App(){
         </div>
 
         {sel&&<div className="cdet">
-          <div className="cdet-h" style={{cursor:'pointer'}} onClick={()=>setEditShift({date:sel,start:'',end:'',loc:'TR',note:''})}>
+          <div className="cdet-h" style={{cursor:'pointer'}} onClick={()=>setEditShift({date:sel,start:'',end:'',loc:'',note:''})}>
             <div className="cdet-d">{dayName(sel)} {+sel.slice(8)} {mkName(sel.slice(0,7))}{sel===TODAY&&<span className="tdtag" style={{marginLeft:'.5rem'}}>TODAY</span>}</div>
             {selH>0&&<div className="cdet-t">{fmtH(selH)}</div>}
           </div>
-          {selS.length===0?<div className="eday" style={{cursor:'pointer'}} onClick={()=>setEditShift({date:sel,start:'',end:'',loc:'TR',note:''})}>add shift</div>:selS.map(s=><div key={s.id} onClick={e=>{e.stopPropagation();setEditShift(s);}}><ShiftRow s={s} rate={rate} onDel={delShift} onEdit={setEditShift}/></div>)}
+          {selS.length===0?<div className="eday" style={{cursor:'pointer'}} onClick={()=>setEditShift({date:sel,start:'',end:'',loc:'',note:''})}>add shift</div>:selS.map(s=><div key={s.id} onClick={e=>{e.stopPropagation();setEditShift(s);}}><ShiftRow s={s} rate={rate} onDel={delShift} onEdit={setEditShift}/></div>)}
         </div>}
 
         {/* WEEK BREAKDOWN */}
@@ -1083,6 +1098,74 @@ function App(){
             </div>
 
             {/* TAX ESTIMATE — scoped to active year */}
+            {(()=>{
+              const ppShifts=shifts.filter(s=>s.date>=ppStart&&s.date<=ppEnd);
+              const ppHours=ppShifts.reduce((a,s)=>a+s.hours,0);
+              const ppPay=ppShifts.reduce((a,s)=>a+s.hours*(s.payRate&&s.payRate>0?s.payRate:rate),0);
+              const daysLeft=ppEnd>=TODAY?Math.ceil((new Date(ppEnd)-new Date(TODAY))/86400000):0;
+              const paidIn=ppPayday>=TODAY?Math.ceil((new Date(ppPayday)-new Date(TODAY))/86400000):null;
+              const fmtD=ds=>{if(!ds)return'';const[,m,d]=ds.split('-');return`${+d} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}`;};
+              return(
+              <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--gold)',padding:'1rem',marginBottom:'.65rem',borderRadius:'7px'}}>
+                <button onClick={()=>setShowPP(v=>!v)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',padding:0}}>
+                  <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--gold)'}}>PAY PERIOD</div>
+                  <div style={{display:'flex',alignItems:'center',gap:'.65rem'}}>
+                    {paidIn!==null
+                      ?<span style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.04em'}}>payday in {paidIn}d</span>
+                      :<span style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--green)',letterSpacing:'.04em'}}>✓ paid</span>}
+                    <span style={{color:'var(--gold)',fontSize:'.8rem'}}>{showPP?'▴':'▾'}</span>
+                  </div>
+                </button>
+                {showPP&&<>
+                  <div style={{display:'flex',gap:'.4rem',margin:'.65rem 0'}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontFamily:'var(--font-m)',fontSize:'.5rem',color:'var(--muted)',letterSpacing:'.08em',marginBottom:'.25rem'}}>FROM</div>
+                      <input type="date" value={ppStart} onChange={e=>setPpStart(e.target.value)}
+                        style={{width:'100%',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-m)',fontSize:'.75rem',padding:'.35rem .5rem',borderRadius:'4px',outline:'none'}}
+                        onFocus={e=>e.target.style.borderColor='var(--gold)'}
+                        onBlur={e=>e.target.style.borderColor='var(--border2)'}/>
+                    </div>
+                    <div style={{flex:1}}>
+                      <div style={{fontFamily:'var(--font-m)',fontSize:'.5rem',color:'var(--muted)',letterSpacing:'.08em',marginBottom:'.25rem'}}>TO</div>
+                      <input type="date" value={ppEnd} onChange={e=>setPpEnd(e.target.value)}
+                        style={{width:'100%',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-m)',fontSize:'.75rem',padding:'.35rem .5rem',borderRadius:'4px',outline:'none'}}
+                        onFocus={e=>e.target.style.borderColor='var(--gold)'}
+                        onBlur={e=>e.target.style.borderColor='var(--border2)'}/>
+                    </div>
+                    <div style={{flex:1}}>
+                      <div style={{fontFamily:'var(--font-m)',fontSize:'.5rem',color:'var(--muted)',letterSpacing:'.08em',marginBottom:'.25rem'}}>PAYDAY</div>
+                      <input type="date" value={ppPayday} onChange={e=>setPpPayday(e.target.value)}
+                        style={{width:'100%',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-m)',fontSize:'.75rem',padding:'.35rem .5rem',borderRadius:'4px',outline:'none'}}
+                        onFocus={e=>e.target.style.borderColor='var(--gold)'}
+                        onBlur={e=>e.target.style.borderColor='var(--border2)'}/>
+                    </div>
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'.4rem',marginBottom:'.5rem'}}>
+                    <div style={{background:'var(--s2)',border:'1px solid var(--border2)',borderRadius:'5px',padding:'.5rem .6rem',textAlign:'center'}}>
+                      <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--gold)'}}>{fmtH(ppHours)}</div>
+                      <div style={{fontFamily:'var(--font-m)',fontSize:'.48rem',color:'var(--muted)',letterSpacing:'.06em',marginTop:'1px'}}>HOURS</div>
+                    </div>
+                    <div style={{background:'var(--s2)',border:'1px solid var(--border2)',borderRadius:'5px',padding:'.5rem .6rem',textAlign:'center'}}>
+                      <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--green)'}}>{fmtP(ppPay)}</div>
+                      <div style={{fontFamily:'var(--font-m)',fontSize:'.48rem',color:'var(--muted)',letterSpacing:'.06em',marginTop:'1px'}}>GROSS PAY</div>
+                    </div>
+                    <div style={{background:'var(--s2)',border:'1px solid var(--border2)',borderRadius:'5px',padding:'.5rem .6rem',textAlign:'center'}}>
+                      <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--sky)'}}>{ppShifts.length}</div>
+                      <div style={{fontFamily:'var(--font-m)',fontSize:'.48rem',color:'var(--muted)',letterSpacing:'.06em',marginTop:'1px'}}>SHIFTS</div>
+                    </div>
+                  </div>
+                  <div style={{borderTop:'1px solid var(--border)',paddingTop:'.4rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <div style={{fontFamily:'var(--font-m)',fontSize:'.52rem',color:'var(--muted)',letterSpacing:'.04em'}}>{fmtD(ppStart)} → {fmtD(ppEnd)}{daysLeft>0?<span style={{color:'var(--gold)',marginLeft:'.4em'}}>· {daysLeft}d left</span>:null}</div>
+                    <button onClick={()=>{setPpStart(defaultPP.start);setPpEnd(defaultPP.end);setPpPayday(defaultPP.payday);}}
+                      style={{fontFamily:'var(--font-m)',fontSize:'.5rem',color:'var(--muted)',background:'none',border:'1px solid var(--border2)',padding:'.18rem .45rem',borderRadius:'4px',cursor:'pointer',letterSpacing:'.04em'}}>
+                      ↺ reset
+                    </button>
+                  </div>
+                </>}
+              </div>);
+            })()}
+
+            {/* TAX ESTIMATE — scoped to active year */}
             <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--orange)',padding:'1rem',marginBottom:'.65rem',borderRadius:'7px'}}>
               <button onClick={()=>setShowTax(v=>!v)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',padding:0}}>
                 <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--orange)'}}>TAX ESTIMATE</div>
@@ -1204,42 +1287,52 @@ function App(){
 
             {/* ACTUAL MONEY RECEIVED */}
             {activeTYData.months.length>0&&<div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--sky)',padding:'1rem',marginBottom:'.65rem',borderRadius:'7px'}}>
-              <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--sky)',marginBottom:'.65rem'}}>ACTUAL MONEY RECEIVED</div>
-              {[...activeTYData.months].sort((a,b)=>{
+              <button onClick={()=>setShowActualPay(v=>!v)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',padding:0,marginBottom:showActualPay?'.65rem':0}}>
+                <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--sky)'}}>ACTUAL MONEY RECEIVED</div>
+                <span style={{color:'var(--sky)',fontSize:'.8rem'}}>{showActualPay?'▴':'▾'}</span>
+              </button>
+              {showActualPay&&<>{[...activeTYData.months].sort((a,b)=>{
                 const taxOrd=k=>{const[y,mo]=k.split('-').map(Number);return mo>=4?y*100+mo:(y-1)*100+mo+12;};
-                return taxOrd(b.k)-taxOrd(a.k);
+                return taxOrd(a.k)-taxOrd(b.k);
               }).map(m=>{
                 const actual=store.actualPay&&store.actualPay[m.k]!=null?store.actualPay[m.k]:'';
                 const diff=actual!==''?parseFloat(actual)-m.pay:null;
+                const isPastMonth=m.k<TODAY.slice(0,7);
+                const isLocked=isPastMonth&&actual!=='';
                 return(
                   <div key={m.k} style={{marginBottom:'.5rem',padding:'.6rem .75rem',background:'var(--s2)',border:'1px solid var(--border)',borderRadius:'6px'}}>
                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'.75rem'}}>
                       <div style={{flex:'0 0 auto'}}>
                         <div style={{fontFamily:'var(--font-b)',fontWeight:700,fontSize:'.95rem',color:'var(--text)'}}>{mkName(m.k)}</div>
-                        <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',marginTop:'1px'}}>EST. {fmtP(m.pay)}</div>
+                        {isPastMonth&&<div style={{fontFamily:'var(--font-m)',fontSize:'.48rem',color:isLocked?'var(--green)':'var(--muted)',marginTop:'1px',letterSpacing:'.04em'}}>{isLocked?'🔒 LOCKED':'MONTH OVER'}</div>}
                       </div>
                       <div style={{flex:1,display:'flex',alignItems:'center',gap:'.4rem',justifyContent:'flex-end'}}>
-                        <span style={{fontFamily:'var(--font-m)',fontSize:'.75rem',color:'var(--muted)'}}>£</span>
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          value={actual}
-                          onChange={e=>{
-                            const val=e.target.value;
-                            up(st=>{if(!st.actualPay)st.actualPay={};st.actualPay={...st.actualPay,[m.k]:val===''?null:parseFloat(val)||val};});
-                          }}
-                          style={{width:'100px',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-d)',fontSize:'1.1rem',padding:'.35rem .5rem',borderRadius:'4px',textAlign:'right',outline:'none'}}
-                          onFocus={e=>e.target.style.borderColor='var(--sky)'}
-                          onBlur={e=>e.target.style.borderColor='var(--border2)'}
-                        />
+                        {isLocked
+                          ? <span style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--sky)'}}>{fmtP(parseFloat(actual))}</span>
+                          : <>
+                            <span style={{fontFamily:'var(--font-m)',fontSize:'.75rem',color:'var(--muted)'}}>£</span>
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00"
+                              value={actual}
+                              onChange={e=>{
+                                const val=e.target.value;
+                                up(st=>{if(!st.actualPay)st.actualPay={};st.actualPay={...st.actualPay,[m.k]:val===''?null:parseFloat(val)||val};});
+                              }}
+                              style={{width:'100px',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-d)',fontSize:'1.1rem',padding:'.35rem .5rem',borderRadius:'4px',textAlign:'right',outline:'none'}}
+                              onFocus={e=>e.target.style.borderColor='var(--sky)'}
+                              onBlur={e=>e.target.style.borderColor='var(--border2)'}
+                            />
+                          </>
+                        }
                       </div>
                     </div>
                     {diff!==null&&!isNaN(diff)&&(
                       <div style={{marginTop:'.35rem',fontFamily:'var(--font-m)',fontSize:'.6rem',letterSpacing:'.04em',color:diff>=0?'var(--green)':'var(--red)'}}>
-                        {diff>=0?`+${fmtP(diff)} more than estimated`:`${fmtP(Math.abs(diff))} less than estimated`}
+                        {diff>=0?`+${fmtP(diff)} more than calc`:`${fmtP(Math.abs(diff))} less than calc`}
                       </div>
                     )}
                   </div>
@@ -1258,7 +1351,7 @@ function App(){
                     <span style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--sky)'}}>{fmtP(totalActual)}</span>
                   </div>
                 );
-              })()}
+              })()}</>}
             </div>}
             {taxYears.length===0&&<div style={{fontFamily:'var(--font-m)',fontSize:'.68rem',color:'var(--muted)'}}>NO DATA YET</div>}
 
