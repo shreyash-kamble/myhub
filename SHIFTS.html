@@ -92,7 +92,7 @@ function localDateStr(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padSta
 const TODAY=localDateStr(new Date());
 
 const STORE_KEY='shifts_v4';
-function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.lastPayRate)d.lastPayRate=0;return d;}}catch(e){}return{shifts:[],hourlyRate:13,weeklyTarget:0,lastPayRate:0};}
+function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.lastPayRate)d.lastPayRate=0;if(!d.actualPay)d.actualPay={};return d;}}catch(e){}return{shifts:[],hourlyRate:13,weeklyTarget:0,lastPayRate:0,actualPay:{}};}
 function saveStore(s){try{localStorage.setItem(STORE_KEY,JSON.stringify(s));}catch(e){}}
 
 function calDays(mk){
@@ -469,8 +469,8 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
               <div key={l} className={`mdl-lbtn ${isSel?'sel':''}`}
                 style={isSel?{borderColor:col,color:col}:{}}
                 onClick={()=>{
-                  if(l==='Other'){setLoc('Other');setOtherName('');setPayRateIn('13');}
-                  else{setLoc(l);setOtherName('');setPayRateIn(l==='Byker'?'12':'13');if(l==='Boiler Shop'){setS0('18:15');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}}
+                  if(l==='Other'){setLoc('Other');setOtherName('');setPayRateIn('12.5');}
+                  else{setLoc(l);setOtherName('');setPayRateIn(l==='Byker'?'12':'12.5');if(l==='Boiler Shop'){setS0('18:15');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}}
                 }}>
                 <span>{LICO[l]}</span>{l}
               </div>);
@@ -492,7 +492,7 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
               return(
               <div key={l} className={`mdl-lbtn ${isSel?'sel':''}`}
                 style={isSel?{borderColor:col,color:col}:{borderColor:'var(--border2)',color:'var(--muted)'}}
-                onClick={()=>{setLoc(l);setOtherName('');setPayRateIn('13');}}>
+                onClick={()=>{setLoc(l);setOtherName('');setPayRateIn('12.5');}}>
                 <span>{LICO[l]}</span>{l}
               </div>);
             })}
@@ -580,6 +580,8 @@ function App(){
   const[selLoc,setSelLoc]=useState(null);
   const[selTY,setSelTY]=useState(null);
   const[showMoreLocs,setShowMoreLocs]=useState(false);
+  const[showWkBreak,setShowWkBreak]=useState(false);
+  const[showMonBreak,setShowMonBreak]=useState(false);
 
   const rate=store.hourlyRate,shifts=store.shifts,weeklyTarget=store.weeklyTarget||0;
 
@@ -640,7 +642,7 @@ function App(){
   }
 
   // Initialize payRateIn from last saved rate on first render
-  useEffect(()=>{if(payRateIn==='')setPayRateIn(store.lastPayRate>0?String(store.lastPayRate):'13');},[]);
+  useEffect(()=>{if(payRateIn==='')setPayRateIn(store.lastPayRate>0?String(store.lastPayRate):'12.5');},[]);
 
   const wStart=useMemo(()=>{
     const d=new Date(TODAY),day=d.getDay(),m=new Date(d);
@@ -724,7 +726,7 @@ function App(){
             <div style={{fontFamily:'var(--font-d)',fontSize:'1.3rem',letterSpacing:'.06em',color:vm!==new Date().toISOString().slice(0,7)?'var(--gold)':'var(--text)',lineHeight:1,transition:'color .2s'}}>{mkName(vm)}</div>
           </div>}
 
-          <button onClick={()=>{setRIn(String(rate));setTgtIn(String(weeklyTarget||''));setShowR(true);}} style={{position:'absolute',right:'1rem',background:'none',border:'none',cursor:'pointer',color:'var(--muted)',fontSize:'1.1rem',padding:'.25rem',lineHeight:1}} title="Settings">⚙️</button>
+
         </div>
       </div>
 
@@ -772,8 +774,8 @@ function App(){
               <div key={l} className={`lbtn ${isSel?'sel':''}`}
                 style={isSel?{borderColor:col,color:col}:{}}
                 onClick={()=>{
-                  if(l==='Other'){setLoc('Other');setOtherName('');setPayRateIn('13');}
-                  else{setLoc(l);setOtherName('');setPayRateIn(l==='Byker'?'12':'13');if(l==='Boiler Shop'){setS0('18:15');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}}
+                  if(l==='Other'){setLoc('Other');setOtherName('');setPayRateIn('12.5');}
+                  else{setLoc(l);setOtherName('');setPayRateIn(l==='Byker'?'12':'12.5');if(l==='Boiler Shop'){setS0('18:15');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}}
                 }}>
                 <span>{LICO[l]}</span>{l}
               </div>);
@@ -795,7 +797,7 @@ function App(){
               return(
               <div key={l} className={`lbtn ${isSel?'sel':''}`}
                 style={isSel?{borderColor:col,color:col}:{borderColor:'var(--border2)',color:'var(--muted)'}}
-                onClick={()=>{setLoc(l);setOtherName('');setPayRateIn('13');}}>
+                onClick={()=>{setLoc(l);setOtherName('');setPayRateIn('12.5');}}>
                 <span>{LICO[l]}</span>{l}
               </div>);
             })}
@@ -934,7 +936,11 @@ function App(){
 
         {/* WEEK BREAKDOWN */}
         <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--accent)',padding:'1rem',marginBottom:'.6rem',borderRadius:'7px'}}>
-          <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--accent)',marginBottom:'.75rem'}}>WEEK BREAKDOWN</div>
+          <button onClick={()=>setShowWkBreak(v=>!v)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',padding:0}}>
+            <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--accent)'}}>WEEK BREAKDOWN</div>
+            <span style={{color:'var(--accent)',fontSize:'.8rem'}}>{showWkBreak?'▴':'▾'}</span>
+          </button>
+          {showWkBreak&&<div style={{marginTop:'.75rem'}}>
           {mByWeek.length===0&&<div style={{fontFamily:'var(--font-m)',fontSize:'.68rem',color:'var(--muted)'}}>NO SHIFTS THIS MONTH</div>}
           {mByWeek.map(w=>(
             <div key={w.w} className="wsc" style={{marginBottom:'.35rem',padding:'.7rem .85rem'}}>
@@ -951,6 +957,7 @@ function App(){
               </div>
             </div>
           ))}
+          </div>}
         </div>
 
         <div className="locs">
@@ -1132,14 +1139,17 @@ function App(){
 
             {/* Month breakdown for selected year */}
             {activeTYData.months.length>0&&<div className="pb" style={{marginBottom:'.65rem'}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'.6rem'}}>
+              <button onClick={()=>setShowMonBreak(v=>!v)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'baseline',padding:0,marginBottom:showMonBreak?'.6rem':0}}>
                 <div className="pb-t" style={{margin:0}}>MONTHLY BREAKDOWN</div>
-                <div style={{textAlign:'right'}}>
-                  <div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:'var(--green)'}}>{fmtP(activeTYData.pay)}</div>
-                  <div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--muted)'}}>{fmtH(activeTYData.hours)} · {activeTYData.shifts} shifts</div>
+                <div style={{display:'flex',alignItems:'center',gap:'.65rem'}}>
+                  <div style={{textAlign:'right'}}>
+                    <div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:'var(--green)'}}>{fmtP(activeTYData.pay)}</div>
+                    <div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--muted)'}}>{fmtH(activeTYData.hours)} · {activeTYData.shifts} shifts</div>
+                  </div>
+                  <span style={{color:'var(--green)',fontSize:'.8rem'}}>{showMonBreak?'▴':'▾'}</span>
                 </div>
-              </div>
-              {[...activeTYData.months].sort((a,b)=>{
+              </button>
+              {showMonBreak&&[...activeTYData.months].sort((a,b)=>{
                 const taxOrd=k=>{const[y,mo]=k.split('-').map(Number);return mo>=4?y*100+mo:(y-1)*100+mo+12;};
                 return taxOrd(a.k)-taxOrd(b.k);
               }).map(m=>{
@@ -1190,6 +1200,65 @@ function App(){
                   </div>
                 );
               })}
+            </div>}
+
+            {/* ACTUAL MONEY RECEIVED */}
+            {activeTYData.months.length>0&&<div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--sky)',padding:'1rem',marginBottom:'.65rem',borderRadius:'7px'}}>
+              <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--sky)',marginBottom:'.65rem'}}>ACTUAL MONEY RECEIVED</div>
+              {[...activeTYData.months].sort((a,b)=>{
+                const taxOrd=k=>{const[y,mo]=k.split('-').map(Number);return mo>=4?y*100+mo:(y-1)*100+mo+12;};
+                return taxOrd(b.k)-taxOrd(a.k);
+              }).map(m=>{
+                const actual=store.actualPay&&store.actualPay[m.k]!=null?store.actualPay[m.k]:'';
+                const diff=actual!==''?parseFloat(actual)-m.pay:null;
+                return(
+                  <div key={m.k} style={{marginBottom:'.5rem',padding:'.6rem .75rem',background:'var(--s2)',border:'1px solid var(--border)',borderRadius:'6px'}}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'.75rem'}}>
+                      <div style={{flex:'0 0 auto'}}>
+                        <div style={{fontFamily:'var(--font-b)',fontWeight:700,fontSize:'.95rem',color:'var(--text)'}}>{mkName(m.k)}</div>
+                        <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',marginTop:'1px'}}>EST. {fmtP(m.pay)}</div>
+                      </div>
+                      <div style={{flex:1,display:'flex',alignItems:'center',gap:'.4rem',justifyContent:'flex-end'}}>
+                        <span style={{fontFamily:'var(--font-m)',fontSize:'.75rem',color:'var(--muted)'}}>£</span>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          value={actual}
+                          onChange={e=>{
+                            const val=e.target.value;
+                            up(st=>{if(!st.actualPay)st.actualPay={};st.actualPay={...st.actualPay,[m.k]:val===''?null:parseFloat(val)||val};});
+                          }}
+                          style={{width:'100px',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-d)',fontSize:'1.1rem',padding:'.35rem .5rem',borderRadius:'4px',textAlign:'right',outline:'none'}}
+                          onFocus={e=>e.target.style.borderColor='var(--sky)'}
+                          onBlur={e=>e.target.style.borderColor='var(--border2)'}
+                        />
+                      </div>
+                    </div>
+                    {diff!==null&&!isNaN(diff)&&(
+                      <div style={{marginTop:'.35rem',fontFamily:'var(--font-m)',fontSize:'.6rem',letterSpacing:'.04em',color:diff>=0?'var(--green)':'var(--red)'}}>
+                        {diff>=0?`+${fmtP(diff)} more than estimated`:`${fmtP(Math.abs(diff))} less than estimated`}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {(()=>{
+                const totalActual=activeTYData.months.reduce((sum,m)=>{
+                  const v=store.actualPay&&store.actualPay[m.k]!=null?parseFloat(store.actualPay[m.k]):null;
+                  return v!=null&&!isNaN(v)?sum+v:sum;
+                },0);
+                const filledMonths=activeTYData.months.filter(m=>store.actualPay&&store.actualPay[m.k]!=null&&!isNaN(parseFloat(store.actualPay[m.k]))).length;
+                if(filledMonths===0)return null;
+                return(
+                  <div style={{borderTop:'1px solid var(--border)',paddingTop:'.55rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <span style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--sky)',letterSpacing:'.06em'}}>TOTAL RECEIVED ({filledMonths} month{filledMonths!==1?'s':''})</span>
+                    <span style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--sky)'}}>{fmtP(totalActual)}</span>
+                  </div>
+                );
+              })()}
             </div>}
             {taxYears.length===0&&<div style={{fontFamily:'var(--font-m)',fontSize:'.68rem',color:'var(--muted)'}}>NO DATA YET</div>}
 
@@ -1254,22 +1323,7 @@ function App(){
       </div>
     </div>
 
-    {/* HOURLY RATE MODAL */}
-    {showR&&<div className="mo" onClick={()=>setShowR(false)}>
-      <div className="mdl" onClick={e=>e.stopPropagation()}>
-        <div className="mdl-t">SETTINGS</div>
-        <div className="mdl-s">Hourly rate &amp; weekly hours target</div>
-        <div className="mdl-box">
-          <div className="mdl-l">HOURLY RATE (£)</div>
-          <input className="mdl-i" type="number" inputMode="decimal" step="0.01" value={rIn} onChange={e=>setRIn(e.target.value)} placeholder={rate.toFixed(2)}/>
-          <div className="mdl-divider"/>
-          <div className="mdl-l">WEEKLY HOURS TARGET</div>
-          <input className="mdl-i" type="number" inputMode="decimal" step="0.5" value={tgtIn} onChange={e=>setTgtIn(e.target.value)} placeholder="e.g. 40"/>
-          <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',marginTop:'.35rem',letterSpacing:'.04em'}}>Set to 0 to hide the progress bar</div>
-        </div>
-        <button className="mdl-save edit" onClick={saveRate}>SAVE</button>
-      </div>
-    </div>}
+
 
     {/* EDIT SHIFT MODAL */}
     {editShift&&<EditModal shift={editShift} rate={rate} lastPayRate={store.lastPayRate||0} onSave={saveEdit} onDelete={delShift} onClose={()=>setEditShift(null)}/>}
