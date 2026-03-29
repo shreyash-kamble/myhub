@@ -1102,127 +1102,7 @@ function App(){
               <div className="stc" style={{borderTop:'2px solid var(--purple)'}}><div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem'}}>{activeTYData.shifts>0?fmtH(activeTYData.hours/activeTYData.shifts):'—'}</div><div className="stl">AVG/SHIFT</div></div>
             </div>
 
-            {/* TAX ESTIMATE — scoped to active year */}
-            {(()=>{
-              const ppShifts=shifts.filter(s=>s.date>=ppStart&&s.date<=ppEnd);
-              const ppHours=ppShifts.reduce((a,s)=>a+s.hours,0);
-              const ppPay=ppShifts.reduce((a,s)=>a+s.hours*(s.payRate&&s.payRate>0?s.payRate:rate),0);
-              const daysLeft=ppEnd>=TODAY?Math.ceil((new Date(ppEnd)-new Date(TODAY))/86400000):0;
-              const paidIn=ppPayday>=TODAY?Math.ceil((new Date(ppPayday)-new Date(TODAY))/86400000):null;
-              const fmtD=ds=>{if(!ds)return'';const[,m,d]=ds.split('-');return`${+d} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}`;};
-              return(
-              <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--gold)',padding:'1rem',marginBottom:'.65rem',borderRadius:'7px'}}>
-                <button onClick={()=>setShowPP(v=>!v)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',padding:0}}>
-                  <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--gold)'}}>PAY PERIOD</div>
-                  <div style={{display:'flex',alignItems:'center',gap:'.65rem'}}>
-                    {paidIn!==null
-                      ?<span style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.04em'}}>payday in {paidIn}d</span>
-                      :<span style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--green)',letterSpacing:'.04em'}}>✓ paid</span>}
-                    <span style={{color:'var(--gold)',fontSize:'.8rem'}}>{showPP?'▴':'▾'}</span>
-                  </div>
-                </button>
-                {showPP&&<>
-                  <div style={{display:'flex',gap:'.4rem',margin:'.65rem 0 .4rem'}}>
-                    <div style={{flex:1}}>
-                      <div style={{fontFamily:'var(--font-m)',fontSize:'.5rem',color:'var(--muted)',letterSpacing:'.08em',marginBottom:'.25rem'}}>FROM</div>
-                      <input type="date" value={ppStart} onChange={e=>savePP('start',e.target.value)}
-                        style={{width:'100%',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-m)',fontSize:'.75rem',padding:'.35rem .5rem',borderRadius:'4px',outline:'none'}}
-                        onFocus={e=>e.target.style.borderColor='var(--gold)'}
-                        onBlur={e=>e.target.style.borderColor='var(--border2)'}/>
-                    </div>
-                    <div style={{flex:1}}>
-                      <div style={{fontFamily:'var(--font-m)',fontSize:'.5rem',color:'var(--muted)',letterSpacing:'.08em',marginBottom:'.25rem'}}>TO</div>
-                      <input type="date" value={ppEnd} onChange={e=>savePP('end',e.target.value)}
-                        style={{width:'100%',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-m)',fontSize:'.75rem',padding:'.35rem .5rem',borderRadius:'4px',outline:'none'}}
-                        onFocus={e=>e.target.style.borderColor='var(--gold)'}
-                        onBlur={e=>e.target.style.borderColor='var(--border2)'}/>
-                    </div>
-                    <div style={{flex:1}}>
-                      <div style={{fontFamily:'var(--font-m)',fontSize:'.5rem',color:'var(--muted)',letterSpacing:'.08em',marginBottom:'.25rem'}}>PAYDAY</div>
-                      <input type="date" value={ppPayday} onChange={e=>savePP('payday',e.target.value)}
-                        style={{width:'100%',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-m)',fontSize:'.75rem',padding:'.35rem .5rem',borderRadius:'4px',outline:'none'}}
-                        onFocus={e=>e.target.style.borderColor='var(--gold)'}
-                        onBlur={e=>e.target.style.borderColor='var(--border2)'}/>
-                    </div>
-                  </div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'.4rem',marginBottom:'.5rem'}}>
-                    <div style={{background:'var(--s2)',border:'1px solid var(--border2)',borderRadius:'5px',padding:'.5rem .6rem',textAlign:'center'}}>
-                      <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--gold)'}}>{fmtH(ppHours)}</div>
-                      <div style={{fontFamily:'var(--font-m)',fontSize:'.48rem',color:'var(--muted)',letterSpacing:'.06em',marginTop:'1px'}}>HOURS</div>
-                    </div>
-                    <div style={{background:'var(--s2)',border:'1px solid var(--border2)',borderRadius:'5px',padding:'.5rem .6rem',textAlign:'center'}}>
-                      <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--green)'}}>{fmtP(ppPay)}</div>
-                      <div style={{fontFamily:'var(--font-m)',fontSize:'.48rem',color:'var(--muted)',letterSpacing:'.06em',marginTop:'1px'}}>GROSS PAY</div>
-                    </div>
-                    <div style={{background:'var(--s2)',border:'1px solid var(--border2)',borderRadius:'5px',padding:'.5rem .6rem',textAlign:'center'}}>
-                      <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--sky)'}}>{ppShifts.length}</div>
-                      <div style={{fontFamily:'var(--font-m)',fontSize:'.48rem',color:'var(--muted)',letterSpacing:'.06em',marginTop:'1px'}}>SHIFTS</div>
-                    </div>
-                  </div>
-                  <div style={{borderTop:'1px solid var(--border)',paddingTop:'.4rem'}}>
-                    <div style={{fontFamily:'var(--font-m)',fontSize:'.52rem',color:'var(--muted)',letterSpacing:'.04em'}}>{fmtD(ppStart)} → {fmtD(ppEnd)}{daysLeft>0?<span style={{color:'var(--gold)',marginLeft:'.4em'}}>· {daysLeft}d left</span>:null}</div>
-                    <div style={{marginTop:'.35rem',fontFamily:'var(--font-m)',fontSize:'.52rem',letterSpacing:'.04em',color:paidIn!==null?'var(--gold)':'var(--green)'}}>
-                      {paidIn!==null?`💰 payday ${fmtD(ppPayday)} · in ${paidIn}d`:`✓ paid ${fmtD(ppPayday)}`}
-                    </div>
-                  </div>
-                </>}
-              </div>);
-            })()}
 
-            {/* TAX ESTIMATE — scoped to active year */}
-            <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--orange)',padding:'1rem',marginBottom:'.65rem',borderRadius:'7px'}}>
-              <button onClick={()=>setShowTax(v=>!v)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',padding:0}}>
-                <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--orange)'}}>TAX ESTIMATE</div>
-                <div style={{display:'flex',alignItems:'center',gap:'.65rem'}}>
-                  <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.06em'}}>UK {tyLabel(activeTY)} · APPROX</div>
-                  <span style={{color:'var(--orange)',fontSize:'.8rem'}}>{showTax?'▴':'▾'}</span>
-                </div>
-              </button>
-              {showTax&&<>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.4rem',marginBottom:'.6rem',marginTop:'.65rem'}}>
-                <div style={{background:'var(--s2)',border:'1px solid var(--border2)',padding:'.65rem .75rem',borderRadius:'6px'}}>
-                  <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.07em',marginBottom:'.2rem'}}>GROSS / YEAR</div>
-                  <div style={{fontFamily:'var(--font-d)',fontSize:'1.25rem',color:'var(--text)'}}>{fmtP(gross)}</div>
-                </div>
-                <div style={{background:'rgba(61,255,160,.06)',border:'1px solid rgba(61,255,160,.2)',padding:'.65rem .75rem',borderRadius:'6px'}}>
-                  <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--green)',letterSpacing:'.07em',marginBottom:'.2rem'}}>EST. TAKE-HOME</div>
-                  <div style={{fontFamily:'var(--font-d)',fontSize:'1.25rem',color:'var(--green)'}}>{fmtP(netPay)}</div>
-                </div>
-              </div>
-              <div style={{borderTop:'1px solid var(--border)',paddingTop:'.6rem',display:'flex',flexDirection:'column',gap:'.3rem'}}>
-                {[{l:'Income Tax',v:incomeTax,c:'var(--red)'},{l:'Nat. Insurance (~8%)',v:ni,c:'var(--orange)'}].map(({l,v,c})=>(
-                  <div key={l} style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                    <span style={{fontFamily:'var(--font-m)',fontSize:'.65rem',color:'var(--muted)',letterSpacing:'.04em'}}>{l}</span>
-                    <span style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',color:c}}>{fmtP(v)}</span>
-                  </div>
-                ))}
-                {/* Monthly tax breakdown */}
-                {txMonths.length>0&&<>
-                  <div style={{borderTop:'1px solid var(--border)',marginTop:'.3rem',paddingTop:'.4rem',fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.08em',marginBottom:'.2rem'}}>TAX BY MONTH</div>
-                  {txMonths.map(m=>{
-                    const mIdx=tyMonthIndex(m.k)+1;
-                    const cumAllowanceHere=MONTHLY_ALLOWANCE*mIdx;
-                    // cumulative pay up to this month
-                    let cumHere=0;txMonths.forEach(x=>{if(tyMonthIndex(x.k)<=tyMonthIndex(m.k))cumHere+=x.pay;});
-                    const taxable_m=Math.max(0,cumHere-cumAllowanceHere);
-                    const unusedAllowance=Math.max(0,cumAllowanceHere-cumHere);
-                    return(
-                      <div key={m.k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'.25rem 0',borderBottom:'1px solid rgba(255,255,255,.04)'}}>
-                        <div>
-                          <span style={{fontFamily:'var(--font-b)',fontSize:'.78rem',fontWeight:700,color:'var(--text2)'}}>{mkName(m.k)}</span>
-                          {unusedAllowance>0&&<span style={{fontFamily:'var(--font-m)',fontSize:'.5rem',color:'var(--green)',marginLeft:'.4rem'}}>+{fmtP(unusedAllowance)} carried</span>}
-                        </div>
-                        <div style={{textAlign:'right'}}>
-                          <span style={{fontFamily:'var(--font-d)',fontSize:'.9rem',color:(m._taxThisMonth||0)>0?'var(--red)':'var(--green)'}}>{(m._taxThisMonth||0)>0?`-${fmtP(m._taxThisMonth||0)}`:'£0.00'}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </>}
-              </div>
-              <div style={{marginTop:'.55rem',fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--dim)',letterSpacing:'.04em',lineHeight:1.4}}>PAYE-style: £1,047.50 free/month. Unused allowance carries forward. Estimates only.</div>
-              </>}
-            </div>
 
             {/* Month breakdown for selected year */}
             {activeTYData.months.length>0&&<div className="pb" style={{marginBottom:'.65rem'}}>
@@ -1306,6 +1186,13 @@ function App(){
                 const diff=actual!==''?parseFloat(actual)-m.pay:null;
                 const isPastMonth=m.k<TODAY.slice(0,7);
                 const isLocked=isPastMonth&&actual!=='';
+                // Payroll cut-off date ranges from the payroll calendar
+                const PAYROLL_PERIODS={'2026-01':{from:'2025-12-10',to:'2026-01-13'},'2026-02':{from:'2026-01-14',to:'2026-02-11'},'2026-03':{from:'2026-02-12',to:'2026-03-11'},'2026-04':{from:'2026-03-12',to:'2026-04-13'},'2026-05':{from:'2026-04-14',to:'2026-05-12'},'2026-06':{from:'2026-05-13',to:'2026-06-11'},'2026-07':{from:'2026-06-12',to:'2026-07-13'},'2026-08':{from:'2026-07-14',to:'2026-08-11'},'2026-09':{from:'2026-08-12',to:'2026-09-11'},'2026-10':{from:'2026-09-12',to:'2026-10-13'},'2026-11':{from:'2026-10-14',to:'2026-11-11'},'2026-12':{from:'2026-11-12',to:'2026-12-08'}};
+                const pp=PAYROLL_PERIODS[m.k];
+                const nonBykerHours=pp
+                  ? shifts.filter(s=>s.loc!=='Byker'&&s.date>=pp.from&&s.date<=pp.to).reduce((a,s)=>a+s.hours,0)
+                  : tyShifts.filter(s=>s.loc!=='Byker'&&s.date.slice(0,7)===m.k).reduce((a,s)=>a+s.hours,0);
+                const effectiveRate=actual!==''&&nonBykerHours>0?parseFloat(actual)/nonBykerHours:null;
                 return(
                   <div key={m.k} style={{marginBottom:'.5rem',padding:'.6rem .75rem',background:'var(--s2)',border:'1px solid var(--border)',borderRadius:'6px'}}>
                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'.75rem'}}>
@@ -1337,11 +1224,12 @@ function App(){
                         }
                       </div>
                     </div>
-                    {diff!==null&&!isNaN(diff)&&(
-                      <div style={{marginTop:'.35rem',fontFamily:'var(--font-m)',fontSize:'.6rem',letterSpacing:'.04em',color:diff>=0?'var(--green)':'var(--red)'}}>
-                        {diff>=0?`+${fmtP(diff)} more than calc`:`${fmtP(Math.abs(diff))} less than calc`}
+                    {(diff!==null&&!isNaN(diff))||effectiveRate!==null?(
+                      <div style={{marginTop:'.35rem',fontFamily:'var(--font-m)',fontSize:'.6rem',letterSpacing:'.04em',display:'flex',gap:'.6rem',flexWrap:'wrap',alignItems:'center'}}>
+                        {diff!==null&&!isNaN(diff)&&<span style={{color:diff>=0?'var(--green)':'var(--red)'}}>{diff>=0?`+${fmtP(diff)} more than calc`:`${fmtP(Math.abs(diff))} less than calc`}</span>}
+                        {effectiveRate!==null&&<span style={{color:'var(--sky)',background:'rgba(56,189,248,.1)',border:'1px solid rgba(56,189,248,.25)',padding:'.1rem .35rem',borderRadius:'3px',letterSpacing:'.03em'}}>£{effectiveRate.toFixed(2)}/hr effective</span>}
                       </div>
-                    )}
+                    ):null}
                   </div>
                 );
               })}
