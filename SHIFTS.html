@@ -33,9 +33,9 @@ input::-webkit-inner-spin-button{-webkit-appearance:none;}
 const {useState,useCallback,useMemo,useRef,useEffect}=React;
 
 const LOCS=['Arena','Boiler Shop','O2 City Hall','TR','NUFC','Byker','Other'];
-const EXTRA_LOCS=['BBC Radio','Silverstone','Lost Village','Playhouse','Durham','Download Festival','Tramlines Festival'];
-const LCOL={'TR':'#00e5ff','Byker':'#ff5555','NUFC':'#94a3b8','Boiler Shop':'#ff8c00','O2 City Hall':'#3dffa0','Arena':'#ffd600','Other':'#f472b6','BBC Radio':'#ff4444','Silverstone':'#a3e635','Lost Village':'#4ade80','Playhouse':'#e879f9','Durham':'#60a5fa','Download Festival':'#ff8c00','Tramlines Festival':'#f59e0b'};
-const LICO={'TR':'🎪','Byker':'🍔','NUFC':'⚽','Boiler Shop':'🔧','O2 City Hall':'🎵','Arena':'🏟️','Other':'📍','BBC Radio':'📻','Silverstone':'🏎️','Lost Village':'🌲','Playhouse':'🎭','Durham':'🏰','Download Festival':'⚡','Tramlines Festival':'🎶'};
+const EXTRA_LOCS=['BBC Radio','Silverstone','Lost Village','Playhouse','Durham','Download Festival','Tramlines Festival','York','NSU'];
+const LCOL={'TR':'#00e5ff','Byker':'#ff5555','NUFC':'#94a3b8','Boiler Shop':'#ff8c00','O2 City Hall':'#3dffa0','Arena':'#ffd600','Other':'#f472b6','BBC Radio':'#ff4444','Silverstone':'#a3e635','Lost Village':'#4ade80','Playhouse':'#e879f9','Durham':'#60a5fa','Download Festival':'#ff8c00','Tramlines Festival':'#f59e0b','York':'#c084fc','NSU':'#fb923c'};
+const LICO={'TR':'🎪','Byker':'🍔','NUFC':'⚽','Boiler Shop':'🔧','O2 City Hall':'🎵','Arena':'🏟️','Other':'📍','BBC Radio':'📻','Silverstone':'🏎️','Lost Village':'🌲','Playhouse':'🎭','Durham':'🏰','Download Festival':'⚡','Tramlines Festival':'🎶','York':'🌹','NSU':'🎓'};
 
 const uid=()=>crypto.randomUUID();
 
@@ -92,7 +92,7 @@ function localDateStr(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padSta
 const TODAY=localDateStr(new Date());
 
 const STORE_KEY='shifts_v4';
-function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.lastPayRate)d.lastPayRate=0;if(!d.actualPay)d.actualPay={};if(!d.payPeriod)d.payPeriod=null;return d;}}catch(e){}return{shifts:[],hourlyRate:12.5,weeklyTarget:0,lastPayRate:0,actualPay:{},payPeriod:null};}
+function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.lastPayRate)d.lastPayRate=0;if(!d.actualPay)d.actualPay={};if(!d.isaContrib)d.isaContrib={};if(!d.payPeriod)d.payPeriod=null;return d;}}catch(e){}return{shifts:[],hourlyRate:12.5,weeklyTarget:0,lastPayRate:0,actualPay:{},isaContrib:{},payPeriod:null};}
 function saveStore(s){try{localStorage.setItem(STORE_KEY,JSON.stringify(s));}catch(e){}}
 
 function calDays(mk){
@@ -470,7 +470,7 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
                 style={isSel?{borderColor:col,color:col}:{}}
                 onClick={()=>{
                   if(l==='Other'){setLoc('Other');setOtherName('');setPayRateIn('12.5');}
-                  else{setLoc(l);setOtherName('');setPayRateIn(l==='Byker'?'12':'12.5');if(l==='Boiler Shop'){setS0('18:15');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}}
+                  else{setLoc(l);setOtherName('');setPayRateIn(l==='Byker'?'12':'12.5');if(l==='Boiler Shop'){setS0('17:45');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}}
                 }}>
                 <span>{LICO[l]}</span>{l}
               </div>);
@@ -795,7 +795,7 @@ function App(){
                 style={isSel?{borderColor:col,color:col}:{}}
                 onClick={()=>{
                   if(l==='Other'){setLoc('Other');setOtherName('');setPayRateIn('12.5');}
-                  else{setLoc(l);setOtherName('');setPayRateIn(l==='Byker'?'12':'12.5');if(l==='Boiler Shop'){setS0('18:15');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}}
+                  else{setLoc(l);setOtherName('');setPayRateIn(l==='Byker'?'12':'12.5');if(l==='Boiler Shop'){setS0('17:45');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}}
                 }}>
                 <span>{LICO[l]}</span>{l}
               </div>);
@@ -1230,6 +1230,31 @@ function App(){
                         {effectiveRate!==null&&<span style={{color:'var(--sky)',background:'rgba(56,189,248,.1)',border:'1px solid rgba(56,189,248,.25)',padding:'.1rem .35rem',borderRadius:'3px',letterSpacing:'.03em'}}>£{effectiveRate.toFixed(2)}/hr effective</span>}
                       </div>
                     ):null}
+                    {/* ISA contribution row */}
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'.75rem',marginTop:'.45rem',paddingTop:'.45rem',borderTop:'1px solid var(--border)'}}>
+                      <div style={{flex:'0 0 auto'}}>
+                        <div style={{fontFamily:'var(--font-b)',fontWeight:700,fontSize:'.78rem',color:'var(--purple)'}}>ISA</div>
+                        <div style={{fontFamily:'var(--font-m)',fontSize:'.45rem',color:'var(--muted)',letterSpacing:'.04em'}}>CONTRIBUTION</div>
+                      </div>
+                      <div style={{flex:1,display:'flex',alignItems:'center',gap:'.4rem',justifyContent:'flex-end'}}>
+                        <span style={{fontFamily:'var(--font-m)',fontSize:'.75rem',color:'var(--muted)'}}>£</span>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          value={store.isaContrib&&store.isaContrib[m.k]!=null?store.isaContrib[m.k]:''}
+                          onChange={e=>{
+                            const val=e.target.value;
+                            up(st=>{if(!st.isaContrib)st.isaContrib={};st.isaContrib={...st.isaContrib,[m.k]:val===''?null:parseFloat(val)||val};});
+                          }}
+                          style={{width:'100px',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-d)',fontSize:'1.1rem',padding:'.35rem .5rem',borderRadius:'4px',textAlign:'right',outline:'none'}}
+                          onFocus={e=>e.target.style.borderColor='var(--purple)'}
+                          onBlur={e=>e.target.style.borderColor='var(--border2)'}
+                        />
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -1238,12 +1263,22 @@ function App(){
                   const v=store.actualPay&&store.actualPay[m.k]!=null?parseFloat(store.actualPay[m.k]):null;
                   return v!=null&&!isNaN(v)?sum+v:sum;
                 },0);
+                const totalISA=activeTYData.months.reduce((sum,m)=>{
+                  const v=store.isaContrib&&store.isaContrib[m.k]!=null?parseFloat(store.isaContrib[m.k]):null;
+                  return v!=null&&!isNaN(v)?sum+v:sum;
+                },0);
                 const filledMonths=activeTYData.months.filter(m=>store.actualPay&&store.actualPay[m.k]!=null&&!isNaN(parseFloat(store.actualPay[m.k]))).length;
                 if(filledMonths===0)return null;
                 return(
-                  <div style={{borderTop:'1px solid var(--border)',paddingTop:'.55rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                    <span style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--sky)',letterSpacing:'.06em'}}>TOTAL RECEIVED ({filledMonths} month{filledMonths!==1?'s':''})</span>
-                    <span style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--sky)'}}>{fmtP(totalActual)}</span>
+                  <div style={{borderTop:'1px solid var(--border)',paddingTop:'.55rem'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <span style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--sky)',letterSpacing:'.06em'}}>TOTAL RECEIVED ({filledMonths} month{filledMonths!==1?'s':''})</span>
+                      <span style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--sky)'}}>{fmtP(totalActual)}</span>
+                    </div>
+                    {totalISA>0&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:'.25rem'}}>
+                      <span style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--purple)',letterSpacing:'.06em'}}>TOTAL ISA</span>
+                      <span style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--purple)'}}>{fmtP(totalISA)}</span>
+                    </div>}
                   </div>
                 );
               })()}</>}
