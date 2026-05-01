@@ -1230,31 +1230,42 @@ function App(){
                         {effectiveRate!==null&&<span style={{color:'var(--sky)',background:'rgba(56,189,248,.1)',border:'1px solid rgba(56,189,248,.25)',padding:'.1rem .35rem',borderRadius:'3px',letterSpacing:'.03em'}}>£{effectiveRate.toFixed(2)}/hr effective</span>}
                       </div>
                     ):null}
-                    {/* ISA contribution row */}
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'.75rem',marginTop:'.45rem',paddingTop:'.45rem',borderTop:'1px solid var(--border)'}}>
-                      <div style={{flex:'0 0 auto'}}>
-                        <div style={{fontFamily:'var(--font-b)',fontWeight:700,fontSize:'.78rem',color:'var(--purple)'}}>ISA</div>
-                        <div style={{fontFamily:'var(--font-m)',fontSize:'.45rem',color:'var(--muted)',letterSpacing:'.04em'}}>CONTRIBUTION</div>
+                    {/* ISA value row */}
+                    {(()=>{
+                      const isaVal=store.isaContrib&&store.isaContrib[m.k]!=null?store.isaContrib[m.k]:'';
+                      const isaLocked=isLocked&&isaVal!=='';
+                      return(
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'.75rem',marginTop:'.45rem',paddingTop:'.45rem',borderTop:'1px solid var(--border)'}}>
+                        <div style={{flex:'0 0 auto'}}>
+                          <div style={{fontFamily:'var(--font-b)',fontWeight:700,fontSize:'.78rem',color:'var(--purple)'}}>ISA</div>
+                          <div style={{fontFamily:'var(--font-m)',fontSize:'.45rem',color:isaLocked?'var(--green)':'var(--muted)',letterSpacing:'.04em'}}>{isaLocked?'🔒 LOCKED':'VALUE'}</div>
+                        </div>
+                        <div style={{flex:1,display:'flex',alignItems:'center',gap:'.4rem',justifyContent:'flex-end'}}>
+                          {isaLocked
+                            ? <span style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--purple)'}}>{fmtP(parseFloat(isaVal))}</span>
+                            : <>
+                              <span style={{fontFamily:'var(--font-m)',fontSize:'.75rem',color:'var(--muted)'}}>£</span>
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                step="0.01"
+                                min="0"
+                                placeholder="0.00"
+                                value={isaVal}
+                                onChange={e=>{
+                                  const val=e.target.value;
+                                  up(st=>{if(!st.isaContrib)st.isaContrib={};st.isaContrib={...st.isaContrib,[m.k]:val===''?null:parseFloat(val)||val};});
+                                }}
+                                style={{width:'100px',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-d)',fontSize:'1.1rem',padding:'.35rem .5rem',borderRadius:'4px',textAlign:'right',outline:'none'}}
+                                onFocus={e=>e.target.style.borderColor='var(--purple)'}
+                                onBlur={e=>e.target.style.borderColor='var(--border2)'}
+                              />
+                            </>
+                          }
+                        </div>
                       </div>
-                      <div style={{flex:1,display:'flex',alignItems:'center',gap:'.4rem',justifyContent:'flex-end'}}>
-                        <span style={{fontFamily:'var(--font-m)',fontSize:'.75rem',color:'var(--muted)'}}>£</span>
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          value={store.isaContrib&&store.isaContrib[m.k]!=null?store.isaContrib[m.k]:''}
-                          onChange={e=>{
-                            const val=e.target.value;
-                            up(st=>{if(!st.isaContrib)st.isaContrib={};st.isaContrib={...st.isaContrib,[m.k]:val===''?null:parseFloat(val)||val};});
-                          }}
-                          style={{width:'100px',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-d)',fontSize:'1.1rem',padding:'.35rem .5rem',borderRadius:'4px',textAlign:'right',outline:'none'}}
-                          onFocus={e=>e.target.style.borderColor='var(--purple)'}
-                          onBlur={e=>e.target.style.borderColor='var(--border2)'}
-                        />
-                      </div>
-                    </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
