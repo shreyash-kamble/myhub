@@ -250,6 +250,10 @@ const CSS=`
 .copy-btn:active{background:rgba(0,229,255,0.18);}
 .copy-btn.copied{background:rgba(178,255,89,0.1);border-color:rgba(178,255,89,0.4);color:var(--legs);}
 
+/* SKIP DAY BTN */
+.skip-day-btn{font-family:var(--font-mono);font-size:0.55rem;letter-spacing:0.06em;padding:0.3rem 0.65rem;background:rgba(255,107,61,0.08);border:1px solid rgba(255,107,61,0.3);color:var(--push);cursor:pointer;border-radius:3px;transition:all 0.15s;white-space:nowrap;}
+.skip-day-btn:active{background:rgba(255,107,61,0.18);}
+
 /* SCREEN */
 .screen{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(72px + env(safe-area-inset-bottom,0));}
 
@@ -270,6 +274,7 @@ const CSS=`
 .day-chip-sub{font-family:var(--font-mono);font-size:0.52rem;color:var(--muted);margin-top:1px;}
 .day-chip-dot{width:5px;height:5px;border-radius:50%;margin-top:4px;}
 .day-chip.done-chip::after{content:'✓';position:absolute;top:3px;right:6px;font-size:0.5rem;color:var(--legs);font-family:var(--font-mono);}
+.day-chip.skip-chip::after{content:'⏭';position:absolute;top:3px;right:4px;font-size:0.5rem;color:var(--push);font-family:var(--font-mono);}
 .swipe-hint{position:absolute;bottom:4px;right:8px;font-size:0.45rem;font-family:var(--font-mono);color:var(--dim);pointer-events:none;}
 
 /* WORKOUT WRAP */
@@ -746,7 +751,7 @@ function App(){
     });
   },[update]);
 
-  // ── COPY LAST WEEK ────────────────────────────────────────────
+  // ── COPY LAST WEEK (entire week) ─────────────────────────────
   const copyLastWeek=useCallback(()=>{
     const prevWeek=viewWeek-1;
     if(!store.weeks[prevWeek]){showToast('NO PREVIOUS WEEK DATA');return;}
@@ -757,15 +762,33 @@ function App(){
     const prevWeek=viewWeek-1;
     const prev=store.weeks[prevWeek];
     update(s=>{
-      const curr=s.weeks[viewWeek][dayIdx];
-      const prevDay=prev[dayIdx];
-      curr.sets=prevDay.sets.map(setArr=>setArr.map(set=>({kg:set.kg,reps:set.reps,done:false})));
+      // Copy ALL days from previous week
+      DAYS.forEach((_,di)=>{
+        const curr=s.weeks[viewWeek][di];
+        const prevDay=prev[di];
+        if(!prevDay)return;
+        curr.sets=prevDay.sets.map(setArr=>setArr.map(set=>({kg:set.kg,reps:set.reps,done:false})));
+        curr.done=false;
+      });
     });
     setShowCopyConfirm(false);
     setCopied(true);
-    showToast('✓ LAST WEEK WEIGHTS COPIED');
+    showToast('✓ FULL WEEK WEIGHTS COPIED');
     setTimeout(()=>setCopied(false),2000);
-  },[store,viewWeek,dayIdx,update,showToast]);
+  },[store,viewWeek,update,showToast]);
+
+  // ── SKIP DAY ──────────────────────────────────────────────────
+  const skipDay=useCallback(()=>{
+    update(s=>{
+      const d=s.weeks[viewWeek][dayIdx];
+      d.done=true;
+      d.skipped=true;
+    });
+    // Move to next day
+    const nextDay=Math.min(dayIdx+1,DAYS.length-1);
+    setDayIdx(nextDay);
+    showToast('⏭ DAY SKIPPED');
+  },[viewWeek,dayIdx,update,showToast]);
 
   // ── SWIPE BETWEEN WEEKS (top bar) ────────────────────────────
   const weekSwipeStartX=useRef(null);
@@ -930,11 +953,7 @@ function App(){
                 </div>
               )}
             </div>
-            {tab==='workout'&&(
-              <button className={`copy-btn ${copied?'copied':''}`} onClick={copyLastWeek}>
-                {copied?'✓ COPIED':'↑ COPY WK'}
-              </button>
-            )}
+            
           </div>
         </div>
 
@@ -950,7 +969,7 @@ function App(){
                   const chipPct=chipTotal?Math.round(chipDone/chipTotal*100):0;
                   return(
                   <div key={d.id}
-                    className={`day-chip ${i===dayIdx?'active':''} ${weekData[i]?.done?'done-chip':''}`}
+                    className={`day-chip ${i===dayIdx?'active':''} ${weekData[i]?.done?weekData[i]?.skipped?'skip-chip':'done-chip':''}`}
                     onClick={()=>setDayIdx(i)}
                   >
                     <div className="day-chip-label" style={{color:i===dayIdx?TYPE_COLOR[d.type]:undefined}}>{d.name}</div>
@@ -993,6 +1012,20 @@ function App(){
                     ))}
                   </div>
                 </div>
+              </div>
+
+              {/* Hero action buttons */}
+              <div className="day-hero-actions" style={{padding:'0 1rem 0.6rem',display:'flex',gap:'0.5rem',borderBottom:'1px solid var(--border)'}}>
+                {!dayData.done&&(
+                  <button className="skip-day-btn" onClick={skipDay}>
+                    ⏭ SKIP DAY
+                  </button>
+                )}
+                {dayIdx===0&&(
+                  <button className={`copy-btn ${copied?'copied':''}`} onClick={copyLastWeek} style={{marginLeft:!dayData.done?'auto':'0'}}>
+                    {copied?'✓ COPIED':'↑ COPY WEEK'}
+                  </button>
+                )}
               </div>
 
               {/* Progress */}
@@ -1265,7 +1298,7 @@ function App(){
           <div className="dialog">
             <div className="dialog-title">↑ COPY WEEK {week-1}?</div>
             <div className="dialog-body">
-              This will overwrite your current weights for {day.label} {day.sub} with last week's values. Sets will be marked incomplete.
+              This will overwrite all weights for the entire week with last week's values. Sets will be marked incomplete.
             </div>
             <div className="dialog-btns">
               <button className="dialog-btn" onClick={()=>setShowCopyConfirm(false)}>CANCEL</button>
