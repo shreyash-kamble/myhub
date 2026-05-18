@@ -342,9 +342,7 @@ function loadStats() {
 // ─────────────────────────────────────────────
 function gatherAllData() {
   const snap = { exportedAt: new Date().toISOString(), exportedDate: new Date().toISOString().slice(0,10), sources: {} };
-  for (const [n, k] of Object.entries({ gym:'pplbeast_v3', shifts:'shifts_v4' })) {
-    try { const r = localStorage.getItem(k); snap.sources[n] = r ? JSON.parse(r) : null; } catch(e) { snap.sources[n] = null; }
-  }
+  try { const r = localStorage.getItem('shifts_v4'); snap.sources.shifts = r ? JSON.parse(r) : null; } catch(e) { snap.sources.shifts = null; }
   return snap;
 }
 function downloadJSON(data, filename) {
@@ -359,7 +357,7 @@ function runExport(isMidnight) {
   setTimeout(() => {
     try {
       const data = gatherAllData();
-      downloadJSON(data, `hub-backup-${data.exportedDate}.json`);
+      downloadJSON(data, `shifts-backup-${data.exportedDate}.json`);
       const log = getBackupLog(); log.push({ts:data.exportedAt, date:data.exportedDate, auto:isMidnight}); saveBackupLog(log);
       showToast(isMidnight ? '✓ MIDNIGHT BACKUP SAVED' : '✓ BACKUP SAVED');
     } catch(e) { showToast('✗ EXPORT FAILED','err'); }
