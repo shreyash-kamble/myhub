@@ -554,6 +554,155 @@ function ShiftRow({s, rate, onDel, onEdit}){
   );
 }
 
+/* ── APPLICATIONS TAB ── */
+const APP_STORE_KEY='job-application-log-v1';
+
+function AppsTab(){
+  const[rows,setRows]=useState([]);
+  const[newDate,setNewDate]=useState(TODAY);
+  const[newCount,setNewCount]=useState('');
+  const[editingId,setEditingId]=useState(null);
+  const[editCount,setEditCount]=useState('');
+  const[loaded,setLoaded]=useState(false);
+
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const r=await window.storage.get(APP_STORE_KEY);
+        if(r&&r.value)setRows(JSON.parse(r.value));
+      }catch(e){
+        // fallback: try localStorage
+        try{const d=localStorage.getItem(APP_STORE_KEY);if(d)setRows(JSON.parse(d));}catch{}
+      }
+      setLoaded(true);
+    })();
+  },[]);
+
+  useEffect(()=>{
+    if(!loaded)return;
+    const save=async()=>{
+      const data=JSON.stringify(rows);
+      try{await window.storage.set(APP_STORE_KEY,data);}catch{}
+      try{localStorage.setItem(APP_STORE_KEY,data);}catch{}
+    };
+    save();
+  },[rows,loaded]);
+
+  const totalApps=rows.reduce((s,r)=>s+Number(r.count),0);
+  const totalDays=rows.length;
+  const fmtD=ds=>{if(!ds)return'';const[y,m,d]=ds.split('-');return`${d}/${m}/${y}`;};
+
+  function addRow(){
+    if(!newDate||!newCount||isNaN(Number(newCount))||Number(newCount)<0)return;
+    const existing=rows.find(r=>r.date===newDate);
+    if(existing){
+      setRows(rows.map(r=>r.date===newDate?{...r,count:Number(r.count)+Number(newCount)}:r));
+    }else{
+      setRows([...rows,{id:Date.now(),date:newDate,count:Number(newCount)}]
+        .sort((a,b)=>b.date.localeCompare(a.date)));
+    }
+    setNewCount('');
+    setNewDate(TODAY);
+  }
+
+  function deleteRow(id){setRows(rows.filter(r=>r.id!==id));}
+
+  function saveEdit(id){
+    if(!editCount||isNaN(Number(editCount))||Number(editCount)<0)return;
+    setRows(rows.map(r=>r.id===id?{...r,count:Number(editCount)}:r));
+    setEditingId(null);
+  }
+
+  return(
+    <div className="screen"><div style={{padding:'.85rem .85rem 0',animation:'up .2s ease'}}>
+
+      {/* Stats strip */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'.4rem',marginBottom:'.75rem'}}>
+        {[
+          {lbl:'TOTAL DAYS',val:totalDays,col:'var(--green)'},
+          {lbl:'TOTAL APPLIED',val:totalApps,col:'var(--accent)'},
+          {lbl:'AVG / DAY',val:totalDays?(totalApps/totalDays).toFixed(1):'—',col:'var(--gold)'},
+        ].map(({lbl,val,col})=>(
+          <div key={lbl} style={{background:'var(--s1)',border:'1px solid var(--border)',borderTop:`2px solid ${col}`,padding:'.8rem .75rem',borderRadius:'7px'}}>
+            <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.1em',marginBottom:'.25rem'}}>{lbl}</div>
+            <div style={{fontFamily:'var(--font-d)',fontSize:'1.6rem',color:col,lineHeight:1}}>{val}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add Entry */}
+      <div style={{background:'var(--s1)',border:'1px solid var(--border)',padding:'1rem',marginBottom:'.65rem',borderRadius:'7px'}}>
+        <div style={{fontFamily:'var(--font-m)',fontSize:'.65rem',color:'var(--accent)',letterSpacing:'.1em',marginBottom:'.6rem'}}>ADD ENTRY</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr auto auto',gap:'.4rem',alignItems:'center'}}>
+          <input type="date" value={newDate} onChange={e=>setNewDate(e.target.value)}
+            className="dinp" style={{fontSize:'.82rem'}}/>
+          <input type="number" min="0" placeholder="# apps" value={newCount}
+            onChange={e=>setNewCount(e.target.value)}
+            onKeyDown={e=>e.key==='Enter'&&addRow()}
+            className="finp" style={{width:'80px',textAlign:'center'}}/>
+          <button onClick={addRow}
+            style={{fontFamily:'var(--font-d)',fontSize:'1rem',letterSpacing:'.08em',padding:'.5rem .9rem',border:'none',cursor:'pointer',background:'var(--green)',color:'#fff',borderRadius:'5px',whiteSpace:'nowrap'}}>
+            + ADD
+          </button>
+        </div>
+      </div>
+
+      {/* Log */}
+      <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderRadius:'7px',overflow:'hidden',marginBottom:'.65rem'}}>
+        {/* Header */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',background:'var(--s2)',padding:'.6rem .9rem',fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--muted)',letterSpacing:'.12em',borderBottom:'1px solid var(--border)'}}>
+          <span>DATE</span><span>APPLICATIONS</span><span style={{width:30}}/>
+        </div>
+
+        {rows.length===0&&(
+          <div style={{padding:'2.5rem 1rem',color:'var(--dim)',fontFamily:'var(--font-m)',fontSize:'.7rem',textAlign:'center',letterSpacing:'.06em'}}>
+            NO ENTRIES YET — ADD YOUR FIRST DAY ABOVE
+          </div>
+        )}
+
+        {rows.map((row,i)=>(
+          <div key={row.id} style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',padding:'.75rem .9rem',alignItems:'center',background:i%2===0?'var(--bg)':'var(--s1)',borderBottom:'1px solid var(--border)',transition:'background .1s'}}>
+            <span style={{fontFamily:'var(--font-m)',fontSize:'.78rem',color:'var(--muted)'}}>{fmtD(row.date)}</span>
+            {editingId===row.id?(
+              <div style={{display:'flex',gap:'.3rem',alignItems:'center'}}>
+                <input type="number" min="0" value={editCount}
+                  onChange={e=>setEditCount(e.target.value)}
+                  onKeyDown={e=>{if(e.key==='Enter')saveEdit(row.id);if(e.key==='Escape')setEditingId(null);}}
+                  autoFocus
+                  style={{background:'var(--s3)',border:'1px solid var(--accent)',color:'var(--text)',fontFamily:'var(--font-m)',fontSize:'.82rem',padding:'.3rem .5rem',borderRadius:'3px',outline:'none',width:'65px'}}/>
+                <button onClick={()=>saveEdit(row.id)} style={{background:'var(--accent)',color:'#000',border:'none',borderRadius:'3px',padding:'.3rem .55rem',cursor:'pointer',fontSize:'.72rem',fontWeight:700}}>✓</button>
+                <button onClick={()=>setEditingId(null)} style={{background:'var(--s3)',color:'var(--muted)',border:'none',borderRadius:'3px',padding:'.3rem .45rem',cursor:'pointer',fontSize:'.72rem'}}>✕</button>
+              </div>
+            ):(
+              <span
+                style={{fontFamily:'var(--font-d)',fontSize:'1.4rem',color:'var(--accent)',cursor:'pointer',letterSpacing:'.04em'}}
+                onDoubleClick={()=>{setEditingId(row.id);setEditCount(row.count);}}
+                title="Double-click to edit"
+              >{row.count}</span>
+            )}
+            <button onClick={()=>deleteRow(row.id)}
+              style={{background:'transparent',border:'none',color:'var(--dim)',cursor:'pointer',fontSize:'1.1rem',padding:'.1rem .4rem',borderRadius:'3px',transition:'color .15s',width:30}}
+              onMouseEnter={e=>e.target.style.color='var(--red)'}
+              onMouseLeave={e=>e.target.style.color='var(--dim)'}
+            >×</button>
+          </div>
+        ))}
+
+        {/* Totals row */}
+        {rows.length>0&&(
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',padding:'.75rem .9rem',alignItems:'center',background:'var(--s2)',borderTop:'2px solid var(--border)'}}>
+            <span style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--muted)',letterSpacing:'.1em'}}>TOTAL ({totalDays} days)</span>
+            <span style={{fontFamily:'var(--font-d)',fontSize:'1.6rem',color:'var(--green)',letterSpacing:'.04em'}}>{totalApps}</span>
+            <span style={{width:30}}/>
+          </div>
+        )}
+      </div>
+
+      <div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--dim)',letterSpacing:'.06em',textAlign:'center',paddingBottom:'.5rem'}}>TIP: DOUBLE-CLICK A NUMBER TO EDIT IT</div>
+    </div></div>
+  );
+}
+
 function App(){
   const[store,setStore]=useState(()=>loadStore());
   const[tab,setTab]=useState('week');
@@ -737,7 +886,7 @@ function App(){
 
       <div className="topbar">
         <div className="tb-inner" style={{justifyContent:'flex-start',position:'relative'}}>
-          <div className="title">SHI<span>FT</span>S</div>
+          <div className="title">{tab==='apps'?<span style={{color:'var(--accent)'}}>APPLICATIONS</span>:<>SHI<span>FT</span>S</>}</div>
           {tab==='week'&&<div onClick={wOff!==0?()=>setWOff(0):undefined} style={{position:'absolute',left:'50%',transform:'translateX(-50%)',textAlign:'center',cursor:wOff!==0?'pointer':'default',userSelect:'none'}}>
             <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:wOff!==0?'var(--accent)':'var(--text)',lineHeight:1}}>{wOff===0?'THIS WEEK':wOff===-1?'LAST WEEK':wOff<0?`${Math.abs(wOff)} WKS AGO`:`${wOff} WKS AHEAD`}</div>
             <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',marginTop:'.15rem',letterSpacing:'.04em'}}>{wLabel}</div>
@@ -1286,9 +1435,12 @@ function App(){
         })()}
       </div></div>}
 
+      {/* APPLICATIONS */}
+      {tab==='apps'&&<AppsTab/>}
+
       {/* NAV */}
       <div className="bnav">
-        {[{id:'add',ico:'➕',lbl:'ADD'},{id:'week',ico:'📅',lbl:'WEEK'},{id:'monthly',ico:'🗓️',lbl:'MONTH'},{id:'stats',ico:'📊',lbl:'STATS'}].map(n=>(
+        {[{id:'add',ico:'➕',lbl:'ADD'},{id:'week',ico:'📅',lbl:'WEEK'},{id:'monthly',ico:'🗓️',lbl:'MONTH'},{id:'stats',ico:'📊',lbl:'STATS'},{id:'apps',ico:'📋',lbl:'APPS'}].map(n=>(
           <button key={n.id} className={`bni ${tab===n.id?'act':''}`} onClick={()=>switchTab(n.id)}>
             <span className="bni-ico">{n.ico}</span>{n.lbl}
           </button>
