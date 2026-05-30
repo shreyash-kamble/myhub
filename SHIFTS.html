@@ -92,7 +92,7 @@ function localDateStr(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padSta
 const TODAY=localDateStr(new Date());
 
 const STORE_KEY='shifts_v4';
-function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.lastPayRate)d.lastPayRate=0;if(!d.actualPay)d.actualPay={};if(!d.isaContrib)d.isaContrib={};if(!d.payPeriod)d.payPeriod=null;return d;}}catch(e){}return{shifts:[],hourlyRate:12.5,weeklyTarget:0,lastPayRate:0,actualPay:{},isaContrib:{},payPeriod:null};}
+function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.lastPayRate)d.lastPayRate=0;if(!d.actualPay)d.actualPay={};if(!d.isaContrib)d.isaContrib={};if(!d.isaData)d.isaData={};if(!d.payPeriod)d.payPeriod=null;return d;}}catch(e){}return{shifts:[],hourlyRate:12.5,weeklyTarget:0,lastPayRate:0,actualPay:{},isaContrib:{},isaData:{},payPeriod:null};}
 function saveStore(s){try{localStorage.setItem(STORE_KEY,JSON.stringify(s));}catch(e){}}
 
 function calDays(mk){
@@ -328,7 +328,7 @@ const CSS=`
 /* STATS */
 .st-wrap{padding:.85rem .85rem 0;animation:up .2s ease;}
 .stg{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.65rem;}
-.stc{background:var(--s1);border:1px solid var(--border);padding:.9rem;border-radius:8px;}
+.stc{background:var(--s1);border:1px solid var(--border);padding:.9rem;border-radius:8px;text-align:center;}
 .stv{font-family:var(--font-d);font-size:1.8rem;letter-spacing:.04em;color:var(--text);line-height:1;}
 .stl{font-family:var(--font-m);font-size:.58rem;color:var(--muted);margin-top:.25rem;letter-spacing:.07em;}
 .pb{background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--green);padding:1rem;margin-bottom:.65rem;border-radius:7px;}
@@ -571,7 +571,6 @@ function AppsTab(){
         const r=await window.storage.get(APP_STORE_KEY);
         if(r&&r.value)setRows(JSON.parse(r.value));
       }catch(e){
-        // fallback: try localStorage
         try{const d=localStorage.getItem(APP_STORE_KEY);if(d)setRows(JSON.parse(d));}catch{}
       }
       setLoaded(true);
@@ -615,27 +614,22 @@ function AppsTab(){
 
   return(
     <div className="screen"><div style={{padding:'.85rem .85rem 0',animation:'up .2s ease'}}>
-
-      {/* Stats strip */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'.4rem',marginBottom:'.75rem'}}>
         {[
           {lbl:'TOTAL DAYS',val:totalDays,col:'var(--green)'},
           {lbl:'TOTAL APPLIED',val:totalApps,col:'var(--accent)'},
           {lbl:'AVG / DAY',val:totalDays?(totalApps/totalDays).toFixed(1):'—',col:'var(--gold)'},
         ].map(({lbl,val,col})=>(
-          <div key={lbl} style={{background:'var(--s1)',border:'1px solid var(--border)',borderTop:`2px solid ${col}`,padding:'.8rem .75rem',borderRadius:'7px'}}>
+          <div key={lbl} style={{background:'var(--s1)',border:'1px solid var(--border)',borderTop:`2px solid ${col}`,padding:'.8rem .75rem',borderRadius:'7px',textAlign:'center'}}>
             <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.1em',marginBottom:'.25rem'}}>{lbl}</div>
             <div style={{fontFamily:'var(--font-d)',fontSize:'1.6rem',color:col,lineHeight:1}}>{val}</div>
           </div>
         ))}
       </div>
-
-      {/* Add Entry */}
       <div style={{background:'var(--s1)',border:'1px solid var(--border)',padding:'1rem',marginBottom:'.65rem',borderRadius:'7px'}}>
         <div style={{fontFamily:'var(--font-m)',fontSize:'.65rem',color:'var(--accent)',letterSpacing:'.1em',marginBottom:'.6rem'}}>ADD ENTRY</div>
         <div style={{display:'grid',gridTemplateColumns:'1fr auto auto',gap:'.4rem',alignItems:'center'}}>
-          <input type="date" value={newDate} onChange={e=>setNewDate(e.target.value)}
-            className="dinp" style={{fontSize:'.82rem'}}/>
+          <input type="date" value={newDate} onChange={e=>setNewDate(e.target.value)} className="dinp" style={{fontSize:'.82rem'}}/>
           <input type="number" min="0" placeholder="# apps" value={newCount}
             onChange={e=>setNewCount(e.target.value)}
             onKeyDown={e=>e.key==='Enter'&&addRow()}
@@ -646,20 +640,15 @@ function AppsTab(){
           </button>
         </div>
       </div>
-
-      {/* Log */}
       <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderRadius:'7px',overflow:'hidden',marginBottom:'.65rem'}}>
-        {/* Header */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',background:'var(--s2)',padding:'.6rem .9rem',fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--muted)',letterSpacing:'.12em',borderBottom:'1px solid var(--border)'}}>
           <span>DATE</span><span>APPLICATIONS</span><span style={{width:30}}/>
         </div>
-
         {rows.length===0&&(
           <div style={{padding:'2.5rem 1rem',color:'var(--dim)',fontFamily:'var(--font-m)',fontSize:'.7rem',textAlign:'center',letterSpacing:'.06em'}}>
             NO ENTRIES YET — ADD YOUR FIRST DAY ABOVE
           </div>
         )}
-
         {rows.map((row,i)=>(
           <div key={row.id} style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',padding:'.75rem .9rem',alignItems:'center',background:i%2===0?'var(--bg)':'var(--s1)',borderBottom:'1px solid var(--border)',transition:'background .1s'}}>
             <span style={{fontFamily:'var(--font-m)',fontSize:'.78rem',color:'var(--muted)'}}>{fmtD(row.date)}</span>
@@ -687,8 +676,6 @@ function AppsTab(){
             >×</button>
           </div>
         ))}
-
-        {/* Totals row */}
         {rows.length>0&&(
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',padding:'.75rem .9rem',alignItems:'center',background:'var(--s2)',borderTop:'2px solid var(--border)'}}>
             <span style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--muted)',letterSpacing:'.1em'}}>TOTAL ({totalDays} days)</span>
@@ -697,7 +684,6 @@ function AppsTab(){
           </div>
         )}
       </div>
-
       <div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--dim)',letterSpacing:'.06em',textAlign:'center',paddingBottom:'.5rem'}}>TIP: DOUBLE-CLICK A NUMBER TO EDIT IT</div>
     </div></div>
   );
@@ -707,7 +693,7 @@ function App(){
   const[store,setStore]=useState(()=>loadStore());
   const[tab,setTab]=useState('week');
   const[swipeKey,setSwipeKey]=useState(0);
-  function switchTab(id){if(id==='add')setDate(localDateStr(new Date()));if(id==='week'||id==='monthly')setSwipeKey(k=>k+1);setTab(id);}
+  function switchTab(id){if(id==='week'||id==='monthly')setSwipeKey(k=>k+1);setTab(id);}
   const[date,setDate]=useState(localDateStr(new Date()));
   const[s0,setS0]=useState('');
   const[e0,setE0]=useState('');
@@ -732,6 +718,7 @@ function App(){
   const[showWkBreak,setShowWkBreak]=useState(false);
   const[showMonBreak,setShowMonBreak]=useState(false);
   const[showActualPay,setShowActualPay]=useState(false);
+  const[showISA,setShowISA]=useState(false);
   const[showPP,setShowPP]=useState(false);
 
   // Pay period: default 12th of prev month → 13th of current month, paid 22nd of current month
@@ -886,7 +873,7 @@ function App(){
 
       <div className="topbar">
         <div className="tb-inner" style={{justifyContent:'flex-start',position:'relative'}}>
-          <div className="title">{tab==='apps'?<span style={{color:'var(--accent)'}}>APPLICATIONS</span>:<>SHI<span>FT</span>S</>}</div>
+          <div className="title">SHI<span>FT</span>S</div>
           {tab==='week'&&<div onClick={wOff!==0?()=>setWOff(0):undefined} style={{position:'absolute',left:'50%',transform:'translateX(-50%)',textAlign:'center',cursor:wOff!==0?'pointer':'default',userSelect:'none'}}>
             <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:wOff!==0?'var(--accent)':'var(--text)',lineHeight:1}}>{wOff===0?'THIS WEEK':wOff===-1?'LAST WEEK':wOff<0?`${Math.abs(wOff)} WKS AGO`:`${wOff} WKS AHEAD`}</div>
             <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',marginTop:'.15rem',letterSpacing:'.04em'}}>{wLabel}</div>
@@ -898,99 +885,6 @@ function App(){
 
         </div>
       </div>
-
-      {/* ADD */}
-      {tab==='add'&&<div className="screen"><div className="add-wrap">
-        <div className="fcard">
-          <div className="flbl">DATE</div>
-          <input className="dinp" type="date" value={date} onChange={e=>setDate(e.target.value)}/>
-        </div>
-        <div className="fcard">
-          <div className="flbl">SHIFT TIME</div>
-          <div className="trow">
-            <TimeInput className="finp" value={s0} onChange={setS0} placeholder="09:00"/>
-            <div className="tsep">→</div>
-            <TimeInput className="finp" value={e0} onChange={setE0} placeholder="17:00"/>
-          </div>
-          {s0&&e0&&pH>0&&<div style={{marginTop:'.5rem',fontFamily:'var(--font-m)',fontSize:'.67rem',color:'var(--accent)'}}>{fmtH(pH)} · ends {e0==='00:00'?'00:00':e0}{finalLoc==='Byker'&&shiftPayRate===12?<span style={{color:'var(--muted)',marginLeft:'.4em'}}>(-45min break)</span>:null}</div>}
-          <div style={{height:'1px',background:'var(--border)',margin:'.75rem 0'}}/>
-          <div className="flbl" style={{marginBottom:'.4rem'}}>PAY RATE (£/HR)</div>
-          <div style={{display:'flex',alignItems:'center',gap:'.5rem'}}>
-            <span style={{fontFamily:'var(--font-m)',fontSize:'.9rem',color:'var(--muted)'}}>£</span>
-            <input
-              className="finp"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              value={payRateIn}
-              onChange={e=>setPayRateIn(e.target.value)}
-              placeholder={rate.toFixed(2)}
-              style={{flex:1}}
-            />
-            <span style={{fontFamily:'var(--font-m)',fontSize:'.62rem',color:'var(--muted)',whiteSpace:'nowrap'}}>/HR</span>
-          </div>
-          {payRateIn&&parseFloat(payRateIn)>0&&<div style={{marginTop:'.3rem',fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--green)',letterSpacing:'.04em'}}>Using £{parseFloat(payRateIn).toFixed(2)}/hr for this shift</div>}
-        </div>
-        <div className="fcard">
-          <div className="flbl">LOCATION</div>
-          <div className="lgrid">
-            {LOCS.map(l=>{
-              const isOtherSel=l==='Other'&&loc==='Other';
-              const isSel=loc===l||isOtherSel;
-              const col=LCOL[l]||LCOL['Other'];
-              return(
-              <div key={l} className={`lbtn ${isSel?'sel':''}`}
-                style={isSel?{borderColor:col,color:col}:{}}
-                onClick={()=>{
-                  if(l==='Other'){setLoc('Other');setOtherName('');setPayRateIn('12.5');}
-                  else{setLoc(l);setOtherName('');setPayRateIn(l==='Byker'?'12':'12.5');if(l==='Boiler Shop'){setS0('17:45');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}}
-                }}>
-                <span>{LICO[l]}</span>{l}
-              </div>);
-            })}
-            {/* MORE VENUES — sits next to Other in the grid */}
-            <div onClick={()=>setShowMoreLocs(v=>!v)}
-              className="lbtn"
-              style={{borderStyle:'dashed',borderColor:EXTRA_LOCS.includes(loc)?'var(--purple)':'var(--border2)',color:EXTRA_LOCS.includes(loc)?'var(--purple)':'var(--muted)',justifyContent:'space-between'}}>
-              <span style={{fontSize:'.75rem',overflow:'hidden',textOverflow:'ellipsis',flex:1,fontFamily:'var(--font-b)',fontWeight:700,letterSpacing:'.03em'}}>
-                {EXTRA_LOCS.includes(loc)?`${LICO[loc]} ${loc}`:'+ More'}
-              </span>
-              <span style={{fontSize:'.65rem',display:'inline-block',transform:showMoreLocs?'rotate(180deg)':'rotate(0deg)',transition:'transform .2s',flexShrink:0}}>&#9662;</span>
-            </div>
-          </div>
-          {showMoreLocs&&<div className="lgrid" style={{marginTop:'.4rem',animation:'fadeIn .15s ease'}}>
-            {EXTRA_LOCS.map(l=>{
-              const isSel=loc===l;
-              const col=LCOL[l];
-              return(
-              <div key={l} className={`lbtn ${isSel?'sel':''}`}
-                style={isSel?{borderColor:col,color:col}:{borderColor:'var(--border2)',color:'var(--muted)'}}
-                onClick={()=>{setLoc(l);setOtherName('');setPayRateIn('12.5');}}>
-                <span>{LICO[l]}</span>{l}
-              </div>);
-            })}
-          </div>}
-          {loc==='Other'&&<input
-            className="finp"
-            style={{marginTop:'.5rem'}}
-            type="text"
-            placeholder="Enter venue name..."
-            value={otherName}
-            onChange={e=>setOtherName(e.target.value)}
-            autoFocus
-          />}
-        </div>
-        <div className="fcard">
-          <div className="flbl">NOTES (OPTIONAL)</div>
-          <textarea className="notes-inp" rows={2} value={note} onChange={e=>setNote(e.target.value)} placeholder=""/>
-        </div>
-        {pH>0&&<div className="prev">
-          <div><div className="pv-l">HOURS</div><div className="pv-h">{fmtH(pH)}</div></div>
-          <div style={{textAlign:'right'}}><div className="pv-l">PAY</div><div className="pv-p">{fmtP(pP)}</div></div>
-        </div>}
-        <button className="add-btn ok" disabled={!s0||!e0||calcH(s0,e0)<=0} onClick={addShift}>{ok?'✓ SAVED':'SAVE'}</button>
-      </div></div>}
 
       {/* WEEK */}
       {tab==='week'&&<div className="screen" ref={weekRef}><div className="w-wrap">
@@ -1171,6 +1065,10 @@ function App(){
           const isCompleteFY=activeTY!==curTY;
           const fyWeeks=Math.round((new Date(activeTY+1,3,5)-new Date(activeTY,3,6))/(7*86400000));
           const avgPerWeek=fyWeeks>0?activeTYData.hours/fyWeeks:0;
+          // AVG/WEEK for past weeks only (weeks with at least one shift)
+          const workedWeekSet=new Set(tyShifts.filter(s=>s.date<TODAY).map(s=>wkNum(s.date)+'-'+new Date(s.date).getFullYear()));
+          const workedWeeks=workedWeekSet.size;
+          const avgWorkedWeek=workedWeeks>0?tyShifts.filter(s=>s.date<TODAY).reduce((a,s)=>a+s.hours,0)/workedWeeks:0;
 
           // Tax estimate — cumulative monthly allowance (PAYE-style)
           // £12,570 / 12 = £1,047.50 free per month, unused allowance carries forward
@@ -1249,26 +1147,35 @@ function App(){
               {tyLabel(activeTY)} OVERVIEW
             </div>
             <div className="stg" style={{marginBottom:'.65rem'}}>
-              <div className="stc" style={{borderTop:'2px solid var(--accent)'}}><div className="stv" style={{color:'var(--accent)'}}>{fmtH(activeTYData.hours)}</div><div className="stl">HOURS</div></div>
-              <div className="stc" style={{borderTop:'2px solid var(--green)'}}><div className="stv" style={{color:'var(--green)',fontSize:'1.4rem'}}>{fmtP(activeTYData.pay)}</div><div className="stl">EARNED</div></div>
+              <div className="stc" style={{borderTop:'2px solid var(--accent)',textAlign:'center'}}><div className="stv" style={{color:'var(--accent)'}}>{fmtH(activeTYData.hours)}</div><div className="stl">HOURS</div></div>
+              <div className="stc" style={{borderTop:'2px solid var(--green)',textAlign:'center'}}><div className="stv" style={{color:'var(--green)',fontSize:'1.4rem'}}>{fmtP(activeTYData.pay)}</div><div className="stl">EARNED</div></div>
               <div className="stc" style={{borderTop:'2px solid var(--gold)',display:'flex',padding:0,overflow:'hidden'}}>
-                <div style={{flex:1,padding:'.9rem',borderRight:'1px solid var(--border)'}}>
+                <div style={{flex:1,padding:'.9rem',borderRight:'1px solid var(--border)',textAlign:'center'}}>
                   <div className="stv" style={{color:'var(--gold)'}}>{activeTYData.shifts}</div>
                   <div className="stl">SHIFTS</div>
                 </div>
-                <div style={{flex:1,padding:'.9rem'}}>
+                <div style={{flex:1,padding:'.9rem',textAlign:'center'}}>
                   <div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem'}}>{activeTYData.shifts>0?fmtH(activeTYData.hours/activeTYData.shifts):'—'}</div>
                   <div className="stl">AVG/SHIFT</div>
                 </div>
               </div>
-              <div className="stc" style={{borderTop:'2px solid var(--purple)'}}><div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem'}}>{activeTYData.hours>0?fmtH(avgPerWeek):'—'}</div><div className="stl">AVG/WEEK{activeTYData.hours>0?<span style={{display:'block',fontSize:'.42rem',color:'var(--dim)',letterSpacing:'.06em',marginTop:'1px',fontFamily:'var(--font-m)'}}>{`÷ ${fyWeeks} WKS`}</span>:null}</div></div>
+              <div className="stc" style={{borderTop:'2px solid var(--purple)',display:'flex',padding:0,overflow:'hidden'}}>
+                <div style={{flex:1,padding:'.9rem',borderRight:'1px solid var(--border)',textAlign:'center'}}>
+                  <div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem'}}>{workedWeeks>0?fmtH(avgWorkedWeek):'—'}</div>
+                  <div className="stl">AVG/WEEK{workedWeeks>0?<span style={{display:'block',fontSize:'.42rem',color:'var(--dim)',letterSpacing:'.06em',marginTop:'1px',fontFamily:'var(--font-m)'}}>{`${workedWeeks} WKS WORKED`}</span>:null}</div>
+                </div>
+                <div style={{flex:1,padding:'.9rem',textAlign:'center'}}>
+                  <div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem'}}>{activeTYData.hours>0?fmtH(avgPerWeek):'—'}</div>
+                  <div className="stl">AVG/WEEK{activeTYData.hours>0?<span style={{display:'block',fontSize:'.42rem',color:'var(--dim)',letterSpacing:'.06em',marginTop:'1px',fontFamily:'var(--font-m)'}}>{`÷ ${fyWeeks} WKS`}</span>:null}</div>
+                </div>
+              </div>
             </div>
 
 
-            {/* ACTUAL MONEY RECEIVED */}
+            {/* SALARY */}
             {activeTYData.months.length>0&&<div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--sky)',padding:'1rem',marginBottom:'.65rem',borderRadius:'7px'}}>
               <button onClick={()=>setShowActualPay(v=>!v)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',padding:0,marginBottom:showActualPay?'.65rem':0}}>
-                <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--sky)'}}>ACTUAL MONEY RECEIVED</div>
+                <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--sky)'}}>SALARY</div>
                 <div style={{display:'flex',alignItems:'center',gap:'.65rem'}}>
                   {(()=>{const totalActualHdr=activeTYData.months.reduce((sum,m)=>{const v=store.actualPay&&store.actualPay[m.k]!=null?parseFloat(store.actualPay[m.k]):null;return v!=null&&!isNaN(v)?sum+v:sum;},0);const filledHdr=activeTYData.months.filter(m=>store.actualPay&&store.actualPay[m.k]!=null&&!isNaN(parseFloat(store.actualPay[m.k]))).length;return filledHdr>0?(<div style={{textAlign:'right'}}><div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:'var(--sky)'}}>{fmtP(totalActualHdr)}</div><div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--muted)'}}>{filledHdr} month{filledHdr!==1?'s':''} logged</div></div>):null;})()}
                   <span style={{color:'var(--sky)',fontSize:'.8rem'}}>{showActualPay?'▴':'▾'}</span>
@@ -1326,42 +1233,6 @@ function App(){
                         {effectiveRate!==null&&<span style={{color:'var(--sky)',background:'rgba(56,189,248,.1)',border:'1px solid rgba(56,189,248,.25)',padding:'.1rem .35rem',borderRadius:'3px',letterSpacing:'.03em'}}>£{effectiveRate.toFixed(2)}/hr effective</span>}
                       </div>
                     ):null}
-                    {/* ISA value row */}
-                    {(()=>{
-                      const isaVal=store.isaContrib&&store.isaContrib[m.k]!=null?store.isaContrib[m.k]:'';
-                      const isaLocked=isLocked&&isaVal!=='';
-                      return(
-                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'.75rem',marginTop:'.45rem',paddingTop:'.45rem',borderTop:'1px solid var(--border)'}}>
-                        <div style={{flex:'0 0 auto'}}>
-                          <div style={{fontFamily:'var(--font-b)',fontWeight:700,fontSize:'.78rem',color:'var(--purple)'}}>ISA VALUE</div>
-                          <div style={{fontFamily:'var(--font-m)',fontSize:'.45rem',color:isaLocked?'var(--green)':'var(--muted)',letterSpacing:'.04em'}}>{isaLocked?'🔒 LOCKED':'CURRENT VALUE'}</div>
-                        </div>
-                        <div style={{flex:1,display:'flex',alignItems:'center',gap:'.4rem',justifyContent:'flex-end'}}>
-                          {isaLocked
-                            ? <span style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--purple)'}}>{fmtP(parseFloat(isaVal))}</span>
-                            : <>
-                              <span style={{fontFamily:'var(--font-m)',fontSize:'.75rem',color:'var(--muted)'}}>£</span>
-                              <input
-                                type="number"
-                                inputMode="decimal"
-                                step="0.01"
-                                min="0"
-                                placeholder="0.00"
-                                value={isaVal}
-                                onChange={e=>{
-                                  const val=e.target.value;
-                                  up(st=>{if(!st.isaContrib)st.isaContrib={};st.isaContrib={...st.isaContrib,[m.k]:val===''?null:parseFloat(val)||val};});
-                                }}
-                                style={{width:'100px',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-d)',fontSize:'1.1rem',padding:'.35rem .5rem',borderRadius:'4px',textAlign:'right',outline:'none'}}
-                                onFocus={e=>e.target.style.borderColor='var(--purple)'}
-                                onBlur={e=>e.target.style.borderColor='var(--border2)'}
-                              />
-                            </>
-                          }
-                        </div>
-                      </div>
-                      );
-                    })()}
                   </div>
                 );
               })}
@@ -1382,6 +1253,81 @@ function App(){
                 );
               })()}</>}
             </div>}
+
+            {/* ISA */}
+            {activeTYData.months.length>0&&(()=>{
+              const ISA_COL='var(--purple)';
+              const isaMonths=[...activeTYData.months].sort((a,b)=>{
+                const taxOrd=k=>{const[y,mo]=k.split('-').map(Number);return mo>=4?y*100+mo:(y-1)*100+mo+12;};
+                return taxOrd(a.k)-taxOrd(b.k);
+              });
+              const isaData=store.isaData||{};
+              // Header totals: latest entry's total value
+              const latestEntry=isaMonths.slice().reverse().find(m=>isaData[m.k]&&(isaData[m.k].value||isaData[m.k].investment||isaData[m.k].total));
+              const hdrTotal=latestEntry&&isaData[latestEntry.k]?.total?parseFloat(isaData[latestEntry.k].total):null;
+              const filledISA=isaMonths.filter(m=>isaData[m.k]&&(isaData[m.k].value||isaData[m.k].investment||isaData[m.k].total)).length;
+              return(
+              <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:`3px solid ${ISA_COL}`,padding:'1rem',marginBottom:'.65rem',borderRadius:'7px'}}>
+                <button onClick={()=>setShowISA(v=>!v)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',padding:0,marginBottom:showISA?'.65rem':0}}>
+                  <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:ISA_COL}}>ISA</div>
+                  <div style={{display:'flex',alignItems:'center',gap:'.65rem'}}>
+                    {hdrTotal!==null&&<div style={{textAlign:'right'}}>
+                      <div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:ISA_COL}}>{fmtP(hdrTotal)}</div>
+                      <div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--muted)'}}>{filledISA} month{filledISA!==1?'s':''} logged</div>
+                    </div>}
+                    <span style={{color:ISA_COL,fontSize:'.8rem'}}>{showISA?'▴':'▾'}</span>
+                  </div>
+                </button>
+                {showISA&&<>
+                  {/* Column headers */}
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:'.3rem',marginBottom:'.35rem',padding:'0 .1rem'}}>
+                    {['MONTH','VALUE','INVEST','TOTAL'].map(h=>(
+                      <div key={h} style={{fontFamily:'var(--font-m)',fontSize:'.5rem',color:'var(--muted)',letterSpacing:'.08em',textAlign:h==='MONTH'?'left':'right'}}>{h}</div>
+                    ))}
+                  </div>
+                  {isaMonths.map(m=>{
+                    const entry=isaData[m.k]||{};
+                    const isPast=m.k<TODAY.slice(0,7);
+                    const mkField=(field,col)=>(
+                      <input
+                        type="number" inputMode="decimal" step="0.01" min="0" placeholder="0.00"
+                        value={entry[field]||''}
+                        onChange={e=>{
+                          const val=e.target.value;
+                          up(st=>{
+                            if(!st.isaData)st.isaData={};
+                            st.isaData={...st.isaData,[m.k]:{...(st.isaData[m.k]||{}),[field]:val===''?null:val}};
+                          });
+                        }}
+                        style={{width:'100%',background:'var(--s3)',border:'1px solid var(--border2)',color:col,fontFamily:'var(--font-d)',fontSize:'.95rem',padding:'.3rem .4rem',borderRadius:'4px',textAlign:'right',outline:'none'}}
+                        onFocus={e=>e.target.style.borderColor=ISA_COL}
+                        onBlur={e=>e.target.style.borderColor='var(--border2)'}
+                      />
+                    );
+                    return(
+                      <div key={m.k} style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:'.3rem',alignItems:'center',marginBottom:'.3rem'}}>
+                        <div>
+                          <div style={{fontFamily:'var(--font-b)',fontWeight:700,fontSize:'.85rem',color:'var(--text)'}}>{mkName(m.k)}</div>
+                          {isPast&&<div style={{fontFamily:'var(--font-m)',fontSize:'.42rem',color:'var(--muted)',letterSpacing:'.04em'}}>PAST</div>}
+                        </div>
+                        {mkField('value','var(--accent)')}
+                        {mkField('investment','var(--green)')}
+                        {mkField('total',ISA_COL)}
+                      </div>
+                    );
+                  })}
+                  {/* Latest total summary */}
+                  {latestEntry&&isaData[latestEntry.k]?.total&&(
+                    <div style={{borderTop:'1px solid var(--border)',paddingTop:'.55rem',marginTop:'.2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <span style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:ISA_COL,letterSpacing:'.06em'}}>LATEST TOTAL · {mkName(latestEntry.k)}</span>
+                      <span style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:ISA_COL}}>{fmtP(parseFloat(isaData[latestEntry.k].total))}</span>
+                    </div>
+                  )}
+                </>}
+              </div>
+              );
+            })()}
+
             {taxYears.length===0&&<div style={{fontFamily:'var(--font-m)',fontSize:'.68rem',color:'var(--muted)'}}>NO DATA YET</div>}
 
             {/* Location breakdown for selected year */}
@@ -1440,7 +1386,7 @@ function App(){
 
       {/* NAV */}
       <div className="bnav">
-        {[{id:'add',ico:'➕',lbl:'ADD'},{id:'week',ico:'📅',lbl:'WEEK'},{id:'monthly',ico:'🗓️',lbl:'MONTH'},{id:'stats',ico:'📊',lbl:'STATS'},{id:'apps',ico:'📋',lbl:'APPS'}].map(n=>(
+        {[{id:'week',ico:'📅',lbl:'WEEK'},{id:'monthly',ico:'🗓️',lbl:'MONTH'},{id:'stats',ico:'📊',lbl:'STATS'},{id:'apps',ico:'📋',lbl:'APPS'}].map(n=>(
           <button key={n.id} className={`bni ${tab===n.id?'act':''}`} onClick={()=>switchTab(n.id)}>
             <span className="bni-ico">{n.ico}</span>{n.lbl}
           </button>
