@@ -231,7 +231,7 @@ const CSS=`
 .wntit{font-family:var(--font-d);font-size:1.5rem;letter-spacing:.06em;flex:1;text-align:center;color:var(--text);}
 .wnsub{font-family:var(--font-m);font-size:.6rem;color:var(--muted);text-align:center;margin-top:1px;}
 .who{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem;margin-bottom:.65rem;}
-.wc{background:var(--s1);border:1px solid var(--border);padding:.8rem .75rem;border-radius:7px;}
+.wc{background:var(--s1);border:1px solid var(--border);padding:.8rem .75rem;border-radius:7px;text-align:center;}
 .wcv{font-family:var(--font-d);font-size:1.5rem;letter-spacing:.04em;line-height:1;}
 .wcl{font-family:var(--font-m);font-size:.58rem;color:var(--muted);margin-top:.25rem;letter-spacing:.06em;}
 
@@ -690,6 +690,57 @@ function AppsTab(){
   );
 }
 
+/* ── SALARY ROW — double-tap to edit ── */
+function SalaryRow({m, actual, diff, effectiveRate, isPastMonth, up, tyShifts, shifts, rate}){
+  const[editing,setEditing]=useState(false);
+  const lastTap=useRef(0);
+  function handleTap(){
+    const now=Date.now();
+    if(now-lastTap.current<350){setEditing(true);}
+    lastTap.current=now;
+  }
+  return(
+    <div key={m.k} style={{marginBottom:'.5rem',padding:'.6rem .75rem',background:'var(--s2)',border:'1px solid var(--border)',borderRadius:'6px'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'.75rem'}}>
+        <div style={{flex:'0 0 auto'}}>
+          <div style={{fontFamily:'var(--font-b)',fontWeight:700,fontSize:'.95rem',color:'var(--text)'}}>{mkName(m.k)}</div>
+          {isPastMonth&&<div style={{fontFamily:'var(--font-m)',fontSize:'.48rem',color:'var(--muted)',marginTop:'1px',letterSpacing:'.04em'}}>MONTH OVER</div>}
+        </div>
+        <div style={{flex:1,display:'flex',alignItems:'center',gap:'.4rem',justifyContent:'flex-end'}}>
+          {actual!==''&&!editing
+            ? <span style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--sky)',cursor:'pointer',userSelect:'none'}} onClick={handleTap} title="Double-tap to edit">{fmtP(parseFloat(actual))}</span>
+            : <>
+                <span style={{fontFamily:'var(--font-m)',fontSize:'.75rem',color:'var(--muted)'}}>£</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={actual}
+                  autoFocus={editing}
+                  onChange={e=>{
+                    const val=e.target.value;
+                    up(st=>{if(!st.actualPay)st.actualPay={};st.actualPay={...st.actualPay,[m.k]:val===''?null:parseFloat(val)||val};});
+                  }}
+                  onBlur={()=>setEditing(false)}
+                  style={{width:'100px',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-d)',fontSize:'1.1rem',padding:'.35rem .5rem',borderRadius:'4px',textAlign:'right',outline:'none'}}
+                  onFocus={e=>e.target.style.borderColor='var(--sky)'}
+                />
+              </>
+          }
+        </div>
+      </div>
+      {(diff!==null&&!isNaN(diff))||effectiveRate!==null?(
+        <div style={{marginTop:'.35rem',fontFamily:'var(--font-m)',fontSize:'.6rem',letterSpacing:'.04em',display:'flex',gap:'.6rem',flexWrap:'wrap',alignItems:'center'}}>
+          {diff!==null&&!isNaN(diff)&&<span style={{color:diff>=0?'var(--green)':'var(--red)'}}>{diff>=0?`+${fmtP(diff)} more than calc`:`${fmtP(Math.abs(diff))} less than calc`}</span>}
+          {effectiveRate!==null&&<span style={{color:'var(--sky)',background:'rgba(56,189,248,.1)',border:'1px solid rgba(56,189,248,.25)',padding:'.1rem .35rem',borderRadius:'3px',letterSpacing:'.03em'}}>£{effectiveRate.toFixed(2)}/hr effective</span>}
+        </div>
+      ):null}
+    </div>
+  );
+}
+
 function App(){
   const[store,setStore]=useState(()=>loadStore());
   const[tab,setTab]=useState('week');
@@ -719,7 +770,6 @@ function App(){
   const[showWkBreak,setShowWkBreak]=useState(false);
   const[showMonBreak,setShowMonBreak]=useState(false);
   const[showActualPay,setShowActualPay]=useState(false);
-  const[showISA,setShowISA]=useState(false);
   const[showPP,setShowPP]=useState(false);
 
   // Pay period: default 12th of prev month → 13th of current month, paid 22nd of current month
@@ -1066,10 +1116,11 @@ function App(){
           const isCompleteFY=activeTY!==curTY;
           const fyWeeks=Math.round((new Date(activeTY+1,3,5)-new Date(activeTY,3,6))/(7*86400000));
           const avgPerWeek=fyWeeks>0?activeTYData.hours/fyWeeks:0;
-          // AVG/WEEK for past weeks only (weeks with at least one shift)
-          const workedWeekSet=new Set(tyShifts.filter(s=>s.date<TODAY).map(s=>wkNum(s.date)+'-'+isoWkYear(s.date)));
+          // AVG/WEEK for past weeks only (weeks with at least one shift), excluding current week
+          const currentWkKey=wkNum(TODAY)+'-'+isoWkYear(TODAY);
+          const workedWeekSet=new Set(tyShifts.filter(s=>s.date<TODAY&&(wkNum(s.date)+'-'+isoWkYear(s.date))!==currentWkKey).map(s=>wkNum(s.date)+'-'+isoWkYear(s.date)));
           const workedWeeks=workedWeekSet.size;
-          const avgWorkedWeek=workedWeeks>0?tyShifts.filter(s=>s.date<TODAY).reduce((a,s)=>a+s.hours,0)/workedWeeks:0;
+          const avgWorkedWeek=workedWeeks>0?tyShifts.filter(s=>s.date<TODAY&&(wkNum(s.date)+'-'+isoWkYear(s.date))!==currentWkKey).reduce((a,s)=>a+s.hours,0)/workedWeeks:0;
 
           // Tax estimate — cumulative monthly allowance (PAYE-style)
           // £12,570 / 12 = £1,047.50 free per month, unused allowance carries forward
@@ -1148,24 +1199,26 @@ function App(){
               {tyLabel(activeTY)} OVERVIEW
             </div>
             <div className="stg" style={{marginBottom:'.65rem'}}>
-              <div className="stc" style={{borderTop:'2px solid var(--accent)',textAlign:'center'}}><div className="stv" style={{color:'var(--accent)'}}>{fmtH(activeTYData.hours)}</div></div>
-              <div className="stc" style={{borderTop:'2px solid var(--green)',textAlign:'center'}}><div className="stv" style={{color:'var(--green)',fontSize:'1.4rem'}}>{fmtP(activeTYData.pay)}</div></div>
+              <div className="stc" style={{borderTop:'2px solid var(--accent)',textAlign:'center'}}><div className="stv" style={{color:'var(--accent)'}}>{fmtH(activeTYData.hours)}</div><div className="stl">TOTAL HRS</div></div>
+              <div className="stc" style={{borderTop:'2px solid var(--green)',textAlign:'center'}}><div className="stv" style={{color:'var(--green)',fontSize:'1.4rem'}}>{fmtP(activeTYData.pay)}</div><div className="stl">GROSS PAY</div></div>
               <div className="stc" style={{borderTop:'2px solid var(--gold)',display:'flex',padding:0,overflow:'hidden'}}>
                 <div style={{flex:1,padding:'.9rem',borderRight:'1px solid var(--border)',textAlign:'center'}}>
-                  <div className="stv" style={{color:'var(--gold)'}}>{activeTYData.shifts}</div>
+                  <div className="stv" style={{color:'var(--gold)',textAlign:'center'}}>{activeTYData.shifts}</div>
+                  <div className="stl" style={{textAlign:'center'}}>SHIFTS</div>
                 </div>
                 <div style={{flex:1,padding:'.9rem',textAlign:'center'}}>
-                  <div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem'}}>{activeTYData.shifts>0?fmtH(activeTYData.hours/activeTYData.shifts):'—'}</div>
+                  <div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem',textAlign:'center'}}>{activeTYData.shifts>0?fmtH(activeTYData.hours/activeTYData.shifts):'—'}</div>
+                  <div className="stl" style={{textAlign:'center'}}>AVG/SHIFT</div>
                 </div>
               </div>
               <div className="stc" style={{borderTop:'2px solid var(--purple)',display:'flex',padding:0,overflow:'hidden'}}>
                 <div style={{flex:1,padding:'.9rem',borderRight:'1px solid var(--border)',textAlign:'center'}}>
-                  <div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem'}}>{workedWeeks>0?fmtH(avgWorkedWeek):'—'}</div>
-                  {workedWeeks>0&&<div style={{fontFamily:'var(--font-m)',fontSize:'.42rem',color:'var(--dim)',letterSpacing:'.06em',marginTop:'2px'}}>{workedWeeks} WKS WORKED</div>}
+                  <div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem',textAlign:'center'}}>{workedWeeks>0?fmtH(avgWorkedWeek):'—'}</div>
+                  <div className="stl" style={{textAlign:'center'}}>{workedWeeks>0?`AVG (${workedWeeks} WKS)`:'AVG WORKED'}</div>
                 </div>
                 <div style={{flex:1,padding:'.9rem',textAlign:'center'}}>
-                  <div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem'}}>{activeTYData.hours>0?fmtH(avgPerWeek):'—'}</div>
-                  {activeTYData.hours>0&&<div style={{fontFamily:'var(--font-m)',fontSize:'.42rem',color:'var(--dim)',letterSpacing:'.06em',marginTop:'2px'}}>{`÷ ${fyWeeks} WKS`}</div>}
+                  <div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem',textAlign:'center'}}>{activeTYData.hours>0?fmtH(avgPerWeek):'—'}</div>
+                  <div className="stl" style={{textAlign:'center'}}>{activeTYData.hours>0?`AVG ÷ ${fyWeeks} WKS`:'AVG/WEEK'}</div>
                 </div>
               </div>
             </div>
@@ -1187,53 +1240,13 @@ function App(){
                 const actual=store.actualPay&&store.actualPay[m.k]!=null?store.actualPay[m.k]:'';
                 const diff=actual!==''?parseFloat(actual)-m.pay:null;
                 const isPastMonth=m.k<TODAY.slice(0,7);
-                const isLocked=isPastMonth&&actual!=='';
-                // Payroll cut-off date ranges from the payroll calendar
                 const PAYROLL_PERIODS={'2026-01':{from:'2025-12-10',to:'2026-01-13'},'2026-02':{from:'2026-01-14',to:'2026-02-11'},'2026-03':{from:'2026-02-12',to:'2026-03-11'},'2026-04':{from:'2026-03-12',to:'2026-04-13'},'2026-05':{from:'2026-04-14',to:'2026-05-12'},'2026-06':{from:'2026-05-13',to:'2026-06-11'},'2026-07':{from:'2026-06-12',to:'2026-07-13'},'2026-08':{from:'2026-07-14',to:'2026-08-11'},'2026-09':{from:'2026-08-12',to:'2026-09-11'},'2026-10':{from:'2026-09-12',to:'2026-10-13'},'2026-11':{from:'2026-10-14',to:'2026-11-11'},'2026-12':{from:'2026-11-12',to:'2026-12-08'}};
                 const pp=PAYROLL_PERIODS[m.k];
                 const nonBykerHours=pp
                   ? shifts.filter(s=>s.loc!=='Byker'&&s.date>=pp.from&&s.date<=pp.to).reduce((a,s)=>a+s.hours,0)
                   : tyShifts.filter(s=>s.loc!=='Byker'&&s.date.slice(0,7)===m.k).reduce((a,s)=>a+s.hours,0);
                 const effectiveRate=actual!==''&&nonBykerHours>0?parseFloat(actual)/nonBykerHours:null;
-                return(
-                  <div key={m.k} style={{marginBottom:'.5rem',padding:'.6rem .75rem',background:'var(--s2)',border:'1px solid var(--border)',borderRadius:'6px'}}>
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'.75rem'}}>
-                      <div style={{flex:'0 0 auto'}}>
-                        <div style={{fontFamily:'var(--font-b)',fontWeight:700,fontSize:'.95rem',color:'var(--text)'}}>{mkName(m.k)}</div>
-                        {isPastMonth&&<div style={{fontFamily:'var(--font-m)',fontSize:'.48rem',color:isLocked?'var(--green)':'var(--muted)',marginTop:'1px',letterSpacing:'.04em'}}>{isLocked?'🔒 LOCKED':'MONTH OVER'}</div>}
-                      </div>
-                      <div style={{flex:1,display:'flex',alignItems:'center',gap:'.4rem',justifyContent:'flex-end'}}>
-                        {isLocked
-                          ? <span style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--sky)'}}>{fmtP(parseFloat(actual))}</span>
-                          : <>
-                            <span style={{fontFamily:'var(--font-m)',fontSize:'.75rem',color:'var(--muted)'}}>£</span>
-                            <input
-                              type="number"
-                              inputMode="decimal"
-                              step="0.01"
-                              min="0"
-                              placeholder="0.00"
-                              value={actual}
-                              onChange={e=>{
-                                const val=e.target.value;
-                                up(st=>{if(!st.actualPay)st.actualPay={};st.actualPay={...st.actualPay,[m.k]:val===''?null:parseFloat(val)||val};});
-                              }}
-                              style={{width:'100px',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-d)',fontSize:'1.1rem',padding:'.35rem .5rem',borderRadius:'4px',textAlign:'right',outline:'none'}}
-                              onFocus={e=>e.target.style.borderColor='var(--sky)'}
-                              onBlur={e=>e.target.style.borderColor='var(--border2)'}
-                            />
-                          </>
-                        }
-                      </div>
-                    </div>
-                    {(diff!==null&&!isNaN(diff))||effectiveRate!==null?(
-                      <div style={{marginTop:'.35rem',fontFamily:'var(--font-m)',fontSize:'.6rem',letterSpacing:'.04em',display:'flex',gap:'.6rem',flexWrap:'wrap',alignItems:'center'}}>
-                        {diff!==null&&!isNaN(diff)&&<span style={{color:diff>=0?'var(--green)':'var(--red)'}}>{diff>=0?`+${fmtP(diff)} more than calc`:`${fmtP(Math.abs(diff))} less than calc`}</span>}
-                        {effectiveRate!==null&&<span style={{color:'var(--sky)',background:'rgba(56,189,248,.1)',border:'1px solid rgba(56,189,248,.25)',padding:'.1rem .35rem',borderRadius:'3px',letterSpacing:'.03em'}}>£{effectiveRate.toFixed(2)}/hr effective</span>}
-                      </div>
-                    ):null}
-                  </div>
-                );
+                return <SalaryRow key={m.k} m={m} actual={actual} diff={diff} effectiveRate={effectiveRate} isPastMonth={isPastMonth} up={up} tyShifts={tyShifts} shifts={shifts} rate={rate}/>;
               })}
               {(()=>{
                 const totalActual=activeTYData.months.reduce((sum,m)=>{
@@ -1253,101 +1266,7 @@ function App(){
               })()}</>}
             </div>}
 
-            {/* ISA */}
-            {activeTYData.months.length>0&&(()=>{
-              const ISA_COL='var(--purple)';
-              const isaMonths=[...activeTYData.months].sort((a,b)=>{
-                const taxOrd=k=>{const[y,mo]=k.split('-').map(Number);return mo>=4?y*100+mo:(y-1)*100+mo+12;};
-                return taxOrd(a.k)-taxOrd(b.k);
-              });
-              const isaData=store.isaData||{};
-              // Header totals: latest entry's total value
-              const latestEntry=isaMonths.slice().reverse().find(m=>isaData[m.k]&&(isaData[m.k].value||isaData[m.k].investment||isaData[m.k].total));
-              const hdrTotal=latestEntry&&isaData[latestEntry.k]?.total?parseFloat(isaData[latestEntry.k].total):null;
-              const filledISA=isaMonths.filter(m=>isaData[m.k]&&(isaData[m.k].value||isaData[m.k].investment||isaData[m.k].total)).length;
-              return(
-              <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:`3px solid ${ISA_COL}`,padding:'1rem',marginBottom:'.65rem',borderRadius:'7px'}}>
-                <button onClick={()=>setShowISA(v=>!v)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',padding:0,marginBottom:showISA?'.65rem':0}}>
-                  <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:ISA_COL}}>ISA</div>
-                  <div style={{display:'flex',alignItems:'center',gap:'.65rem'}}>
-                    {hdrTotal!==null&&<div style={{textAlign:'right'}}>
-                      <div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:ISA_COL}}>{fmtP(hdrTotal)}</div>
-                      <div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--muted)'}}>{filledISA} month{filledISA!==1?'s':''} logged</div>
-                    </div>}
-                    <span style={{color:ISA_COL,fontSize:'.8rem'}}>{showISA?'▴':'▾'}</span>
-                  </div>
-                </button>
-                {showISA&&<>
-                  {/* Column headers */}
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:'.3rem',marginBottom:'.35rem',padding:'0 .1rem'}}>
-                    {['MONTH','VALUE','INVEST','TOTAL'].map(h=>(
-                      <div key={h} style={{fontFamily:'var(--font-m)',fontSize:'.5rem',color:'var(--muted)',letterSpacing:'.08em',textAlign:h==='MONTH'?'left':'right'}}>{h}</div>
-                    ))}
-                  </div>
-                  {isaMonths.map((m,idx)=>{
-                    const entry=isaData[m.k]||{};
-                    const isPast=m.k<TODAY.slice(0,7);
-                    const valNum=parseFloat(entry.value)||0;
-                    const invNum=parseFloat(entry.investment)||0;
-                    const hasValAndInv=entry.value&&entry.investment;
-                    const autoTotal=hasValAndInv?(valNum+invNum):null;
-                    const displayTotal=entry.total?parseFloat(entry.total):autoTotal;
-                    // Month-on-month change: compare this month's total to previous month's total
-                    const prevEntry=idx>0?isaData[isaMonths[idx-1].k]||{}:{};
-                    const prevTotal=prevEntry.total?parseFloat(prevEntry.total):(prevEntry.value&&prevEntry.investment?(parseFloat(prevEntry.value)||0)+(parseFloat(prevEntry.investment)||0):null);
-                    const mom=displayTotal!=null&&prevTotal!=null?displayTotal-prevTotal:null;
-                    const mkField=(field,col,readOnly,readVal)=>(
-                      <input
-                        type="number" inputMode="decimal" step="0.01" min="0" placeholder={readOnly&&readVal!=null?readVal.toFixed(2):'0.00'}
-                        value={readOnly?'':(entry[field]||'')}
-                        readOnly={readOnly}
-                        onChange={readOnly?undefined:e=>{
-                          const val=e.target.value;
-                          up(st=>{
-                            if(!st.isaData)st.isaData={};
-                            st.isaData={...st.isaData,[m.k]:{...(st.isaData[m.k]||{}),[field]:val===''?null:val}};
-                          });
-                        }}
-                        style={{width:'100%',background:readOnly?'var(--s2)':'var(--s3)',border:`1px solid ${readOnly?'var(--border)':'var(--border2)'}`,color:readOnly?'var(--dim)':col,fontFamily:'var(--font-d)',fontSize:'.95rem',padding:'.3rem .4rem',borderRadius:'4px',textAlign:'right',outline:'none',cursor:readOnly?'default':'text'}}
-                        onFocus={readOnly?undefined:e=>e.target.style.borderColor=ISA_COL}
-                        onBlur={readOnly?undefined:e=>e.target.style.borderColor='var(--border2)'}
-                      />
-                    );
-                    return(
-                      <div key={m.k} style={{marginBottom:'.4rem'}}>
-                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:'.3rem',alignItems:'center'}}>
-                          <div>
-                            <div style={{fontFamily:'var(--font-b)',fontWeight:700,fontSize:'.85rem',color:'var(--text)'}}>{mkName(m.k)}</div>
-                            {isPast&&<div style={{fontFamily:'var(--font-m)',fontSize:'.42rem',color:'var(--muted)',letterSpacing:'.04em'}}>PAST</div>}
-                          </div>
-                          {mkField('value','var(--accent)',false)}
-                          {mkField('investment','var(--green)',false)}
-                          {autoTotal!=null&&!entry.total
-                            ? mkField('total',ISA_COL,true,autoTotal)
-                            : mkField('total',ISA_COL,false)
-                          }
-                        </div>
-                        {mom!==null&&displayTotal!=null&&(
-                          <div style={{display:'flex',justifyContent:'flex-end',marginTop:'2px'}}>
-                            <span style={{fontFamily:'var(--font-m)',fontSize:'.52rem',color:mom>=0?'var(--green)':'var(--red)',letterSpacing:'.03em'}}>
-                              {mom>=0?'▲':'▼'} {fmtP(Math.abs(mom))} vs {mkName(isaMonths[idx-1].k)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {/* Latest total summary */}
-                  {latestEntry&&isaData[latestEntry.k]?.total&&(
-                    <div style={{borderTop:'1px solid var(--border)',paddingTop:'.55rem',marginTop:'.2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                      <span style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:ISA_COL,letterSpacing:'.06em'}}>LATEST TOTAL · {mkName(latestEntry.k)}</span>
-                      <span style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:ISA_COL}}>{fmtP(parseFloat(isaData[latestEntry.k].total))}</span>
-                    </div>
-                  )}
-                </>}
-              </div>
-              );
-            })()}
+
 
             {taxYears.length===0&&<div style={{fontFamily:'var(--font-m)',fontSize:'.68rem',color:'var(--muted)'}}>NO DATA YET</div>}
 
