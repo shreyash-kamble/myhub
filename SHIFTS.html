@@ -32,10 +32,10 @@ input::-webkit-inner-spin-button{-webkit-appearance:none;}
 <script type="text/babel">
 const {useState,useCallback,useMemo,useRef,useEffect}=React;
 
-const LOCS=['Arena','Boiler Shop','O2 City Hall','TR','NUFC','Byker','Other'];
-const EXTRA_LOCS=['BBC Radio','Silverstone','Lost Village','Playhouse','Durham','Download Festival','Tramlines Festival','York','NSU'];
-const LCOL={'TR':'#00e5ff','Byker':'#ff5555','NUFC':'#94a3b8','Boiler Shop':'#ff8c00','O2 City Hall':'#3dffa0','Arena':'#ffd600','Other':'#f472b6','BBC Radio':'#ff4444','Silverstone':'#a3e635','Lost Village':'#4ade80','Playhouse':'#e879f9','Durham':'#60a5fa','Download Festival':'#ff8c00','Tramlines Festival':'#f59e0b','York':'#c084fc','NSU':'#fb923c'};
-const LICO={'TR':'🎪','Byker':'🍔','NUFC':'⚽','Boiler Shop':'🔧','O2 City Hall':'🎵','Arena':'🏟️','Other':'📍','BBC Radio':'📻','Silverstone':'🏎️','Lost Village':'🌲','Playhouse':'🎭','Durham':'🏰','Download Festival':'⚡','Tramlines Festival':'🎶','York':'🌹','NSU':'🎓'};
+const LOCS=['Arena','Boiler Shop','O2 City Hall','TR','Fright Island','Byker','NUFC','Other'];
+const EXTRA_LOCS=['BBC Radio','Silverstone','Lost Village','Playhouse','Durham','York','NSU'];
+const LCOL={'TR':'#00e5ff','Byker':'#ff5555','NUFC':'#94a3b8','Boiler Shop':'#ff8c00','O2 City Hall':'#3dffa0','Arena':'#ffd600','Other':'#f472b6','Fright Island':'#ff6b35','BBC Radio':'#ff4444','Silverstone':'#a3e635','Lost Village':'#4ade80','Playhouse':'#e879f9','Durham':'#60a5fa','York':'#c084fc','NSU':'#fb923c'};
+const LICO={'TR':'🎪','Byker':'🍔','NUFC':'⚽','Boiler Shop':'🔧','O2 City Hall':'🎵','Arena':'🏟️','Other':'📍','Fright Island':'👻','BBC Radio':'📻','Silverstone':'🏎️','Lost Village':'🌲','Playhouse':'🎭','Durham':'🏰','York':'🌹','NSU':'🎓'};
 
 const uid=()=>crypto.randomUUID();
 
@@ -731,12 +731,6 @@ function SalaryRow({m, actual, diff, effectiveRate, isPastMonth, up, tyShifts, s
           }
         </div>
       </div>
-      {(diff!==null&&!isNaN(diff))||effectiveRate!==null?(
-        <div style={{marginTop:'.35rem',fontFamily:'var(--font-m)',fontSize:'.6rem',letterSpacing:'.04em',display:'flex',gap:'.6rem',flexWrap:'wrap',alignItems:'center'}}>
-          {diff!==null&&!isNaN(diff)&&<span style={{color:diff>=0?'var(--green)':'var(--red)'}}>{diff>=0?`+${fmtP(diff)} more than calc`:`${fmtP(Math.abs(diff))} less than calc`}</span>}
-          {effectiveRate!==null&&<span style={{color:'var(--sky)',background:'rgba(56,189,248,.1)',border:'1px solid rgba(56,189,248,.25)',padding:'.1rem .35rem',borderRadius:'3px',letterSpacing:'.03em'}}>£{effectiveRate.toFixed(2)}/hr effective</span>}
-        </div>
-      ):null}
     </div>
   );
 }
