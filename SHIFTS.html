@@ -33,9 +33,17 @@ input::-webkit-inner-spin-button{-webkit-appearance:none;}
 const {useState,useCallback,useMemo,useRef,useEffect}=React;
 
 const LOCS=['Arena','Boiler Shop','O2 City Hall','TR','Fright Island','Byker','NUFC','Other'];
-const EXTRA_LOCS=['BBC Radio','Silverstone','Lost Village','Playhouse','Durham','York','NSU'];
-const LCOL={'TR':'#00e5ff','Byker':'#ff5555','NUFC':'#94a3b8','Boiler Shop':'#ff8c00','O2 City Hall':'#3dffa0','Arena':'#ffd600','Other':'#f472b6','Fright Island':'#ff6b35','BBC Radio':'#ff4444','Silverstone':'#a3e635','Lost Village':'#4ade80','Playhouse':'#e879f9','Durham':'#60a5fa','York':'#c084fc','NSU':'#fb923c'};
-const LICO={'TR':'🎪','Byker':'🍔','NUFC':'⚽','Boiler Shop':'🔧','O2 City Hall':'🎵','Arena':'🏟️','Other':'📍','Fright Island':'👻','BBC Radio':'📻','Silverstone':'🏎️','Lost Village':'🌲','Playhouse':'🎭','Durham':'🏰','York':'🌹','NSU':'🎓'};
+const EXTRA_LOCS=['BBC Radio','Playhouse','Durham','NSU'];
+const LCOL={'TR':'#00e5ff','Byker':'#ff5555','NUFC':'#94a3b8','Boiler Shop':'#ff8c00','O2 City Hall':'#3dffa0','Arena':'#ffd600','Other':'#f472b6','Fright Island':'#ff6b35','BBC Radio':'#ff4444','Playhouse':'#e879f9','Durham':'#60a5fa','NSU':'#fb923c'};
+const LICO={'TR':'🎪','Byker':'🍔','NUFC':'⚽','Boiler Shop':'🔧','O2 City Hall':'🎵','Arena':'🏟️','Other':'📍','Fright Island':'👻','BBC Radio':'📻','Playhouse':'🎭','Durham':'🏰','NSU':'🎓'};
+
+// Generate a consistent color for custom venues not in LCOL
+const OTHER_PALETTE=['#f472b6','#a78bfa','#34d399','#fb923c','#38bdf8','#e879f9','#facc15','#4ade80','#f87171','#60a5fa','#c084fc','#2dd4bf'];
+function venueColor(name){
+  if(LCOL[name])return LCOL[name];
+  let h=0;for(let i=0;i<name.length;i++){h=(h*31+name.charCodeAt(i))>>>0;}
+  return OTHER_PALETTE[h%OTHER_PALETTE.length];
+}
 
 const uid=()=>crypto.randomUUID();
 
@@ -471,7 +479,7 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
                 style={isSel?{borderColor:col,color:col}:{}}
                 onClick={()=>{
                   if(l==='Other'){setLoc('Other');setOtherName('');setPayRateIn('12.5');}
-                  else{setLoc(l);setOtherName('');setPayRateIn(l==='Byker'?'12':'12.5');if(l==='Boiler Shop'){setS0('17:45');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}else if(l==='Byker'){setS0('14:00');setE0('23:00');}}
+                  else{setLoc(l);setOtherName('');setPayRateIn(l==='Byker'?'12':'12.5');if(l==='Boiler Shop'){setS0('17:45');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}else if(l==='Byker'){setS0('14:00');setE0('23:00');}else if(l==='Fright Island'){setS0('11:45');setE0('02:00');}}
                 }}>
                 <span>{LICO[l]}</span>{l}
               </div>);
@@ -489,7 +497,7 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
           {showMoreLocs&&<div className="mdl-lgrid" style={{marginTop:'.4rem',animation:'fadeIn .15s ease'}}>
             {EXTRA_LOCS.map(l=>{
               const isSel=loc===l;
-              const col=LCOL[l];
+              const col=venueColor(l);
               return(
               <div key={l} className={`mdl-lbtn ${isSel?'sel':''}`}
                 style={isSel?{borderColor:col,color:col}:{borderColor:'var(--border2)',color:'var(--muted)'}}
@@ -530,7 +538,7 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
 
 /* ── SHIFT ROW — tap to edit ── */
 function ShiftRow({s, rate, onDel, onEdit}){
-  const col=LCOL[s.loc]||'#888';
+  const col=venueColor(s.loc);
   const fmt24=t=>{if(!t)return'';const[h,m]=t.split(':');return`${h.padStart(2,'0')}:${m.padStart(2,'0')}`;};
   const effectiveRate=s.payRate&&s.payRate>0?s.payRate:rate;
   return(
@@ -839,6 +847,20 @@ function App(){
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='shifts.csv';a.click();
   }
 
+  async function exportBackup(){
+    let appsData=[];
+    try{
+      const r=await window.storage.get(APP_STORE_KEY);
+      if(r&&r.value)appsData=JSON.parse(r.value);
+    }catch(e){
+      try{const d=localStorage.getItem(APP_STORE_KEY);if(d)appsData=JSON.parse(d);}catch{}
+    }
+    const backup={version:'shifts_backup_v1',exportedAt:new Date().toISOString(),shifts:store,apps:appsData};
+    const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download=`shifts-backup-${TODAY}.json`;a.click();
+  }
+
   function copySummary(){
     const lines=[`SHIFTS SUMMARY — as of ${TODAY}`,`Total Hours: ${fmtH(tHours)}`,`Total Earned: ${fmtP(tPay)}`,`Total Shifts: ${shifts.length}`,`Hourly Rate: £${rate.toFixed(2)}/hr`,'','MONTHLY BREAKDOWN:'];
     allM.forEach(m=>lines.push(`  ${mkName(m.k)}: ${fmtH(m.hours)} · ${fmtP(m.pay)} (${m.shifts} shifts)`));
@@ -1026,7 +1048,7 @@ function App(){
               }}>
                 <div className="cn">{+cd.slice(8)}</div>
                 {hasS&&<div className="cal-dots">
-                  {topLocs.map((loc,j)=><div key={j} style={{width:'5px',height:'5px',borderRadius:'50%',background:LCOL[loc]||'#888'}}/>)}
+                  {topLocs.map((loc,j)=><div key={j} style={{width:'5px',height:'5px',borderRadius:'50%',background:venueColor(loc)}}/>)}
                 </div>}
                 {!hasS&&<div className="cal-add">+</div>}
               </div>;
@@ -1073,8 +1095,8 @@ function App(){
           {Object.entries(mLoc).sort((a,b)=>b[1]-a[1]).map(([l,h])=>(
             <div key={l} className="lr">
               <span className="li">{LICO[l]}</span>
-              <span className="ln" style={{color:LCOL[l]||'#888'}}>{l}</span>
-              <div className="lbw"><div className="lb" style={{width:`${h/maxLH*100}%`,background:LCOL[l]||'#888'}}/></div>
+              <span className="ln" style={{color:venueColor(l)}}>{l}</span>
+              <div className="lbw"><div className="lb" style={{width:`${h/maxLH*100}%`,background:venueColor(l)}}/></div>
               <span className="lv">{fmtH(h)}</span>
             </div>
           ))}
@@ -1275,7 +1297,7 @@ function App(){
                 return Object.entries(lt).sort((a,b)=>b[1]-a[1]).map(([l,h])=>{
                   const isSel=selLoc===l;
                   const locShifts=tyShifts.filter(s=>s.loc===l).sort((a,b)=>b.date.localeCompare(a.date)||b.start.localeCompare(a.start));
-                  const col=LCOL[l]||'#888';
+                  const col=venueColor(l);
                   return(<div key={l}>
                     <div className="lr" style={{cursor:'pointer',padding:'.3rem .2rem',borderRadius:'5px',transition:'background .1s'}} onClick={()=>setSelLoc(isSel?null:l)}>
                       <span className="li">{LICO[l]}</span>
@@ -1310,6 +1332,11 @@ function App(){
                   </div>);
                 });
               })()}
+            </div>
+            {/* EXPORT / BACKUP */}
+            <div className="export-row">
+              <button className="exp-btn" onClick={exportCSV}>📤 EXPORT CSV</button>
+              <button className="exp-btn" onClick={exportBackup}>💾 BACKUP ALL</button>
             </div>
           </>);
         })()}
