@@ -347,10 +347,6 @@ const CSS=`
 .pb-l{font-family:var(--font-b);font-size:.95rem;font-weight:700;color:var(--text2);}
 .pb-v{font-family:var(--font-d);font-size:1.15rem;color:var(--green);}
 
-/* export row */
-.export-row{display:flex;gap:.5rem;margin-bottom:.65rem;}
-.exp-btn{flex:1;font-family:var(--font-d);font-size:.95rem;letter-spacing:.08em;padding:.6rem .5rem;border:1px solid var(--border2);background:var(--s1);color:var(--text2);cursor:pointer;border-radius:5px;transition:all .15s;text-align:center;}
-.exp-btn:active{border-color:var(--accent);color:var(--accent);}
 
 /* weekly target progress */
 .wtarget{background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--purple);padding:.75rem 1rem;margin-bottom:.65rem;border-radius:7px;}
@@ -836,31 +832,6 @@ function App(){
     setSaveFlash(true);setTimeout(()=>setSaveFlash(false),400);
   }
 
-  function exportCSV(){
-    const rows=[['Date','Day','Start','End','Hours','Rate','Pay','Location','Notes']];
-    shifts.forEach(s=>{
-      const er=s.payRate&&s.payRate>0?s.payRate:rate;
-      rows.push([s.date,dayName(s.date),s.start,s.end,s.hours.toFixed(2),er.toFixed(2),(s.hours*er).toFixed(2),s.loc,s.note||'']);
-    });
-    const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob=new Blob([csv],{type:'text/csv'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='shifts.csv';a.click();
-  }
-
-  async function exportBackup(){
-    let appsData=[];
-    try{
-      const r=await window.storage.get(APP_STORE_KEY);
-      if(r&&r.value)appsData=JSON.parse(r.value);
-    }catch(e){
-      try{const d=localStorage.getItem(APP_STORE_KEY);if(d)appsData=JSON.parse(d);}catch{}
-    }
-    const backup={version:'shifts_backup_v1',exportedAt:new Date().toISOString(),shifts:store,apps:appsData};
-    const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-    a.download=`shifts-backup-${TODAY}.json`;a.click();
-  }
-
   function copySummary(){
     const lines=[`SHIFTS SUMMARY — as of ${TODAY}`,`Total Hours: ${fmtH(tHours)}`,`Total Earned: ${fmtP(tPay)}`,`Total Shifts: ${shifts.length}`,`Hourly Rate: £${rate.toFixed(2)}/hr`,'','MONTHLY BREAKDOWN:'];
     allM.forEach(m=>lines.push(`  ${mkName(m.k)}: ${fmtH(m.hours)} · ${fmtP(m.pay)} (${m.shifts} shifts)`));
@@ -1332,11 +1303,6 @@ function App(){
                   </div>);
                 });
               })()}
-            </div>
-            {/* EXPORT / BACKUP */}
-            <div className="export-row">
-              <button className="exp-btn" onClick={exportCSV}>📤 EXPORT CSV</button>
-              <button className="exp-btn" onClick={exportBackup}>💾 BACKUP ALL</button>
             </div>
           </>);
         })()}

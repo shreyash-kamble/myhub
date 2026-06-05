@@ -341,8 +341,26 @@ function loadStats() {
 // EXPORT
 // ─────────────────────────────────────────────
 function gatherAllData() {
-  const snap = { exportedAt: new Date().toISOString(), exportedDate: new Date().toISOString().slice(0,10), sources: {} };
-  try { const r = localStorage.getItem('shifts_v4'); snap.sources.shifts = r ? JSON.parse(r) : null; } catch(e) { snap.sources.shifts = null; }
+  const snap = {
+    exportedAt: new Date().toISOString(),
+    exportedDate: new Date().toISOString().slice(0,10),
+    sources: {}
+  };
+
+  const modules = {
+    gym: 'pplbeast_v3',
+    shifts: 'shifts_v4'
+  };
+
+  for (const [name, key] of Object.entries(modules)) {
+    try {
+      const data = localStorage.getItem(key);
+      snap.sources[name] = data ? JSON.parse(data) : null;
+    } catch (e) {
+      snap.sources[name] = null;
+    }
+  }
+
   return snap;
 }
 function downloadJSON(data, filename) {
