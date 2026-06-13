@@ -51,10 +51,12 @@ function useSwipeRef(onLeft,onRight){
   const cbL=useRef(onLeft),cbR=useRef(onRight);
   useEffect(()=>{cbL.current=onLeft;},[onLeft]);
   useEffect(()=>{cbR.current=onRight;},[onRight]);
+  const cleanupRef=useRef(null);
   const ref=useCallback(el=>{
+    if(cleanupRef.current){cleanupRef.current();cleanupRef.current=null;}
     if(!el)return;
-    let sx=null,sy=null;
-    function onTS(e){sx=e.touches[0].clientX;sy=e.touches[0].clientY;}
+    let sx=null,sy=null,fired=false;
+    function onTS(e){sx=e.touches[0].clientX;sy=e.touches[0].clientY;fired=false;}
     function onTM(e){
       if(sx===null)return;
       const dx=e.touches[0].clientX-sx;
@@ -62,10 +64,11 @@ function useSwipeRef(onLeft,onRight){
       if(Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)){e.preventDefault();}
     }
     function onTE(e){
-      if(sx===null)return;
+      if(sx===null||fired)return;
       const dx=e.changedTouches[0].clientX-sx;
       const dy=e.changedTouches[0].clientY-sy;
       if(Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy)){
+        fired=true;
         if(dx<0)cbL.current();else cbR.current();
       }
       sx=null;sy=null;
@@ -73,6 +76,11 @@ function useSwipeRef(onLeft,onRight){
     el.addEventListener('touchstart',onTS,{passive:true});
     el.addEventListener('touchmove',onTM,{passive:false});
     el.addEventListener('touchend',onTE,{passive:true});
+    cleanupRef.current=()=>{
+      el.removeEventListener('touchstart',onTS);
+      el.removeEventListener('touchmove',onTM);
+      el.removeEventListener('touchend',onTE);
+    };
   },[]);
   return ref;
 }
@@ -917,7 +925,6 @@ function App(){
           <div className="title">SHI<span>FT</span>S</div>
           {tab==='week'&&<div onClick={wOff!==0?()=>setWOff(0):undefined} style={{position:'absolute',left:'50%',transform:'translateX(-50%)',textAlign:'center',cursor:wOff!==0?'pointer':'default',userSelect:'none'}}>
             <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:wOff<0?'var(--accent)':wOff>0?'var(--sky)':'var(--text)',lineHeight:1}}>{wOff<0?'PAST WEEKS':wOff===0?'THIS WEEK':`${wOff} WK${wOff>1?'S':''} AHEAD`}</div>
-            <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',marginTop:'.15rem',letterSpacing:'.04em'}}>{wOff>=0?wLabel:''}</div>
           </div>}
           {tab==='monthly'&&<div onClick={vm!==new Date().toISOString().slice(0,7)?()=>{setVm(new Date().toISOString().slice(0,7));setSel(null);}:undefined} style={{position:'absolute',left:'50%',transform:'translateX(-50%)',textAlign:'center',cursor:vm!==new Date().toISOString().slice(0,7)?'pointer':'default',userSelect:'none'}}>
             <div style={{fontFamily:'var(--font-d)',fontSize:'1.3rem',letterSpacing:'.06em',color:vm!==new Date().toISOString().slice(0,7)?'var(--gold)':'var(--text)',lineHeight:1,transition:'color .2s'}}>{mkName(vm)}</div>
@@ -952,10 +959,7 @@ function App(){
         const fmtD=ds=>`${ds.slice(8)} ${MONTHS[+ds.slice(5,7)-1]}`;
         return(
         <div className="screen" ref={pastWeekRef}><div className="w-wrap">
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.65rem'}}>
-            <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.12em'}}>PAST WEEKS</div>
-            <button onClick={()=>setWOff(0)} style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--accent)',background:'none',border:'1px solid rgba(0,229,255,.35)',borderRadius:'12px',padding:'.2rem .65rem',cursor:'pointer',letterSpacing:'.06em'}}>← THIS WEEK</button>
-          </div>
+          <div style={{marginBottom:'.65rem'}}></div>
           {pastWks.length===0&&<div style={{background:'var(--s1)',border:'1px dashed var(--border2)',borderRadius:'8px',padding:'2rem',textAlign:'center'}}>
             <div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:'var(--muted)',letterSpacing:'.08em'}}>NO PAST SHIFTS</div>
           </div>}
@@ -980,7 +984,6 @@ function App(){
         );
       })():(
       <div className="screen" ref={weekRef}><div className="w-wrap">
-        <div key={`sh-w-${swipeKey}`} className="swipe-hint">{'<'} swipe to change week {'>'}</div>
         <div className="who">
           <div className="wc" style={{borderTop:'2px solid var(--accent)'}}><div className="wcv" style={{color:'var(--accent)'}}>{fmtH(wHours)}</div><div className="wcl">TOTAL HRS</div></div>
           <div className="wc" style={{borderTop:'2px solid var(--green)'}}><div className="wcv" style={{color:'var(--green)',fontSize:'1.3rem'}}>{wHours>0?fmtP(wPay):'£0.00'}</div><div className="wcl">GROSS PAY</div></div>
