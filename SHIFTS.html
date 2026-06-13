@@ -32,10 +32,10 @@ input::-webkit-inner-spin-button{-webkit-appearance:none;}
 <script type="text/babel">
 const {useState,useCallback,useMemo,useRef,useEffect}=React;
 
-const LOCS=['Arena','Boiler Shop','O2 City Hall','TR','Fright Island','Byker','NUFC','Other'];
-const EXTRA_LOCS=['BBC Radio','Playhouse','Durham','NSU'];
-const LCOL={'TR':'#00e5ff','Byker':'#ff5555','NUFC':'#94a3b8','Boiler Shop':'#ff8c00','O2 City Hall':'#3dffa0','Arena':'#ffd600','Other':'#f472b6','Fright Island':'#ff6b35','BBC Radio':'#ff4444','Playhouse':'#e879f9','Durham':'#60a5fa','NSU':'#fb923c'};
-const LICO={'TR':'🎪','Byker':'🍔','NUFC':'⚽','Boiler Shop':'🔧','O2 City Hall':'🎵','Arena':'🏟️','Other':'📍','Fright Island':'👻','BBC Radio':'📻','Playhouse':'🎭','Durham':'🏰','NSU':'🎓'};
+const LOCS=['Arena','Boiler Shop','O2 City Hall','TR','Fright Island','NSU','NUFC','Other'];
+const EXTRA_LOCS=['BBC Radio','Playhouse','Durham','Byker'];
+const LCOL={'TR':'#00e5ff','NSU':'#fb923c','NUFC':'#94a3b8','Boiler Shop':'#ff8c00','O2 City Hall':'#3dffa0','Arena':'#ffd600','Other':'#f472b6','Fright Island':'#ff6b35','BBC Radio':'#ff4444','Playhouse':'#e879f9','Durham':'#60a5fa','Byker':'#ff5555'};
+const LICO={'TR':'🎪','NSU':'🎓','NUFC':'⚽','Boiler Shop':'🔧','O2 City Hall':'🎵','Arena':'🏟️','Other':'📍','Fright Island':'👻','BBC Radio':'📻','Playhouse':'🎭','Durham':'🏰','Byker':'🍔'};
 
 // Generate a consistent color for custom venues not in LCOL
 const OTHER_PALETTE=['#f472b6','#a78bfa','#34d399','#fb923c','#38bdf8','#e879f9','#facc15','#4ade80','#f87171','#60a5fa','#c084fc','#2dd4bf'];
@@ -89,7 +89,6 @@ function calcH(s,e){
 function calcHNet(s,e,loc,payRate){
   const raw=calcH(s,e);
   if(!raw)return 0;
-  if(loc==='Byker'&&parseFloat(payRate)===12){return Math.round((raw-0.75)*100)/100;}
   return raw;
 }
 function wkNum(ds){const d=new Date(ds);d.setHours(0,0,0,0);d.setDate(d.getDate()+3-(d.getDay()+6)%7);const w1=new Date(d.getFullYear(),0,4);return 1+Math.round(((d-w1)/86400000-(3-(w1.getDay()+6)%7))/7);}
@@ -451,7 +450,7 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
             <div className="mdl-tsep">→</div>
             <TimeInput className="mdl-i-sm" value={e0} onChange={setE0} placeholder="17:00"/>
           </div>
-          {s0&&e0&&calcH(s0,e0)>0&&<div style={{marginTop:'.35rem',fontFamily:'var(--font-m)',fontSize:'.63rem',color:'var(--accent)'}}>{fmtH(pH)} · {fmtP(pP)}{loc==='Byker'&&effectiveRate===12?<span style={{color:'var(--muted)',marginLeft:'.4em'}}>(-45min break)</span>:null}</div>}
+          {s0&&e0&&calcH(s0,e0)>0&&<div style={{marginTop:'.35rem',fontFamily:'var(--font-m)',fontSize:'.63rem',color:'var(--accent)'}}>{fmtH(pH)} · {fmtP(pP)}</div>}
           <div className="mdl-divider"/>
           <div className="mdl-l">PAY RATE (£/HR)</div>
           <div style={{display:'flex',alignItems:'center',gap:'.4rem'}}>
@@ -475,7 +474,7 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
                 style={isSel?{borderColor:col,color:col}:{}}
                 onClick={()=>{
                   if(l==='Other'){setLoc('Other');setOtherName('');setPayRateIn('12.5');}
-                  else{setLoc(l);setOtherName('');setPayRateIn(l==='Byker'?'12':'12.5');if(l==='Boiler Shop'){setS0('17:45');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}else if(l==='Byker'){setS0('14:00');setE0('23:00');}else if(l==='Fright Island'){setS0('11:45');setE0('02:00');}}
+                  else{setLoc(l);setOtherName('');setPayRateIn('12.5');if(l==='Boiler Shop'){setS0('17:45');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}}
                 }}>
                 <span>{LICO[l]}</span>{l}
               </div>);
@@ -912,9 +911,8 @@ function App(){
       <div className="topbar">
         <div className="tb-inner" style={{justifyContent:'flex-start',position:'relative'}}>
           <div className="title">SHI<span>FT</span>S</div>
-          {tab==='week'&&<div onClick={wOff!==0?()=>setWOff(0):undefined} style={{position:'absolute',left:'50%',transform:'translateX(-50%)',textAlign:'center',cursor:wOff!==0?'pointer':'default',userSelect:'none'}}>
-            <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:wOff!==0?'var(--accent)':'var(--text)',lineHeight:1}}>{wOff===0?'THIS WEEK':wOff===-1?'LAST WEEK':wOff<0?`${Math.abs(wOff)} WKS AGO`:`${wOff} WKS AHEAD`}</div>
-            <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',marginTop:'.15rem',letterSpacing:'.04em'}}>{wLabel}</div>
+          {tab==='week'&&<div style={{position:'absolute',left:'50%',transform:'translateX(-50%)',textAlign:'center',userSelect:'none'}}>
+            <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--text)',lineHeight:1}}>THIS WEEK</div>
           </div>}
           {tab==='monthly'&&<div onClick={vm!==new Date().toISOString().slice(0,7)?()=>{setVm(new Date().toISOString().slice(0,7));setSel(null);}:undefined} style={{position:'absolute',left:'50%',transform:'translateX(-50%)',textAlign:'center',cursor:vm!==new Date().toISOString().slice(0,7)?'pointer':'default',userSelect:'none'}}>
             <div style={{fontFamily:'var(--font-d)',fontSize:'1.3rem',letterSpacing:'.06em',color:vm!==new Date().toISOString().slice(0,7)?'var(--gold)':'var(--text)',lineHeight:1,transition:'color .2s'}}>{mkName(vm)}</div>
@@ -925,63 +923,115 @@ function App(){
       </div>
 
       {/* WEEK */}
-      {tab==='week'&&<div className="screen" ref={weekRef}><div className="w-wrap">
-        <div key={`sh-w-${swipeKey}`} className="swipe-hint">{'<'} swipe to change week {'>'}</div>
-        <div className="who">
-          <div className="wc" style={{borderTop:'2px solid var(--accent)'}}><div className="wcv" style={{color:'var(--accent)'}}>{fmtH(wHours)}</div><div className="wcl">TOTAL HRS</div></div>
-          <div className="wc" style={{borderTop:'2px solid var(--green)'}}><div className="wcv" style={{color:'var(--green)',fontSize:'1.3rem'}}>{wHours>0?fmtP(wPay):'£0.00'}</div><div className="wcl">GROSS PAY</div></div>
-          <div className="wc" style={{borderTop:'2px solid var(--gold)'}}><div className="wcv" style={{color:'var(--gold)'}}>{wShifts.length}</div><div className="wcl">SHIFTS</div></div>
-        </div>
+      {tab==='week'&&(()=>{
+        // Build this-week dates (wOff=0 always for current week display)
+        const now=new Date(TODAY),day=now.getDay(),mon=new Date(now);
+        mon.setDate(now.getDate()-(day===0?6:day-1));
+        const thisWkDates=Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return localDateStr(d);});
+        const thisWkShifts=shifts.filter(s=>thisWkDates.includes(s.date));
+        const thisWkHours=thisWkShifts.reduce((a,s)=>a+s.hours,0);
+        const thisWkPay=thisWkShifts.reduce((a,s)=>a+s.hours*(s.payRate&&s.payRate>0?s.payRate:rate),0);
+        const thisWkByDay={};thisWkDates.forEach(d=>{thisWkByDay[d]=thisWkShifts.filter(s=>s.date===d);});
+        const thisWkLabel=(()=>{const fmt=d=>`${d.slice(8)} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+d.slice(5,7)-1]}`;return`${fmt(thisWkDates[0])} – ${fmt(thisWkDates[6])}`;})();
 
-        {weeklyTarget>0&&(()=>{const pct=Math.min(100,wHours/weeklyTarget*100),done=wHours>=weeklyTarget,rem=Math.max(0,weeklyTarget-wHours);return(
-          <div className="wtarget">
-            <div className="wt-row">
-              <span className="wt-lbl">WEEKLY TARGET · {fmtH(weeklyTarget)}</span>
-              <span className="wt-val">{done?'✓ DONE':`${fmtH(rem)} left`}</span>
-            </div>
-            <div className="wt-bar">
-              <div className="wt-fill" style={{width:`${pct}%`,background:done?'var(--green)':'var(--purple)'}}/>
-            </div>
+        // Build past weeks from all shifts (weeks before this week)
+        const thisWkStart=thisWkDates[0];
+        const pastShifts=shifts.filter(s=>s.date<thisWkStart);
+        const pastWkMap={};
+        pastShifts.forEach(s=>{
+          const d=new Date(s.date),dday=d.getDay(),m2=new Date(d);
+          m2.setDate(d.getDate()-(dday===0?6:dday-1));
+          const wkStart=localDateStr(m2);
+          const wkEnd=localDateStr(new Date(m2.getFullYear(),m2.getMonth(),m2.getDate()+6));
+          const wn=wkNum(s.date),wy=isoWkYear(s.date);
+          const key=`${wy}-W${String(wn).padStart(2,'0')}`;
+          if(!pastWkMap[key])pastWkMap[key]={key,wn,wy,wkStart,wkEnd,hours:0,pay:0,shifts:[]};
+          pastWkMap[key].hours+=s.hours;
+          pastWkMap[key].pay+=s.hours*(s.payRate&&s.payRate>0?s.payRate:rate);
+          pastWkMap[key].shifts.push(s);
+        });
+        const pastWks=Object.values(pastWkMap).sort((a,b)=>b.wkStart.localeCompare(a.wkStart));
+
+        return(
+        <div className="screen"><div className="w-wrap">
+          {/* THIS WEEK HEADER */}
+          <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.12em',marginBottom:'.45rem'}}>THIS WEEK · {thisWkLabel}</div>
+          <div className="who">
+            <div className="wc" style={{borderTop:'2px solid var(--accent)'}}><div className="wcv" style={{color:'var(--accent)'}}>{fmtH(thisWkHours)}</div><div className="wcl">TOTAL HRS</div></div>
+            <div className="wc" style={{borderTop:'2px solid var(--green)'}}><div className="wcv" style={{color:'var(--green)',fontSize:'1.3rem'}}>{thisWkHours>0?fmtP(thisWkPay):'£0.00'}</div><div className="wcl">GROSS PAY</div></div>
+            <div className="wc" style={{borderTop:'2px solid var(--gold)'}}><div className="wcv" style={{color:'var(--gold)'}}>{thisWkShifts.length}</div><div className="wcl">SHIFTS</div></div>
           </div>
-        );})()}
-        {wShifts.length===0&&<div style={{background:'var(--s1)',border:'1px dashed var(--border2)',borderRadius:'8px',padding:'2rem',textAlign:'center',marginBottom:'.5rem'}}>
-          <div style={{fontSize:'2rem',marginBottom:'.5rem'}}>📅</div>
-          <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--muted)',letterSpacing:'.08em'}}>NO SHIFTS THIS WEEK</div>
-          <div style={{fontFamily:'var(--font-m)',fontSize:'.62rem',color:'var(--dim)',marginTop:'.35rem',letterSpacing:'.06em'}}>TAP A DAY TO LOG ONE</div>
-        </div>}
 
-        {[...wDates].sort((a,b)=>{
-          // Today first, future next in order, past days at bottom
-          const aP=a<TODAY,bP=b<TODAY;
-          if(aP&&!bP)return 1;
-          if(!aP&&bP)return -1;
-          return a.localeCompare(b);
-        }).map(d=>{
-          const ds=wByDay[d]||[],dh=ds.reduce((a,s)=>a+s.hours,0),has=ds.length>0,isT=d===TODAY,isFut=d>TODAY,isPast=d<TODAY;
-          // Hide past days with no shifts
-          if(isPast&&!has)return null;
-          return<div key={d} className={`db${isT?' td':''}`}>
-            <div className="dbh" style={{cursor:'pointer'}} onClick={()=>isPast?null:setEditShift({date:d,start:'',end:'',loc:'',note:''})}>
-              <div style={{display:'flex',alignItems:'center',gap:'.4rem'}}>
-                <span className="dbh-d" style={{color:isT?'var(--accent)':isPast?'var(--text2)':'#38bdf8',letterSpacing:'.04em'}}>
-                  {dayName(d)}
-                </span>
-                <span style={{fontFamily:'var(--font-m)',fontSize:'.72rem',color:isT?'var(--accent)':isPast?'var(--muted)':'#2090c0',marginLeft:'.1rem'}}>
-                  {d.slice(8)} {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+d.slice(5,7)-1]}
-                </span>
-                {isT&&<span className="tdtag">TODAY</span>}
+          {weeklyTarget>0&&(()=>{const pct=Math.min(100,thisWkHours/weeklyTarget*100),done=thisWkHours>=weeklyTarget,rem=Math.max(0,weeklyTarget-thisWkHours);return(
+            <div className="wtarget">
+              <div className="wt-row">
+                <span className="wt-lbl">WEEKLY TARGET · {fmtH(weeklyTarget)}</span>
+                <span className="wt-val">{done?'✓ DONE':`${fmtH(rem)} left`}</span>
               </div>
-              {has&&<div className="dbh-t" style={{fontSize:'1rem',color:isPast?'var(--accent)':'var(--accent)'}}>{fmtH(dh)}</div>}
+              <div className="wt-bar">
+                <div className="wt-fill" style={{width:`${pct}%`,background:done?'var(--green)':'var(--purple)'}}/>
+              </div>
             </div>
-            {!isPast&&<div className="db-body">
-              {has
-                ? ds.map(s=><ShiftRow key={s.id} s={s} rate={rate} onDel={delShift} onEdit={setEditShift}/>)
-                : <div className="eday">no shifts</div>
-              }
-            </div>}
-          </div>;
-        })}
-      </div></div>}
+          );})()}
+
+          {thisWkShifts.length===0&&<div style={{background:'var(--s1)',border:'1px dashed var(--border2)',borderRadius:'8px',padding:'2rem',textAlign:'center',marginBottom:'.5rem'}}>
+            <div style={{fontSize:'2rem',marginBottom:'.5rem'}}>📅</div>
+            <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--muted)',letterSpacing:'.08em'}}>NO SHIFTS THIS WEEK</div>
+            <div style={{fontFamily:'var(--font-m)',fontSize:'.62rem',color:'var(--dim)',marginTop:'.35rem',letterSpacing:'.06em'}}>TAP A DAY TO LOG ONE</div>
+          </div>}
+
+          {[...thisWkDates].sort((a,b)=>{
+            const aP=a<TODAY,bP=b<TODAY;
+            if(aP&&!bP)return 1;
+            if(!aP&&bP)return -1;
+            return a.localeCompare(b);
+          }).map(d=>{
+            const ds=thisWkByDay[d]||[],dh=ds.reduce((a,s)=>a+s.hours,0),has=ds.length>0,isT=d===TODAY,isPast=d<TODAY;
+            if(isPast&&!has)return null;
+            return<div key={d} className={`db${isT?' td':''}`}>
+              <div className="dbh" style={{cursor:'pointer'}} onClick={()=>isPast?null:setEditShift({date:d,start:'',end:'',loc:'',note:''})}>
+                <div style={{display:'flex',alignItems:'center',gap:'.4rem'}}>
+                  <span className="dbh-d" style={{color:isT?'var(--accent)':isPast?'var(--text2)':'#38bdf8',letterSpacing:'.04em'}}>{dayName(d)}</span>
+                  <span style={{fontFamily:'var(--font-m)',fontSize:'.72rem',color:isT?'var(--accent)':isPast?'var(--muted)':'#2090c0',marginLeft:'.1rem'}}>
+                    {d.slice(8)} {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+d.slice(5,7)-1]}
+                  </span>
+                  {isT&&<span className="tdtag">TODAY</span>}
+                </div>
+                {has&&<div className="dbh-t" style={{fontSize:'1rem',color:'var(--accent)'}}>{fmtH(dh)}</div>}
+              </div>
+              {!isPast&&<div className="db-body">
+                {has
+                  ? ds.map(s=><ShiftRow key={s.id} s={s} rate={rate} onDel={delShift} onEdit={setEditShift}/>)
+                  : <div className="eday">no shifts</div>
+                }
+              </div>}
+            </div>;
+          })}
+
+          {/* PAST WEEKS */}
+          {pastWks.length>0&&<div style={{marginTop:'.75rem'}}>
+            <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.12em',marginBottom:'.4rem'}}>PAST WEEKS</div>
+            {pastWks.map(w=>(
+              <div key={w.key} style={{background:'var(--s1)',border:'1px solid var(--border)',borderRadius:'7px',marginBottom:'.35rem',padding:'.7rem .9rem',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <div>
+                  <div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:'var(--text)',letterSpacing:'.05em',lineHeight:1}}>
+                    WK <span style={{color:'var(--accent)'}}>{w.wn}</span>
+                    <span style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--dim)',marginLeft:'.5rem',letterSpacing:'.04em'}}>{w.wy}</span>
+                  </div>
+                  <div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--muted)',marginTop:'.2rem'}}>
+                    {w.wkStart.slice(8)} {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+w.wkStart.slice(5,7)-1]} – {w.wkEnd.slice(8)} {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+w.wkEnd.slice(5,7)-1]} · {w.shifts.length} shift{w.shifts.length!==1?'s':''}
+                  </div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontFamily:'var(--font-d)',fontSize:'1.3rem',color:'var(--accent)',lineHeight:1}}>{fmtH(w.hours)}</div>
+                  <div style={{fontFamily:'var(--font-m)',fontSize:'.62rem',color:'var(--green)',marginTop:'2px'}}>{fmtP(w.pay)}</div>
+                </div>
+              </div>
+            ))}
+          </div>}
+        </div></div>
+        );
+      })()}
 
       {/* MONTHLY */}
       {tab==='monthly'&&<div className="screen" ref={monthRef}><div className="m-wrap">
