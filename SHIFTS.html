@@ -518,25 +518,13 @@ function AppsTab(){
   const[loaded,setLoaded]=useState(false);
 
   useEffect(()=>{
-    (async()=>{
-      try{
-        const r=await window.storage.get(APP_STORE_KEY);
-        if(r&&r.value)setRows(JSON.parse(r.value));
-      }catch(e){
-        try{const d=localStorage.getItem(APP_STORE_KEY);if(d)setRows(JSON.parse(d));}catch{}
-      }
-      setLoaded(true);
-    })();
+    try{const d=localStorage.getItem(APP_STORE_KEY);if(d)setRows(JSON.parse(d));}catch{}
+    setLoaded(true);
   },[]);
 
   useEffect(()=>{
     if(!loaded)return;
-    const save=async()=>{
-      const data=JSON.stringify(rows);
-      try{await window.storage.set(APP_STORE_KEY,data);}catch{}
-      try{localStorage.setItem(APP_STORE_KEY,data);}catch{}
-    };
-    save();
+    try{localStorage.setItem(APP_STORE_KEY,JSON.stringify(rows));}catch{}
   },[rows,loaded]);
 
   const totalApps=rows.reduce((s,r)=>s+Number(r.count),0);
@@ -819,11 +807,15 @@ function App(){
             <div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:'var(--muted)',letterSpacing:'.08em'}}>NO PAST SHIFTS</div>
           </div>}
           {pastWks.map(w=>(
-            <div key={w.key} style={{background:'var(--s1)',border:'1px solid var(--border)',borderRadius:'7px',marginBottom:'.35rem',padding:'.7rem .9rem',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-              <div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:'var(--text)',letterSpacing:'.05em',lineHeight:1}}>
-                WK <span style={{color:'var(--accent)'}}>{w.wn}</span>
+            <div key={w.key} className="stc" style={{borderTop:'2px solid var(--accent)',display:'flex',padding:0,overflow:'hidden',marginBottom:'.5rem'}}>
+              <div style={{flex:1,padding:'.9rem',borderRight:'1px solid var(--border)',textAlign:'center'}}>
+                <div className="stv" style={{color:'var(--text)',textAlign:'center'}}>{w.wn}</div>
+                <div className="stl" style={{textAlign:'center'}}>WEEK</div>
               </div>
-              <div style={{fontFamily:'var(--font-d)',fontSize:'1.3rem',color:'var(--accent)',lineHeight:1}}>{fmtH(w.hours)}</div>
+              <div style={{flex:1,padding:'.9rem',textAlign:'center'}}>
+                <div className="stv" style={{color:'var(--accent)',textAlign:'center'}}>{fmtH(w.hours)}</div>
+                <div className="stl" style={{textAlign:'center'}}>HOURS</div>
+              </div>
             </div>
           ))}
         </div></div>
