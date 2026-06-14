@@ -902,7 +902,7 @@ function App(){
   },[wDates]);
 
   const weekRef=useSwipeRef(
-    ()=>setWOff(o=>o<0?o:o+1),
+    ()=>setWOff(o=>o<0?0:o+1),
     ()=>setWOff(o=>o<=0?-1:o-1)
   );
   const pastWeekRef=useSwipeRef(()=>{},()=>setWOff(0));
@@ -924,10 +924,10 @@ function App(){
         <div className="tb-inner" style={{justifyContent:'flex-start',position:'relative'}}>
           <div className="title">SHI<span>FT</span>S</div>
           {tab==='week'&&<div onClick={wOff!==0?()=>setWOff(0):undefined} style={{position:'absolute',left:'50%',transform:'translateX(-50%)',textAlign:'center',cursor:wOff!==0?'pointer':'default',userSelect:'none'}}>
-            <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:wOff<0?'var(--accent)':wOff>0?'var(--sky)':'var(--text)',lineHeight:1}}>{wOff<0?'PAST WEEKS':wOff===0?'THIS WEEK':`${wOff} WK${wOff>1?'S':''} AHEAD`}</div>
+            <div style={{fontFamily:'var(--font-d)',fontSize:'1.45rem',letterSpacing:'.06em',color:wOff<0?'var(--accent)':wOff>0?'var(--sky)':'var(--text)',lineHeight:1}}>{wOff<0?'PAST WEEKS':wOff===0?'THIS WEEK':`${wOff} WK${wOff>1?'S':''} AHEAD`}</div>
           </div>}
           {tab==='monthly'&&<div onClick={vm!==new Date().toISOString().slice(0,7)?()=>{setVm(new Date().toISOString().slice(0,7));setSel(null);}:undefined} style={{position:'absolute',left:'50%',transform:'translateX(-50%)',textAlign:'center',cursor:vm!==new Date().toISOString().slice(0,7)?'pointer':'default',userSelect:'none'}}>
-            <div style={{fontFamily:'var(--font-d)',fontSize:'1.3rem',letterSpacing:'.06em',color:vm!==new Date().toISOString().slice(0,7)?'var(--gold)':'var(--text)',lineHeight:1,transition:'color .2s'}}>{mkName(vm)}</div>
+            <div style={{fontFamily:'var(--font-d)',fontSize:'1.45rem',letterSpacing:'.06em',color:vm!==new Date().toISOString().slice(0,7)?'var(--gold)':'var(--text)',lineHeight:1,transition:'color .2s'}}>{mkName(vm)}</div>
           </div>}
 
 
