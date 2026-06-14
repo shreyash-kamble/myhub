@@ -276,7 +276,6 @@ const CSS=`
 .day-chip-dot{width:5px;height:5px;border-radius:50%;margin-top:4px;}
 .day-chip.done-chip::after{content:'✓';position:absolute;top:3px;right:6px;font-size:0.5rem;color:var(--legs);font-family:var(--font-mono);}
 .day-chip.skip-chip::after{content:'⏭';position:absolute;top:3px;right:4px;font-size:0.5rem;color:var(--push);font-family:var(--font-mono);}
-.swipe-hint{position:absolute;bottom:4px;right:8px;font-size:0.45rem;font-family:var(--font-mono);color:var(--dim);pointer-events:none;}
 
 /* WORKOUT WRAP */
 .workout-wrap{padding:0 0 0.5rem;animation:slideUp 0.2s ease;}
@@ -370,12 +369,6 @@ const CSS=`
 .summary-chip{flex-shrink:0;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.7rem;text-align:center;}
 .summary-chip .sv{font-family:var(--font-display);font-size:1.1rem;letter-spacing:0.04em;}
 .summary-chip .sl{font-family:var(--font-mono);font-size:0.48rem;color:var(--muted);letter-spacing:0.06em;margin-top:1px;}
-
-/* NEXT INCOMPLETE BANNER */
-.next-set-banner{margin:0 0.75rem 0.5rem;padding:0.5rem 0.85rem;background:rgba(255,87,34,0.08);border:1px solid rgba(255,87,34,0.25);border-radius:6px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background 0.15s;position:sticky;top:0;z-index:5;}
-.next-set-banner:active{background:rgba(255,87,34,0.15);}
-.nsb-txt{font-family:var(--font-mono);font-size:0.62rem;color:#e0e0f0;}
-.nsb-arrow{font-size:0.9rem;color:var(--push);}
 
 /* CONDITIONING */
 .cond-wrap{padding:0 0.75rem 0.5rem;}
@@ -614,7 +607,6 @@ function App(){
   const timer=useTimer();
   const swipeRef=useRef(null);
   const swipeStartX=useRef(null);
-  const nextSetRef=useRef(null);
 
   const week=store.currentWeek; // actual training week (writes go here)
   // viewWeek: week shown in header AND drives workout display (browsable via swipe)
@@ -622,6 +614,15 @@ function App(){
   const dayData=weekData[dayIdx];
   const day=DAYS[dayIdx];
   const allDone=weekData.every(d=>d.done);
+
+  const update=useCallback((fn)=>{
+    setStore(prev=>{
+      const next=JSON.parse(JSON.stringify(prev));
+      fn(next);
+      saveStore(next);
+      return next;
+    });
+  },[]);
 
   const handleReset=useCallback(()=>{
     const nw=week+1;
@@ -647,13 +648,6 @@ function App(){
   const activeWeekNums=weekNums.filter(wn=>(store.weeks[wn]||[]).some(d=>d.done));
   const totalWeeks=activeWeekNums.length||1;
   const completedDays=activeWeekNums.reduce((a,wn)=>a+(store.weeks[wn]||[]).filter(d=>d.done).length,0);
-
-  // Previous week data for this day (for inline reference)
-  const prevWeekSets=useMemo(()=>{
-    const pw=viewWeek-1;
-    if(!store.weeks[pw])return null;
-    return store.weeks[pw][dayIdx]?.sets||null;
-  },[store,viewWeek,dayIdx]);
 
   // Personal bests across all weeks
   const pbs=useMemo(()=>{
@@ -692,15 +686,6 @@ function App(){
   const showToast=useCallback((msg)=>{
     setToast(msg);
     setTimeout(()=>setToast(null),2000);
-  },[]);
-
-  const update=useCallback((fn)=>{
-    setStore(prev=>{
-      const next=JSON.parse(JSON.stringify(prev));
-      fn(next);
-      saveStore(next);
-      return next;
-    });
   },[]);
 
   const updateSet=useCallback((ei,si,field,val)=>{
@@ -817,12 +802,10 @@ function App(){
 
   // ── SWIPE BETWEEN DAYS ────────────────────────────────────────
   const swipeStartY=useRef(null);
-  const swipeLocked=useRef(false);
   const swipeTime=useRef(null);
   const handleTouchStart=useCallback(e=>{
     swipeStartX.current=e.touches[0].clientX;
     swipeStartY.current=e.touches[0].clientY;
-    swipeLocked.current=false;
     swipeTime.current=Date.now();
   },[]);
   const handleTouchEnd=useCallback(e=>{
@@ -967,7 +950,6 @@ function App(){
                 {DAYS.map((d,i)=>{
                   const chipDone=weekData[i]?.sets.reduce((a,setArr)=>a+setArr.filter(s=>s.done).length,0)||0;
                   const chipTotal=d.exercises.reduce((a,ex)=>a+ex.sets,0);
-                  const chipPct=chipTotal?Math.round(chipDone/chipTotal*100):0;
                   return(
                   <div key={d.id}
                     className={`day-chip ${i===dayIdx?'active':''} ${weekData[i]?.done?weekData[i]?.skipped?'skip-chip':'done-chip':''}`}
@@ -983,7 +965,6 @@ function App(){
                   </div>
                 );})}
               </div>
-              <div className="swipe-hint" style={{display:'none'}}>← swipe →</div>
             </div>
 
             <div className="workout-wrap">
@@ -1036,8 +1017,6 @@ function App(){
                 </div>
                 <div className="progress-txt">{doneSets}/{totalSets} SETS</div>
               </div>
-
-              {/* Next set banner removed */}
 
               {/* Exercises */}
               {day.exercises.map((ex,ei)=>{

@@ -15,8 +15,8 @@ html,body{height:100%;background:#020408;overflow:hidden;}
 :root{
   --bg:#020408;--s1:rgba(10,14,26,0.82);--s2:rgba(16,22,38,0.88);
   --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
-  --red:#ff3d00;--orange:#ff8c00;--green:#39d98a;--blue:#00c8ff;--yellow:#ffd600;--purple:#c084fc;
-  --text:#f0f4ff;--text2:#c8d4f0;--muted:#6a7a9a;--dim:#3a4a6a;--faint:rgba(255,255,255,0.06);
+  --red:#ff3d00;--green:#39d98a;--blue:#00c8ff;--yellow:#ffd600;--purple:#c084fc;
+  --text:#f0f4ff;--muted:#6a7a9a;--dim:#3a4a6a;
   --font-d:'Bebas Neue',sans-serif;--font-m:'JetBrains Mono',monospace;--font-b:'Barlow Condensed',sans-serif;
 }
 ::-webkit-scrollbar{width:2px;}::-webkit-scrollbar-thumb{background:var(--dim);}
@@ -70,7 +70,6 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
 /* TOAST */
 .toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:rgba(10,14,26,0.95);border:1px solid var(--green);color:var(--green);font-family:var(--font-m);font-size:10px;letter-spacing:1px;padding:8px 16px;border-radius:3px;z-index:9999;white-space:nowrap;animation:slideUp 0.2s ease;pointer-events:none;backdrop-filter:blur(8px);}
 .toast.err{border-color:var(--red);color:var(--red);}
-.toast.warn{border-color:var(--yellow);color:var(--yellow);}
 .toast.hidden{display:none;}
 </style>
 </head>
@@ -272,13 +271,14 @@ function saveBackupLog(log) {
 const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-function weekDates() {
-  const now = new Date(), day = now.getDay();
-  const mon = new Date(now);
-  mon.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
-  const out = [];
-  for (let i = 0; i < 7; i++) { const d = new Date(mon); d.setDate(mon.getDate() + i); out.push(d.toISOString().slice(0, 10)); }
-  return out;
+function localDateStr(d) {
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function parseMins(t) {
+  const p = (t || '').split(':');
+  return parseInt(p[0] || 0) * 60 + parseInt(p[1] || 0);
 }
 
 function setLive(id, html, color, show) {
@@ -288,7 +288,6 @@ function setLive(id, html, color, show) {
 }
 
 function loadStats() {
-  const wDates = weekDates();
   // GYM
   try {
     const g = JSON.parse(localStorage.getItem('pplbeast_v3') || 'null');
@@ -302,13 +301,14 @@ function loadStats() {
   try {
     const s = JSON.parse(localStorage.getItem('shifts_v4') || 'null');
     if (s && s.shifts) {
-      const now = new Date(), today = now.toISOString().slice(0, 10);
+      const now = new Date(), today = localDateStr(now);
       const nowMins = now.getHours() * 60 + now.getMinutes();
       const card = document.querySelector('a[href="SHIFTS.html"]');
       const active = s.shifts.find(x => {
         if (x.date !== today) return false;
-        const sm = parseInt(x.start) * 60 + (parseInt(x.start.split(':')[1]) || 0);
-        let em   = parseInt(x.end)   * 60 + (parseInt(x.end.split(':')[1])   || 0);
+        const sm = parseMins(x.start);
+        let em = parseMins(x.end);
+        if (x.end === '0:00' || x.end === '00:00') em = 1440;
         if (em <= sm) em += 1440;
         return nowMins >= sm && nowMins < em;
       });
@@ -319,8 +319,7 @@ function loadStats() {
         if (card) card.style.setProperty('--card-color', '#00e5ff');
         const upcoming = s.shifts.filter(x => {
           if (x.date > today) return true; if (x.date < today) return false;
-          const p = x.start.split(':');
-          return parseInt(p[0]) * 60 + parseInt(p[1] || 0) > nowMins;
+          return parseMins(x.start) > nowMins;
         }).sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
         if (upcoming.length > 0) {
           const ts = upcoming.filter(x => x.date === today), fs = upcoming.filter(x => x.date !== today);
@@ -341,9 +340,10 @@ function loadStats() {
 // EXPORT
 // ─────────────────────────────────────────────
 function gatherAllData() {
+  const now = new Date();
   const snap = {
-    exportedAt: new Date().toISOString(),
-    exportedDate: new Date().toISOString().slice(0,10),
+    exportedAt: now.toISOString(),
+    exportedDate: localDateStr(now),
     sources: {}
   };
 
@@ -416,7 +416,7 @@ function updateBackupUI() {
   const footer = document.getElementById('footer-ver');
   const log = getBackupLog();
   if (log.length === 0) { footer.textContent = 'v2.1 · never backed up'; footer.style.color=''; return; }
-  const last = log[log.length-1], today = new Date().toISOString().slice(0,10);
+  const last = log[log.length-1], today = localDateStr(new Date());
   const t = new Date(last.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   const label = last.auto ? 'auto' : 'manual';
   footer.textContent = last.date===today ? `✓ backed up today @ ${t} (${label})` : `last backup: ${last.date} @ ${t}`;
