@@ -94,11 +94,6 @@ function calcH(s,e){
   if(b<=a)b+=1440;
   return Math.round((b-a)/60*100)/100;
 }
-function calcHNet(s,e,loc,payRate){
-  const raw=calcH(s,e);
-  if(!raw)return 0;
-  return raw;
-}
 function wkNum(ds){const d=new Date(ds);d.setHours(0,0,0,0);d.setDate(d.getDate()+3-(d.getDay()+6)%7);const w1=new Date(d.getFullYear(),0,4);return 1+Math.round(((d-w1)/86400000-(3-(w1.getDay()+6)%7))/7);}
 function isoWkYear(ds){const d=new Date(ds);d.setHours(0,0,0,0);d.setDate(d.getDate()+3-(d.getDay()+6)%7);return d.getFullYear();}
 function mkKey(ds){return ds.slice(0,7);}
@@ -401,19 +396,10 @@ const CSS=`
 .mdl-save:disabled{background:var(--green);color:#fff;cursor:default;opacity:1;}
 .mdl-save.edit{background:var(--green);color:#fff;}
 .mdl-del{width:100%;font-family:var(--font-d);font-size:1rem;letter-spacing:.08em;padding:.6rem;border:none;background:var(--red);color:#fff;cursor:pointer;border-radius:5px;margin-top:.4rem;transition:all .15s;}
-/* UPCOMING */
-.upcoming-item{display:flex;align-items:center;gap:.65rem;padding:.5rem .1rem;border-bottom:1px solid var(--border);cursor:pointer;}
-.upcoming-item:last-child{border-bottom:none;}
-.upcoming-bar{width:3px;height:32px;border-radius:2px;flex-shrink:0;}
-.upcoming-info{flex:1;min-width:0;}
-.upcoming-loc{font-family:var(--font-b);font-size:.9rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.upcoming-sub{font-family:var(--font-m);font-size:.6rem;color:var(--muted);}
-.upcoming-tag{font-family:var(--font-d);font-size:1rem;color:var(--sky);text-align:right;}
-.upcoming-hrs{font-family:var(--font-m);font-size:.6rem;color:var(--muted);text-align:right;}
 `;
 
 /* ── EDIT MODAL ── */
-function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDuplicate}){
+function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose}){
   const isNew=!shift.id;
   const[date,setDate]=useState(shift.date);
   const[s0,setS0]=useState(shift.start||'');
@@ -430,12 +416,11 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose, onDupli
   const[showMoreLocs,setShowMoreLocs]=useState(isExtraLoc);
   const effectiveRate=parseFloat(payRateIn)>0?parseFloat(payRateIn):rate;
   const finalLoc=loc==='Other'?(otherName.trim()||'Other'):(loc||'');
-  const pH=calcHNet(s0,e0,finalLoc,effectiveRate),pP=pH*effectiveRate;
+  const pH=calcH(s0,e0),pP=pH*effectiveRate;
   function doSave(){
     if(!s0||!e0||calcH(s0,e0)<=0)return;
     const pr=parseFloat(payRateIn);
-    const er=pr>0?pr:rate;
-    const h=calcHNet(s0,e0,finalLoc,er);
+    const h=calcH(s0,e0);
     onSave({...shift,id:shift.id||uid(),date,start:s0,end:e0,loc:finalLoc,hours:h,note,payRate:pr>0?pr:0});
   }
   return(
@@ -765,9 +750,7 @@ function App(){
   const[rIn,setRIn]=useState('');
   const[tgtIn,setTgtIn]=useState('');
   const[sel,setSel]=useState(null);
-  const[showTax,setShowTax]=useState(false);
   const[editShift,setEditShift]=useState(null);
-  const[copyMsg,setCopyMsg]=useState('');
   const[saveFlash,setSaveFlash]=useState(false);
   const[selLoc,setSelLoc]=useState(null);
   const[selTY,setSelTY]=useState(null);
@@ -806,7 +789,7 @@ function App(){
 
   function addShift(){
     const finalLoc=loc==='Other'?(otherName.trim()||'Other'):loc;
-    const h=calcHNet(s0,e0,finalLoc,parseFloat(payRateIn)>0?parseFloat(payRateIn):rate);if(!h||h<=0)return;
+    const h=calcH(s0,e0);if(!h||h<=0)return;
     const pr=parseFloat(payRateIn);const shiftRate=pr>0?pr:rate;
     up(st=>{
       if(pr>0)st.lastPayRate=pr;
@@ -815,7 +798,6 @@ function App(){
     setS0('');setE0('');setNote('');setOtherName('');setLoc('');setPayRateIn('12.5');setOk(true);setTimeout(()=>setOk(false),700);
   }
   const delShift=id=>up(st=>{st.shifts=st.shifts.filter(x=>x.id!==id);setEditShift(null);});
-  const dupShift=s=>up(st=>{st.shifts=[...st.shifts,s].sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));setEditShift(null);setSaveFlash(true);setTimeout(()=>setSaveFlash(false),400);});
   function saveRate(){
     up(st=>{
       const r=parseFloat(rIn);if(r>0)st.hourlyRate=r;
@@ -837,12 +819,6 @@ function App(){
     });
     setEditShift(null);
     setSaveFlash(true);setTimeout(()=>setSaveFlash(false),400);
-  }
-
-  function copySummary(){
-    const lines=[`SHIFTS SUMMARY — as of ${TODAY}`,`Total Hours: ${fmtH(tHours)}`,`Total Earned: ${fmtP(tPay)}`,`Total Shifts: ${shifts.length}`,`Hourly Rate: £${rate.toFixed(2)}/hr`,'','MONTHLY BREAKDOWN:'];
-    allM.forEach(m=>lines.push(`  ${mkName(m.k)}: ${fmtH(m.hours)} · ${fmtP(m.pay)} (${m.shifts} shifts)`));
-    navigator.clipboard.writeText(lines.join('\n')).then(()=>{setCopyMsg('COPIED!');setTimeout(()=>setCopyMsg(''),1500);});
   }
 
   const wStart=useMemo(()=>{
@@ -874,8 +850,6 @@ function App(){
   const mLoc=useMemo(()=>{const m={};mShifts.forEach(s=>{m[s.loc]=(m[s.loc]||0)+s.hours;});return m;},[mShifts]);
   const maxLH=useMemo(()=>Math.max(1,...Object.values(mLoc)),[mLoc]);
 
-  const tHours=useMemo(()=>shifts.reduce((a,s)=>a+s.hours,0),[shifts]);
-  const tPay=useMemo(()=>shifts.reduce((a,s)=>a+s.hours*(s.payRate&&s.payRate>0?s.payRate:rate),0),[shifts,rate]);
   const allM=useMemo(()=>{
     const m={};shifts.forEach(s=>{const k=mkKey(s.date);if(!m[k])m[k]={k,hours:0,shifts:0,pay:0};m[k].hours+=s.hours;m[k].shifts++;m[k].pay+=s.hours*(s.payRate&&s.payRate>0?s.payRate:rate);});
     // Sort by tax year order: Apr (month 4) starts new tax year, so offset month by -3
@@ -885,9 +859,6 @@ function App(){
     });
   },[shifts]);
 
-  const upcomingShifts=useMemo(()=>shifts.filter(s=>s.date>TODAY).sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start)).slice(0,5),[shifts]);
-  const nextShift=upcomingShifts[0]||null;
-  function daysUntil(ds){const d=new Date(ds),t=new Date(TODAY);return Math.round((d-t)/86400000);}
 
 
 
@@ -905,16 +876,12 @@ function App(){
     ()=>setWOff(o=>o<0?0:o+1),
     ()=>setWOff(o=>o<=0?-1:o-1)
   );
-  const pastWeekRef=useSwipeRef(()=>{},()=>setWOff(0));
+  const pastWeekRef=useSwipeRef(()=>setWOff(0),()=>{});
   const monthRef=useSwipeRef(()=>chMon(1),()=>chMon(-1));
   const cDays=useMemo(()=>calDays(vm),[vm]);
   const sByDate=useMemo(()=>{const m={};shifts.forEach(s=>{if(!m[s.date])m[s.date]=[];m[s.date].push(s);});return m;},[shifts]);
   const selS=sel?(sByDate[sel]||[]):[];
   const selH=selS.reduce((a,s)=>a+s.hours,0);
-
-  const shiftPayRate=parseFloat(payRateIn)>0?parseFloat(payRateIn):rate;
-  const finalLoc=loc==='Other'?(otherName.trim()||'Other'):loc;
-  const pH=calcHNet(s0,e0,finalLoc,shiftPayRate),pP=pH*shiftPayRate;
 
   return(<>
     <style dangerouslySetInnerHTML={{__html:CSS}}/>
@@ -1156,7 +1123,6 @@ function App(){
           const tyEnd=new Date(activeTY+1,3,5);
           const tyShifts=shifts.filter(s=>{const d=new Date(s.date);return d>=tyStart&&d<=tyEnd;});
           // AVG/WEEK: always divide by full FY weeks (6 Apr → 5 Apr), same for current and past years
-          const isCompleteFY=activeTY!==curTY;
           const fyWeeks=Math.round((new Date(activeTY+1,3,5)-new Date(activeTY,3,6))/(7*86400000));
           const avgPerWeek=fyWeeks>0?activeTYData.hours/fyWeeks:0;
           // AVG/WEEK for past weeks only (weeks with at least one shift), excluding current week
@@ -1165,60 +1131,7 @@ function App(){
           const workedWeeks=workedWeekSet.size;
           const avgWorkedWeek=workedWeeks>0?tyShifts.filter(s=>s.date<TODAY&&(wkNum(s.date)+'-'+isoWkYear(s.date))!==currentWkKey).reduce((a,s)=>a+s.hours,0)/workedWeeks:0;
 
-          // Tax estimate — cumulative monthly allowance (PAYE-style)
-          // £12,570 / 12 = £1,047.50 free per month, unused allowance carries forward
-          const MONTHLY_ALLOWANCE = 12570 / 12; // 1047.5
-          // Build sorted list of tax-year months (Apr=4 → Mar=3 next year)
-          const tyMonthsSorted = [...activeTYData.months].sort((a,b)=>{
-            const taxOrd=k=>{const[y,mo]=k.split('-').map(Number);return mo>=4?y*100+mo:(y-1)*100+mo+12;};
-            return taxOrd(a.k)-taxOrd(b.k);
-          });
-          // Determine how many months have elapsed (for current TY) or use all months
-          const now2=new Date();
-          let monthsElapsed;
-          if(activeTY===curTY){
-            // months from Apr of activeTY to current month inclusive
-            const aprOfTY=new Date(activeTY,3,1); // April 1
-            monthsElapsed=Math.max(1,(now2.getFullYear()-activeTY)*12+(now2.getMonth()+1)-4+1);
-            monthsElapsed=Math.min(12,monthsElapsed);
-          } else {
-            monthsElapsed=12;
-          }
-          // Cumulative allowance accrued so far
-          const accruedAllowance = MONTHLY_ALLOWANCE * monthsElapsed;
-          // Per-month cumulative tax calculation (PAYE style)
-          // For each month in tax year order, track cumulative pay vs cumulative allowance
-          let cumPay=0, cumTaxPaid=0;
-          const monthlyTaxData=tyMonthsSorted.map(m=>{
-            cumPay+=m.pay;
-            const cumAllowance=MONTHLY_ALLOWANCE*monthsElapsed; // full accrued allowance
-            // Actually calculate month by month allowance accrual
-            return m;
-          });
-          // Proper PAYE: cumulative allowance grows each month
-          let cumPayRun=0, cumTaxRun=0;
-          const txMonths=tyMonthsSorted;
-          // Map month key to its index in tax year (Apr=0, May=1, ..., Mar=11)
-          const tyMonthIndex=k=>{const[y,mo]=k.split('-').map(Number);return mo>=4?mo-4:mo+8;};
-          txMonths.forEach(m=>{
-            const mIdx=tyMonthIndex(m.k)+1; // 1-based month in TY (Apr=1, Mar=12)
-            cumPayRun+=m.pay;
-            const cumAllowance=MONTHLY_ALLOWANCE*mIdx;
-            const cumTaxable=Math.max(0,cumPayRun-cumAllowance);
-            const cumBasic=Math.min(cumTaxable,37700);
-            const cumHigher=Math.max(0,cumTaxable-37700);
-            const cumTaxDue=cumBasic*0.20+cumHigher*0.40;
-            m._taxThisMonth=Math.max(0,cumTaxDue-cumTaxRun);
-            cumTaxRun=cumTaxDue;
-          });
-          const gross=activeTYData.pay;
-          const incomeTax=txMonths.reduce((a,m)=>a+(m._taxThisMonth||0),0);
-          const personal=12570;
-          const ni=Math.max(0,(Math.min(gross,50270)-personal)*0.08);
-          const netPay=gross-incomeTax-ni;
           const isCurrentTY=activeTY===curTY;
-          // For display: total taxable = gross - accrued allowance so far
-          const taxable=Math.max(0,gross-accruedAllowance);
 
           const tyLabel=ty=>`${ty}/${String(ty+1).slice(2)}`;
 
