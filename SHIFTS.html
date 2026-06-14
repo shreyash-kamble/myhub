@@ -94,6 +94,13 @@ function calcH(s,e){
   if(b<=a)b+=1440;
   return Math.round((b-a)/60*100)/100;
 }
+// Byker shifts get a 45-minute unpaid break deducted from logged hours
+function calcHWithBreak(s,e,loc){
+  const raw=calcH(s,e);
+  if(!raw)return 0;
+  if(loc==='Byker')return Math.max(0,Math.round((raw-0.75)*100)/100);
+  return raw;
+}
 function wkNum(ds){const d=new Date(ds);d.setHours(0,0,0,0);d.setDate(d.getDate()+3-(d.getDay()+6)%7);const w1=new Date(d.getFullYear(),0,4);return 1+Math.round(((d-w1)/86400000-(3-(w1.getDay()+6)%7))/7);}
 function isoWkYear(ds){const d=new Date(ds);d.setHours(0,0,0,0);d.setDate(d.getDate()+3-(d.getDay()+6)%7);return d.getFullYear();}
 function mkKey(ds){return ds.slice(0,7);}
@@ -103,7 +110,7 @@ function localDateStr(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padSta
 const TODAY=localDateStr(new Date());
 
 const STORE_KEY='shifts_v4';
-function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.lastPayRate)d.lastPayRate=0;if(!d.actualPay)d.actualPay={};if(!d.isaContrib)d.isaContrib={};if(!d.isaData)d.isaData={};if(!d.payPeriod)d.payPeriod=null;return d;}}catch(e){}return{shifts:[],hourlyRate:12.5,weeklyTarget:0,lastPayRate:0,actualPay:{},isaContrib:{},isaData:{},payPeriod:null};}
+function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.lastPayRate)d.lastPayRate=0;if(!d.actualPay)d.actualPay={};return d;}}catch(e){}return{shifts:[],hourlyRate:12.5,weeklyTarget:0,lastPayRate:0,actualPay:{}};}
 function saveStore(s){try{localStorage.setItem(STORE_KEY,JSON.stringify(s));}catch(e){}}
 
 function calDays(mk){
@@ -196,8 +203,6 @@ const CSS=`
 .tb-inner{display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;}
 .title{font-family:var(--font-d);font-size:1.8rem;letter-spacing:.1em;color:var(--text);}
 .title span{color:var(--accent);}
-.rate-btn{font-family:var(--font-m);font-size:.65rem;color:var(--green);border:1px solid rgba(61,255,160,.35);background:rgba(61,255,160,.08);padding:.35rem .8rem;cursor:pointer;border-radius:4px;letter-spacing:.06em;display:flex;flex-direction:column;align-items:center;gap:1px;}
-.rate-btn-lbl{font-size:.48rem;color:var(--muted);letter-spacing:.1em;}
 
 /* SCREEN + NAV */
 .screen{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(68px + env(safe-area-inset-bottom,0));}
@@ -206,32 +211,10 @@ const CSS=`
 .bni.act{color:var(--accent);}
 .bni-ico{font-size:1.05rem;line-height:1;}
 
-/* ADD */
-.add-wrap{padding:1rem .85rem 0;animation:up .2s ease;}
-.fcard{background:var(--s1);border:1px solid var(--border);padding:1rem;margin-bottom:.6rem;border-radius:7px;}
-.flbl{font-family:var(--font-m);font-size:.65rem;color:var(--accent);letter-spacing:.1em;margin-bottom:.5rem;}
 .finp{width:100%;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-m);font-size:.9rem;padding:.48rem .65rem;transition:border-color .15s;border-radius:4px;}
 .finp:focus{outline:none;border-color:var(--accent);}
-.trow{display:grid;grid-template-columns:1fr 20px 1fr;gap:.4rem;align-items:center;}
-.tsep{font-family:var(--font-d);font-size:1.1rem;color:var(--muted);text-align:center;}
-.lgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:.35rem;}
-.lbtn{display:flex;align-items:center;gap:.3rem;padding:.55rem .4rem;border:1px solid var(--border2);background:var(--s2);cursor:pointer;font-family:var(--font-b);font-size:.85rem;font-weight:700;color:var(--muted);white-space:nowrap;overflow:hidden;border-radius:4px;transition:all .15s;}
-.lbtn.sel{background:rgba(255,255,255,.05);}
-.prev{background:var(--s3);border:1px solid var(--border2);padding:.75rem 1rem;margin-bottom:.6rem;display:flex;justify-content:space-between;align-items:center;border-radius:7px;}
-.pv-l{font-family:var(--font-m);font-size:.65rem;color:var(--muted);letter-spacing:.08em;}
-.pv-h{font-family:var(--font-d);font-size:1.7rem;color:var(--accent);}
-.pv-p{font-family:var(--font-d);font-size:1.7rem;color:var(--green);}
-.add-btn{width:100%;font-family:var(--font-d);font-size:1.5rem;letter-spacing:.12em;padding:.85rem;border:none;cursor:pointer;background:var(--green);color:#fff;margin-top:.1rem;border-radius:5px;transition:all .15s;}
-.add-btn:active{transform:scale(.98);}
-.add-btn:disabled{background:var(--green);color:#fff;cursor:default;opacity:1;}
-.add-btn.ok{background:var(--green);color:#fff;}
 .dinp{width:100%;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-m);font-size:.88rem;padding:.48rem .65rem;border-radius:4px;}
 .dinp:focus{outline:none;border-color:var(--accent);}
-
-/* notes input */
-.notes-inp{width:100%;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-m);font-size:.78rem;padding:.48rem .65rem;border-radius:4px;resize:none;line-height:1.4;}
-.notes-inp:focus{outline:none;border-color:var(--accent);}
-.notes-inp::placeholder{color:var(--muted);}
 
 /* WEEK */
 .w-wrap{padding:.85rem .85rem 0;animation:up .2s ease;}
@@ -365,11 +348,6 @@ const CSS=`
 /* swipe hint */
 @keyframes swipeHint{0%{opacity:0;transform:translateX(0)}20%{opacity:.7;transform:translateX(-6px)}50%{opacity:.7;transform:translateX(6px)}80%{opacity:.7;transform:translateX(-4px)}100%{opacity:0;transform:translateX(0)}}
 .swipe-hint{display:flex;align-items:center;justify-content:center;gap:.4rem;font-family:var(--font-m);font-size:.52rem;color:var(--dim);letter-spacing:.08em;padding:.3rem 0 .1rem;pointer-events:none;animation:swipeHint 1.8s ease 0.5s 1 forwards;opacity:0;}
-.today-pill{font-family:var(--font-m);font-size:.55rem;color:var(--accent);border:1px solid rgba(0,229,255,.35);background:rgba(0,229,255,.08);padding:.2rem .55rem;cursor:pointer;border-radius:12px;letter-spacing:.06em;white-space:nowrap;}
-.today-pill:active{background:rgba(0,229,255,.2);}
-
-
-
 
 /* MODAL */
 .mo{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:100;display:flex;align-items:center;justify-content:center;padding:1.25rem;}
@@ -416,11 +394,11 @@ function EditModal({shift, rate, lastPayRate, onSave, onDelete, onClose}){
   const[showMoreLocs,setShowMoreLocs]=useState(isExtraLoc);
   const effectiveRate=parseFloat(payRateIn)>0?parseFloat(payRateIn):rate;
   const finalLoc=loc==='Other'?(otherName.trim()||'Other'):(loc||'');
-  const pH=calcH(s0,e0),pP=pH*effectiveRate;
+  const pH=calcHWithBreak(s0,e0,finalLoc),pP=pH*effectiveRate;
   function doSave(){
     if(!s0||!e0||calcH(s0,e0)<=0)return;
     const pr=parseFloat(payRateIn);
-    const h=calcH(s0,e0);
+    const h=calcHWithBreak(s0,e0,finalLoc);
     onSave({...shift,id:shift.id||uid(),date,start:s0,end:e0,loc:finalLoc,hours:h,note,payRate:pr>0?pr:0});
   }
   return(
@@ -736,50 +714,15 @@ function App(){
   const[tab,setTab]=useState('week');
   const[swipeKey,setSwipeKey]=useState(0);
   function switchTab(id){if(id==='week'||id==='monthly')setSwipeKey(k=>k+1);setTab(id);}
-  const[date,setDate]=useState(localDateStr(new Date()));
-  const[s0,setS0]=useState('');
-  const[e0,setE0]=useState('');
-  const[loc,setLoc]=useState('');
-  const[otherName,setOtherName]=useState('');
-  const[note,setNote]=useState('');
-  const[ok,setOk]=useState(false);
-  const[payRateIn,setPayRateIn]=useState('12.5');
   const[wOff,setWOff]=useState(0);
   const[vm,setVm]=useState(()=>new Date().toISOString().slice(0,7));
-  const[showR,setShowR]=useState(false);
-  const[rIn,setRIn]=useState('');
-  const[tgtIn,setTgtIn]=useState('');
   const[sel,setSel]=useState(null);
   const[editShift,setEditShift]=useState(null);
   const[saveFlash,setSaveFlash]=useState(false);
   const[selLoc,setSelLoc]=useState(null);
   const[selTY,setSelTY]=useState(null);
-  const[showMoreLocs,setShowMoreLocs]=useState(false);
   const[showWkBreak,setShowWkBreak]=useState(false);
-  const[showMonBreak,setShowMonBreak]=useState(false);
   const[showActualPay,setShowActualPay]=useState(false);
-  const[showPP,setShowPP]=useState(false);
-
-  // Pay period: default 12th of prev month → 13th of current month, paid 22nd of current month
-  const defaultPP=useMemo(()=>{
-    const d=new Date(TODAY),day=d.getDate(),pad=n=>String(n).padStart(2,'0');
-    let sY,sM,eY,eM;
-    if(day>=14){sY=d.getFullYear();sM=d.getMonth();const ed=new Date(sY,sM+1,13);eY=ed.getFullYear();eM=ed.getMonth();}
-    else{const sd=new Date(d.getFullYear(),d.getMonth()-1,12);sY=sd.getFullYear();sM=sd.getMonth();eY=d.getFullYear();eM=d.getMonth();}
-    const pd=new Date(eY,eM+1,22);
-    return{start:`${sY}-${pad(sM+1)}-12`,end:`${eY}-${pad(eM+1)}-13`,payday:`${pd.getFullYear()}-${pad(pd.getMonth()+1)}-22`};
-  },[]);
-  const[ppStart,setPpStart]=useState(()=>store.payPeriod?.start||defaultPP.start);
-  const[ppEnd,setPpEnd]=useState(()=>store.payPeriod?.end||defaultPP.end);
-  const[ppPayday,setPpPayday]=useState(()=>store.payPeriod?.payday||defaultPP.payday);
-
-  function savePP(field,val){
-    const next={start:ppStart,end:ppEnd,payday:ppPayday,[field]:val};
-    up(st=>{st.payPeriod=next;});
-    if(field==='start')setPpStart(val);
-    if(field==='end')setPpEnd(val);
-    if(field==='payday')setPpPayday(val);
-  }
 
   const rate=store.hourlyRate,shifts=store.shifts,weeklyTarget=store.weeklyTarget||0;
 
@@ -787,24 +730,7 @@ function App(){
     setStore(p=>{const n={...p,shifts:[...p.shifts]};fn(n);saveStore(n);return{...n};});
   },[]);
 
-  function addShift(){
-    const finalLoc=loc==='Other'?(otherName.trim()||'Other'):loc;
-    const h=calcH(s0,e0);if(!h||h<=0)return;
-    const pr=parseFloat(payRateIn);const shiftRate=pr>0?pr:rate;
-    up(st=>{
-      if(pr>0)st.lastPayRate=pr;
-      st.shifts=[...st.shifts,{id:uid(),date,start:s0,end:e0,loc:finalLoc,hours:h,note,payRate:shiftRate}].sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
-    });
-    setS0('');setE0('');setNote('');setOtherName('');setLoc('');setPayRateIn('12.5');setOk(true);setTimeout(()=>setOk(false),700);
-  }
   const delShift=id=>up(st=>{st.shifts=st.shifts.filter(x=>x.id!==id);setEditShift(null);});
-  function saveRate(){
-    up(st=>{
-      const r=parseFloat(rIn);if(r>0)st.hourlyRate=r;
-      const t=parseFloat(tgtIn);st.weeklyTarget=t>=0?t:st.weeklyTarget||0;
-    });
-    setShowR(false);
-  }
 
   function saveEdit(updated){
     up(st=>{
@@ -867,11 +793,6 @@ function App(){
     setVm(`${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}`);setSel(null);
   }
 
-  const wLabel=useMemo(()=>{
-    const fmt=d=>`${d.slice(8)} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+d.slice(5,7)-1]}`;
-    return`${fmt(wDates[0])} – ${fmt(wDates[6])}`;
-  },[wDates]);
-
   const weekRef=useSwipeRef(
     ()=>setWOff(o=>o<0?0:o+1),
     ()=>setWOff(o=>o<=0?-1:o-1)
@@ -896,7 +817,6 @@ function App(){
           {tab==='monthly'&&<div onClick={vm!==new Date().toISOString().slice(0,7)?()=>{setVm(new Date().toISOString().slice(0,7));setSel(null);}:undefined} style={{position:'absolute',left:'50%',transform:'translateX(-50%)',textAlign:'center',cursor:vm!==new Date().toISOString().slice(0,7)?'pointer':'default',userSelect:'none'}}>
             <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',letterSpacing:'.06em',color:vm!==new Date().toISOString().slice(0,7)?'var(--gold)':'var(--text)',lineHeight:1,transition:'color .2s',textAlign:'center'}}>{mkName(vm)}</div>
           </div>}
-
 
         </div>
       </div>
@@ -980,7 +900,7 @@ function App(){
           if(!aP&&bP)return -1;
           return a.localeCompare(b);
         }).map(d=>{
-          const ds=wByDay[d]||[],dh=ds.reduce((a,s)=>a+s.hours,0),has=ds.length>0,isT=d===TODAY,isFut=d>TODAY,isPast=d<TODAY;
+          const ds=wByDay[d]||[],dh=ds.reduce((a,s)=>a+s.hours,0),has=ds.length>0,isT=d===TODAY,isPast=d<TODAY;
           if(isPast&&!has)return null;
           return<div key={d} className={`db${isT?' td':''}`}>
             <div className="dbh" style={{cursor:'pointer'}} onClick={()=>isPast?null:setEditShift({date:d,start:'',end:'',loc:'',note:''})}>
