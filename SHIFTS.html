@@ -806,18 +806,20 @@ function App(){
           {pastWks.length===0&&<div style={{background:'var(--s1)',border:'1px dashed var(--border2)',borderRadius:'8px',padding:'2rem',textAlign:'center'}}>
             <div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:'var(--muted)',letterSpacing:'.08em'}}>NO PAST SHIFTS</div>
           </div>}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.5rem'}}>
           {pastWks.map(w=>(
-            <div key={w.key} className="stc" style={{borderTop:'2px solid var(--accent)',display:'flex',padding:0,overflow:'hidden',marginBottom:'.5rem'}}>
+            <div key={w.key} className="stc" style={{borderTop:'2px solid var(--purple)',display:'flex',padding:0,overflow:'hidden'}}>
               <div style={{flex:1,padding:'.9rem',borderRight:'1px solid var(--border)',textAlign:'center'}}>
                 <div className="stv" style={{color:'var(--text)',textAlign:'center'}}>{w.wn}</div>
                 <div className="stl" style={{textAlign:'center'}}>WEEK</div>
               </div>
               <div style={{flex:1,padding:'.9rem',textAlign:'center'}}>
-                <div className="stv" style={{color:'var(--accent)',textAlign:'center'}}>{fmtH(w.hours)}</div>
+                <div className="stv" style={{color:'var(--purple)',textAlign:'center'}}>{fmtH(w.hours)}</div>
                 <div className="stl" style={{textAlign:'center'}}>HOURS</div>
               </div>
             </div>
           ))}
+          </div>
         </div></div>
         );
       })():(
