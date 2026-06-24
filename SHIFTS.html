@@ -105,7 +105,7 @@ function localDateStr(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padSta
 const TODAY=localDateStr(new Date());
 
 const STORE_KEY='shifts_v4';
-function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.actualPay)d.actualPay={};return d;}}catch(e){}return{shifts:[],weeklyTarget:0,actualPay:{}};}
+function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.actualPay)d.actualPay={};if(!d.investment)d.investment={};return d;}}catch(e){}return{shifts:[],weeklyTarget:0,actualPay:{},investment:{}};}
 function saveStore(s){try{localStorage.setItem(STORE_KEY,JSON.stringify(s));}catch(e){}}
 
 function calDays(mk){
@@ -127,7 +127,6 @@ function calDays(mk){
 /* ── 24H TIME INPUT ── */
 function TimeInput({value, onChange, placeholder='HH:MM', className}){
   const[raw,setRaw]=useState(value||'');
-  const ref=useRef(null);
 
   // Keep in sync if parent value changes (e.g. reset)
   useEffect(()=>{setRaw(value||'');},[value]);
@@ -168,7 +167,6 @@ function TimeInput({value, onChange, placeholder='HH:MM', className}){
 
   return(
     <input
-      ref={ref}
       className={className}
       type="text"
       inputMode="numeric"
@@ -229,17 +227,8 @@ const CSS=`
 .dbh{display:flex;justify-content:space-between;align-items:center;padding:.6rem .9rem;background:var(--s2);border-bottom:1px solid var(--border);transition:background .1s;}
 .dbh:active{background:var(--s3);}
 .db.td .dbh{background:rgba(0,229,255,.07);}
-.db-body{}
 .dbh-d{font-family:var(--font-d);font-size:1.2rem;letter-spacing:.06em;color:var(--text2);}
 .dbh-n{color:var(--text2);font-size:.95rem;font-weight:600;}
-.sr-compact{display:flex;align-items:center;gap:.6rem;padding:.55rem .9rem;cursor:pointer;border-bottom:1px solid var(--border);background:var(--bg);transition:background .1s;}
-.sr-compact:last-child{border-bottom:none;}
-.sr-compact:active{background:var(--s2);}
-.sr-cdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-.sr-cico{font-size:.9rem;flex-shrink:0;}
-.sr-cloc{font-family:var(--font-b);font-size:.88rem;font-weight:700;flex:1;}
-.sr-chrs{font-family:var(--font-d);font-size:1rem;color:var(--accent);}
-.sr-cpay{font-family:var(--font-m);font-size:.62rem;color:var(--green);min-width:48px;text-align:right;}
 .dbh-t{font-family:var(--font-d);font-size:1.2rem;color:var(--accent);}
 .tdtag{font-family:var(--font-m);font-size:.52rem;background:var(--accent);color:#000;padding:.12rem .38rem;letter-spacing:.08em;font-weight:700;margin-left:.45rem;border-radius:3px;vertical-align:middle;}
 
@@ -423,7 +412,7 @@ function EditModal({shift, onSave, onDelete, onClose}){
                 style={isSel?{borderColor:col,color:col}:{}}
                 onClick={()=>{
                   if(l==='Other'){setLoc('Other');setOtherName('');}
-                  else{setLoc(l);setOtherName('');if(l==='Boiler Shop'){setS0('17:45');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}}
+                  else{setLoc(l);setOtherName('');if(l==='Boiler Shop'){setS0('17:45');setE0('23:30');}else if(l==='O2 City Hall'){setS0('18:00');setE0('23:00');}else if(l==='Freight Island'){const dow=new Date(date).getDay();setS0('11:45');setE0(dow===5||dow===6?'01:30':'23:15');}}
                 }}>
                 <span>{LICO[l]}</span>{l}
               </div>);
@@ -674,6 +663,52 @@ function SalaryRow({m, actual, isPastMonth, up}){
   );
 }
 
+
+/* ── INVESTMENT ROW — double-tap to edit ── */
+function InvestmentRow({m, invest, isPastMonth, up}){
+  const[editing,setEditing]=useState(false);
+  const lastTap=useRef(0);
+  function handleTap(){
+    const now=Date.now();
+    if(now-lastTap.current<350){setEditing(true);}
+    lastTap.current=now;
+  }
+  return(
+    <div style={{marginBottom:'.5rem',padding:'.6rem .75rem',background:'var(--s2)',border:'1px solid var(--border)',borderRadius:'6px'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'.75rem'}}>
+        <div style={{flex:'0 0 auto'}}>
+          <div style={{fontFamily:'var(--font-b)',fontWeight:700,fontSize:'.95rem',color:'var(--text)'}}>{mkName(m.k)}</div>
+          {isPastMonth&&<div style={{fontFamily:'var(--font-m)',fontSize:'.48rem',color:'var(--muted)',marginTop:'1px',letterSpacing:'.04em'}}>MONTH OVER</div>}
+        </div>
+        <div style={{flex:1,display:'flex',alignItems:'center',gap:'.4rem',justifyContent:'flex-end'}}>
+          {invest!==''&&!editing
+            ? <span style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--green)',cursor:'pointer',userSelect:'none'}} onClick={handleTap} title="Double-tap to edit">{fmtP(parseFloat(invest))}</span>
+            : <>
+                <span style={{fontFamily:'var(--font-m)',fontSize:'.75rem',color:'var(--muted)'}}>£</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={invest}
+                  autoFocus={editing}
+                  onChange={e=>{
+                    const val=e.target.value;
+                    up(st=>{if(!st.investment)st.investment={};st.investment={...st.investment,[m.k]:val===''?null:parseFloat(val)||val};});
+                  }}
+                  onBlur={()=>setEditing(false)}
+                  style={{width:'100px',background:'var(--s3)',border:'1px solid var(--border2)',color:'var(--text)',fontFamily:'var(--font-d)',fontSize:'1.1rem',padding:'.35rem .5rem',borderRadius:'4px',textAlign:'right',outline:'none'}}
+                  onFocus={e=>e.target.style.borderColor='var(--green)'}
+                />
+              </>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App(){
   const[store,setStore]=useState(()=>loadStore());
   const[tab,setTab]=useState('week');
@@ -688,6 +723,7 @@ function App(){
   const[selTY,setSelTY]=useState(null);
   const[showWkBreak,setShowWkBreak]=useState(false);
   const[showActualPay,setShowActualPay]=useState(false);
+  const[showInvestment,setShowInvestment]=useState(false);
 
   const shifts=store.shifts,weeklyTarget=store.weeklyTarget||0;
 
@@ -1081,6 +1117,41 @@ function App(){
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                       <span style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--sky)',letterSpacing:'.06em'}}>TOTAL RECEIVED ({filledMonths} month{filledMonths!==1?'s':''})</span>
                       <span style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--sky)'}}>{fmtP(totalActual)}</span>
+                    </div>
+                  </div>
+                );
+              })()}</>}
+            </div>}
+
+            {/* INVESTMENT */}
+            {activeTYData.months.length>0&&<div style={{background:'var(--s1)',border:'1px solid var(--border)',borderLeft:'3px solid var(--green)',padding:'1rem',marginBottom:'.65rem',borderRadius:'7px'}}>
+              <button onClick={()=>setShowInvestment(v=>!v)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',padding:0,marginBottom:showInvestment?'.65rem':0}}>
+                <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--green)'}}>INVESTMENT</div>
+                <div style={{display:'flex',alignItems:'center',gap:'.65rem'}}>
+                  {(()=>{const totalInvHdr=activeTYData.months.reduce((sum,m)=>{const v=store.investment&&store.investment[m.k]!=null?parseFloat(store.investment[m.k]):null;return v!=null&&!isNaN(v)?sum+v:sum;},0);const filledInvHdr=activeTYData.months.filter(m=>store.investment&&store.investment[m.k]!=null&&!isNaN(parseFloat(store.investment[m.k]))).length;return filledInvHdr>0?(<div style={{textAlign:'right'}}><div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:'var(--green)'}}>{fmtP(totalInvHdr)}</div><div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--muted)'}}>{filledInvHdr} month{filledInvHdr!==1?'s':''} logged</div></div>):null;})()}
+                  <span style={{color:'var(--green)',fontSize:'.8rem'}}>{showInvestment?'▴':'▾'}</span>
+                </div>
+              </button>
+              {showInvestment&&<>{[...activeTYData.months].sort((a,b)=>{
+                const taxOrd=k=>{const[y,mo]=k.split('-').map(Number);return mo>=4?y*100+mo:(y-1)*100+mo+12;};
+                return taxOrd(a.k)-taxOrd(b.k);
+              }).map(m=>{
+                const invest=store.investment&&store.investment[m.k]!=null?store.investment[m.k]:'';
+                const isPastMonth=m.k<TODAY.slice(0,7);
+                return <InvestmentRow key={m.k} m={m} invest={invest} isPastMonth={isPastMonth} up={up}/>;
+              })}
+              {(()=>{
+                const totalInv=activeTYData.months.reduce((sum,m)=>{
+                  const v=store.investment&&store.investment[m.k]!=null?parseFloat(store.investment[m.k]):null;
+                  return v!=null&&!isNaN(v)?sum+v:sum;
+                },0);
+                const filledInv=activeTYData.months.filter(m=>store.investment&&store.investment[m.k]!=null&&!isNaN(parseFloat(store.investment[m.k]))).length;
+                if(filledInv===0)return null;
+                return(
+                  <div style={{borderTop:'1px solid var(--border)',paddingTop:'.55rem'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <span style={{fontFamily:'var(--font-m)',fontSize:'.6rem',color:'var(--green)',letterSpacing:'.06em'}}>TOTAL INVESTED ({filledInv} month{filledInv!==1?'s':''})</span>
+                      <span style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',color:'var(--green)'}}>{fmtP(totalInv)}</span>
                     </div>
                   </div>
                 );
