@@ -329,9 +329,6 @@ const CSS=`
 @keyframes savePop{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
 .save-flash{animation:savePop .35s ease;}
 
-/* swipe hint */
-@keyframes swipeHint{0%{opacity:0;transform:translateX(0)}20%{opacity:.7;transform:translateX(-6px)}50%{opacity:.7;transform:translateX(6px)}80%{opacity:.7;transform:translateX(-4px)}100%{opacity:0;transform:translateX(0)}}
-.swipe-hint{display:flex;align-items:center;justify-content:center;gap:.4rem;font-family:var(--font-m);font-size:.52rem;color:var(--dim);letter-spacing:.08em;padding:.3rem 0 .1rem;pointer-events:none;animation:swipeHint 1.8s ease 0.5s 1 forwards;opacity:0;}
 
 /* MODAL */
 .mo{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:100;display:flex;align-items:center;justify-content:center;padding:1.25rem;}
@@ -370,12 +367,14 @@ function EditModal({shift, onSave, onDelete, onClose}){
   const[otherName,setOtherName]=useState(knownLoc||!shift.loc?'':(shift.loc||''));
   const[note,setNote]=useState(shift.note||'');
   const[showMoreLocs,setShowMoreLocs]=useState(isExtraLoc);
+  const[fillWeek,setFillWeek]=useState(true);
   const finalLoc=loc==='Other'?(otherName.trim()||'Other'):(loc||'');
   const pH=calcH(s0,e0),pP=pH*RATE;
   function doSave(){
     if(!s0||!e0||calcH(s0,e0)<=0)return;
     const h=calcH(s0,e0);
-    onSave({...shift,id:shift.id||uid(),date,start:s0,end:e0,loc:finalLoc,hours:h,note});
+    const shouldFill=isNew&&finalLoc==='Freight Island'&&fillWeek;
+    onSave({...shift,id:shift.id||uid(),date,start:s0,end:e0,loc:finalLoc,hours:h,note},shouldFill);
   }
   return(
     <div className="mo" onClick={onClose}>
@@ -448,6 +447,10 @@ function EditModal({shift, onSave, onDelete, onClose}){
             onChange={e=>setOtherName(e.target.value)}
             autoFocus
           />}
+          {isNew&&finalLoc==='Freight Island'&&<label style={{display:'flex',alignItems:'center',gap:'.5rem',marginTop:'.6rem',cursor:'pointer',fontFamily:'var(--font-m)',fontSize:'.65rem',color:'var(--orange)',letterSpacing:'.03em'}}>
+            <input type="checkbox" checked={fillWeek} onChange={e=>setFillWeek(e.target.checked)} style={{width:'15px',height:'15px',accentColor:'var(--orange)',flexShrink:0}}/>
+            Fill in Thu–Sun this week too
+          </label>}
         </div>
 
         {/* NOTES box */}
@@ -712,8 +715,7 @@ function InvestmentRow({m, invest, isPastMonth, up}){
 function App(){
   const[store,setStore]=useState(()=>loadStore());
   const[tab,setTab]=useState('week');
-  const[swipeKey,setSwipeKey]=useState(0);
-  function switchTab(id){if(id==='week'||id==='monthly')setSwipeKey(k=>k+1);setTab(id);}
+  function switchTab(id){setTab(id);}
   const[wOff,setWOff]=useState(0);
   const[vm,setVm]=useState(()=>new Date().toISOString().slice(0,7));
   const[sel,setSel]=useState(null);
@@ -733,13 +735,38 @@ function App(){
 
   const delShift=id=>up(st=>{st.shifts=st.shifts.filter(x=>x.id!==id);setEditShift(null);});
 
-  function saveEdit(updated){
+  function saveEdit(updated,fillWeek){
     up(st=>{
       const exists=st.shifts.some(x=>x.id===updated.id);
       if(exists){
         st.shifts=st.shifts.map(x=>x.id===updated.id?updated:x);
       } else {
         st.shifts=[...st.shifts,updated];
+      }
+      if(fillWeek){
+        // Freight Island runs Thu–Sun on a fixed weekly pattern.
+        // Fill in any of those days in the same week that don't already
+        // have a Freight Island shift.
+        const base=new Date(updated.date);
+        const baseDow=base.getDay(); // 0=Sun..6=Sat
+        // Find Monday of this week, then build out Thu(4) Fri(5) Sat(6) Sun(0)
+        const monday=new Date(base);
+        monday.setDate(base.getDate()-(baseDow===0?6:baseDow-1));
+        const targetDows=[4,5,6,0]; // Thu, Fri, Sat, Sun
+        const newShifts=[];
+        targetDows.forEach(dow=>{
+          const d=new Date(monday);
+          d.setDate(monday.getDate()+(dow===0?6:dow-1));
+          const ds=localDateStr(d);
+          if(ds===updated.date)return; // already added above
+          const already=st.shifts.some(x=>x.date===ds&&x.loc==='Freight Island');
+          if(already)return;
+          const start='11:45';
+          const end=(dow===5||dow===6)?'01:30':'23:15';
+          const hours=calcH(start,end);
+          newShifts.push({id:uid(),date:ds,start,end,loc:'Freight Island',hours,note:''});
+        });
+        if(newShifts.length)st.shifts=[...st.shifts,...newShifts];
       }
       st.shifts=st.shifts.sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
     });
@@ -917,7 +944,6 @@ function App(){
 
       {/* MONTHLY */}
       {tab==='monthly'&&<div className="screen" ref={monthRef}><div className="m-wrap">
-        <div key={`sh-m-${swipeKey}`} className="swipe-hint">{'<'} swipe to change month {'>'}</div>
 
         <div className="mhero">
           <div className="mh-row">
