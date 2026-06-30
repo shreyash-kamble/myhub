@@ -376,9 +376,23 @@ function runExport(isMidnight) {
   setTimeout(() => {
     try {
       const data = gatherAllData();
-      downloadJSON(data, `shifts-backup-${data.exportedDate}.json`);
+      let n = 0;
+      const groups = { gym: ['gym'], shifts: ['shifts','apps'] };
+      for (const [fileLabel, names] of Object.entries(groups)) {
+        const payload = {};
+        let has = false;
+        for (const name of names) {
+          if (data.sources[name] != null) { payload[name] = data.sources[name]; has = true; }
+        }
+        if (!has) continue;
+        downloadJSON(
+          { exportedAt: data.exportedAt, exportedDate: data.exportedDate, sources: payload },
+          `${fileLabel}-backup-${data.exportedDate}.json`
+        );
+        n++;
+      }
       const log = getBackupLog(); log.push({ts:data.exportedAt, date:data.exportedDate, auto:isMidnight}); saveBackupLog(log);
-      showToast(isMidnight ? '✓ MIDNIGHT BACKUP SAVED' : '✓ BACKUP SAVED');
+      showToast(isMidnight ? '✓ MIDNIGHT BACKUP SAVED' : `✓ ${n} BACKUP FILE${n!==1?'S':''} SAVED`);
     } catch(e) { showToast('✗ EXPORT FAILED','err'); }
     sub.classList.remove('exporting'); updateBackupUI();
   }, 300);
