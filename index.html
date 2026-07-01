@@ -349,8 +349,7 @@ function gatherAllData() {
 
   const modules = {
     gym: 'pplbeast_v3',
-    shifts: 'shifts_v4',
-    apps: 'job-application-log-v1'
+    shifts: 'shifts_v4'
   };
 
   for (const [name, key] of Object.entries(modules)) {
@@ -377,7 +376,7 @@ function runExport(isMidnight) {
     try {
       const data = gatherAllData();
       let n = 0;
-      const groups = { gym: ['gym'], shifts: ['shifts','apps'] };
+      const groups = { gym: ['gym'], shifts: ['shifts'] };
       for (const [fileLabel, names] of Object.entries(groups)) {
         const payload = {};
         let has = false;
@@ -409,7 +408,7 @@ document.getElementById('import-input').addEventListener('change', function(e) {
       const data = JSON.parse(ev.target.result);
       if (!data.sources) throw 0;
       let n = 0;
-      for (const [name, key] of Object.entries({gym:'pplbeast_v3',shifts:'shifts_v4',apps:'job-application-log-v1'}))
+      for (const [name, key] of Object.entries({gym:'pplbeast_v3',shifts:'shifts_v4'}))
         if (data.sources[name] != null) { localStorage.setItem(key, JSON.stringify(data.sources[name])); n++; }
       loadStats(); showToast(`✓ RESTORED ${n} MODULE${n!==1?'S':''} FROM ${data.exportedDate||'BACKUP'}`);
     } catch(e) { showToast('✗ INVALID BACKUP FILE','err'); }
