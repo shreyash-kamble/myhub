@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2b2b2b">
+<title>100 DAYS</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@300;400;500;700&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:#2b2b2b;}
+:root{
+  --bg:#2b2b2b;--s1:#333333;--s2:#3d3d3d;--s3:#474747;
+  --border:#555555;--border2:#606060;
+  --accent:#29e6ff;--gold:#ffd600;--green:#41ab5d;--red:#ff5555;
+  --orange:#ff8c00;--purple:#c084fc;--pink:#f472b6;--sky:#38bdf8;
+  --text:#e8e8e8;--text2:#cccccc;--dim:#4a4a4a;--muted:#aaaaaa;
+  --font-d:'Bebas Neue',sans-serif;
+  --font-m:'JetBrains Mono',monospace;
+  --font-b:'Barlow Condensed',sans-serif;
+}
+#root{height:100%;display:flex;flex-direction:column;overflow:hidden;}
+::-webkit-scrollbar{width:2px;}
+::-webkit-scrollbar-thumb{background:var(--dim);}
+input::-webkit-inner-spin-button{-webkit-appearance:none;}
+
+@keyframes up{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes pop{from{transform:scale(.93);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(0,229,255,.1)}50%{box-shadow:0 0 18px 5px rgba(0,229,255,.25)}}
+@keyframes savePop{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
+
+.app{display:flex;flex-direction:column;height:100vh;height:100dvh;background:var(--bg);overflow:hidden;}
+
+/* TOP */
+.topbar{background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;z-index:10;padding-top:env(safe-area-inset-top,0);}
+.tb-inner{display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;}
+.title{font-family:var(--font-d);font-size:1.8rem;letter-spacing:.1em;color:var(--text);}
+.title span{color:var(--accent);}
+
+.screen{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(90px + env(safe-area-inset-bottom,0));}
+.bnav{position:fixed;bottom:0;left:0;right:0;background:var(--s1);border-top:1px solid var(--border);display:flex;z-index:10;padding-bottom:env(safe-area-inset-bottom,0);}
+.bni{flex:1;display:flex;flex-direction:column;align-items:center;padding:.55rem .25rem;cursor:pointer;border:none;background:none;color:var(--muted);font-family:var(--font-m);font-size:.55rem;letter-spacing:.08em;gap:.18rem;transition:color .2s;}
+.bni.act{color:var(--accent);}
+.bni-ico{font-size:1.15rem;line-height:1;}
+
+/* FAB */
+.fab{position:fixed;right:1rem;bottom:calc(78px + env(safe-area-inset-bottom,0));width:54px;height:54px;border-radius:50%;background:var(--accent);color:#062;color:#00323a;border:none;font-family:var(--font-d);font-size:1.9rem;box-shadow:0 4px 16px rgba(0,0,0,.4);cursor:pointer;z-index:15;display:flex;align-items:center;justify-content:center;}
+.fab:active{transform:scale(.94);}
+
+/* DAYS VIEW */
+.d-wrap{padding:.85rem .85rem 0;animation:up .2s ease;}
+.hero{background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--accent);padding:1rem;margin-bottom:.7rem;border-radius:8px;}
+.hero-row{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:.55rem;}
+.hero-lbl{font-family:var(--font-m);font-size:.62rem;color:var(--accent);letter-spacing:.1em;margin-bottom:.15rem;}
+.hero-val{font-family:var(--font-d);font-size:2.4rem;color:var(--text);line-height:1;}
+.hero-sub{font-family:var(--font-m);font-size:.68rem;color:var(--muted);text-align:right;}
+.hero-bar{height:8px;background:var(--dim);border-radius:4px;overflow:hidden;}
+.hero-fill{height:100%;background:var(--accent);border-radius:4px;transition:width .5s ease;}
+
+.grid100{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;margin-bottom:.8rem;}
+.gcell{aspect-ratio:1;border-radius:5px;background:var(--s2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:var(--font-m);font-size:.6rem;color:var(--muted);cursor:pointer;position:relative;}
+.gcell.done{background:var(--green);border-color:var(--green);color:#fff;font-weight:700;}
+.gcell.today{border-color:var(--accent);border-width:2px;color:var(--accent);}
+.gcell.today.done{color:#fff;}
+.gcell.sel{outline:2px solid var(--gold);outline-offset:1px;}
+.gcell.future{opacity:.45;}
+
+.daypanel{background:var(--s1);border:1px solid var(--border);border-radius:8px;margin-bottom:.65rem;overflow:hidden;animation:up .15s ease;}
+.dph{display:flex;justify-content:space-between;align-items:center;padding:.65rem .9rem;background:var(--s2);border-bottom:1px solid var(--border);}
+.dph-d{font-family:var(--font-d);font-size:1.2rem;letter-spacing:.06em;color:var(--text);}
+.dph-n{font-family:var(--font-m);font-size:.62rem;color:var(--muted);margin-top:1px;}
+.dph-add{background:var(--accent);color:#00323a;border:none;font-family:var(--font-d);font-size:.9rem;letter-spacing:.05em;padding:.35rem .7rem;border-radius:5px;cursor:pointer;}
+
+.ev-row{display:flex;align-items:center;gap:.7rem;padding:.75rem .9rem;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;}
+.ev-row:last-child{border-bottom:none;}
+.ev-row:active{background:var(--s2);}
+.ev-bar{width:3px;min-height:36px;border-radius:2px;flex-shrink:0;align-self:stretch;}
+.ev-info{flex:1;min-width:0;}
+.ev-line{display:flex;align-items:center;gap:.5rem;}
+.ev-time{font-family:var(--font-m);font-size:1rem;font-weight:700;color:var(--text);white-space:nowrap;}
+.ev-ico{font-size:1rem;}
+.ev-type{font-family:var(--font-b);font-size:1.02rem;font-weight:700;}
+.ev-note{font-family:var(--font-m);font-size:.6rem;color:var(--muted);margin-top:.2rem;}
+.ev-right{text-align:right;flex-shrink:0;}
+.ev-hrs{font-family:var(--font-d);font-size:1.2rem;color:var(--text2);}
+.empty-note{padding:1rem .9rem;font-family:var(--font-m);font-size:.68rem;color:var(--muted);}
+
+.sleepcard{background:var(--s1);border:1px solid var(--border);border-left:3px solid #818cf8;padding:.85rem 1rem;margin-bottom:.75rem;border-radius:8px;display:flex;align-items:center;justify-content:space-between;}
+.sleepcard-l{font-family:var(--font-m);font-size:.62rem;color:#818cf8;letter-spacing:.08em;margin-bottom:.2rem;}
+.sleepcard-v{font-family:var(--font-d);font-size:1.5rem;color:var(--text);line-height:1;}
+.sleepcard-s{font-family:var(--font-m);font-size:.6rem;color:var(--muted);margin-top:.15rem;}
+.sleepcard-ico{font-size:1.8rem;}
+
+/* TODAY */
+.t-wrap{padding:.85rem .85rem 0;animation:up .2s ease;}
+.qadd{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.75rem;}
+.qbtn{background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:.75rem .4rem;display:flex;flex-direction:column;align-items:center;gap:.3rem;cursor:pointer;font-family:var(--font-b);font-size:.85rem;font-weight:700;color:var(--text2);transition:all .15s;}
+.qbtn:active{transform:scale(.96);}
+.qbtn .qic{font-size:1.5rem;}
+
+/* STATS */
+.st-wrap{padding:.85rem .85rem 0;animation:up .2s ease;}
+.stg{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.65rem;}
+.stc{background:var(--s1);border:1px solid var(--border);padding:.9rem;border-radius:8px;text-align:center;}
+.stv{font-family:var(--font-d);font-size:1.8rem;letter-spacing:.04em;color:var(--text);line-height:1;}
+.stl{font-family:var(--font-m);font-size:.58rem;color:var(--muted);margin-top:.3rem;letter-spacing:.07em;}
+
+.locs{background:var(--s1);border:1px solid var(--border);padding:1rem;margin-bottom:.6rem;border-radius:7px;}
+.loc-t{font-family:var(--font-d);font-size:1.05rem;letter-spacing:.06em;color:var(--muted);margin-bottom:.75rem;}
+.lr{display:flex;align-items:center;gap:.6rem;margin-bottom:.55rem;}
+.li{font-size:.95rem;width:22px;text-align:center;flex-shrink:0;}
+.ln{font-family:var(--font-b);font-weight:700;font-size:.95rem;min-width:70px;}
+.lbw{flex:1;height:6px;background:var(--dim);border-radius:3px;}
+.lb{height:100%;transition:width .4s ease;border-radius:3px;}
+.lv{font-family:var(--font-m);font-size:.65rem;min-width:64px;text-align:right;color:var(--text2);}
+
+.pb{background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--purple);padding:1rem;margin-bottom:.65rem;border-radius:7px;}
+.pb-t{font-family:var(--font-d);font-size:1.05rem;letter-spacing:.06em;color:var(--muted);margin-bottom:.6rem;}
+.pb-r{display:flex;justify-content:space-between;align-items:center;padding:.38rem 0;border-bottom:1px solid var(--border);}
+.pb-r:last-child{border-bottom:none;}
+.pb-l{font-family:var(--font-b);font-size:.95rem;font-weight:700;color:var(--text2);}
+.pb-v{font-family:var(--font-d);font-size:1.15rem;color:var(--purple);}
+
+.save-flash{animation:savePop .35s ease;}
+
+/* MODAL */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:100;display:flex;align-items:center;justify-content:center;padding:1.25rem;}
+.mdl{background:var(--bg);border:1px solid var(--border);padding:1rem;width:100%;max-width:340px;animation:pop .2s ease;border-radius:9px;max-height:90vh;overflow-y:auto;}
+.mdl-t{font-family:var(--font-d);font-size:1.6rem;letter-spacing:.06em;margin-bottom:.25rem;color:var(--text);}
+.mdl-s{font-family:var(--font-m);font-size:.65rem;color:var(--muted);margin-bottom:.75rem;}
+.mdl-box{background:var(--s1);border:1px solid var(--border);padding:.85rem 1rem;border-radius:7px;margin-bottom:.5rem;}
+.mdl-l{font-family:var(--font-m);font-size:.65rem;color:var(--accent);letter-spacing:.1em;margin-bottom:.45rem;}
+.mdl-i-sm{width:100%;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-m);font-size:.88rem;padding:.5rem .65rem;border-radius:4px;}
+.mdl-i-sm:focus{outline:none;border-color:var(--accent);}
+.mdl-trow{display:grid;grid-template-columns:1fr 20px 1fr;gap:.4rem;align-items:center;}
+.mdl-tsep{font-family:var(--font-d);font-size:1.1rem;color:var(--muted);text-align:center;}
+.mdl-egrid{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;}
+.mdl-ebtn{display:flex;flex-direction:column;align-items:center;gap:.2rem;padding:.6rem .35rem;border:1px solid var(--border2);background:var(--s2);cursor:pointer;font-family:var(--font-b);font-size:.85rem;font-weight:700;color:var(--muted);border-radius:6px;transition:all .15s;}
+.mdl-ebtn .eic{font-size:1.3rem;}
+.mdl-ebtn.sel{background:rgba(255,255,255,.06);}
+.mdl-notes{width:100%;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-m);font-size:.78rem;padding:.48rem .65rem;border-radius:4px;resize:none;line-height:1.4;}
+.mdl-notes:focus{outline:none;border-color:var(--accent);}
+.mdl-notes::placeholder{color:var(--muted);}
+.mdl-save{width:100%;font-family:var(--font-d);font-size:1.3rem;letter-spacing:.1em;padding:.75rem;border:none;cursor:pointer;background:var(--green);color:#fff;border-radius:5px;margin-top:.25rem;transition:all .15s;}
+.mdl-save:disabled{opacity:.5;}
+.mdl-del{width:100%;font-family:var(--font-d);font-size:1rem;letter-spacing:.08em;padding:.6rem;border:none;background:var(--red);color:#fff;cursor:pointer;border-radius:5px;margin-top:.4rem;transition:all .15s;}
+</style>
+</head>
+<body><div id="root"></div>
+<script type="text/babel">
+const {useState,useCallback,useMemo,useRef,useEffect}=React;
+
+const TYPES=['Wake Up','Sleep','Cooking','Gym','Study','Work'];
+const TCOL={'Wake Up':'#ffd600',Sleep:'#818cf8',Cooking:'#f472b6',Gym:'#ff8c00',Study:'#c084fc',Work:'#38bdf8'};
+const TICO={'Wake Up':'⏰',Sleep:'😴',Cooking:'🍳',Gym:'🏋️',Study:'📚',Work:'💼'};
+const SINGLE_TIME_TYPES=['Wake Up','Sleep'];
+const isSingle=t=>SINGLE_TIME_TYPES.includes(t);
+
+const uid=()=>crypto.randomUUID();
+const fmtH=h=>{const w=Math.floor(h),m=Math.round((h-w)*60);return m?`${w}h ${m}m`:`${w}h`;};
+function calcH(s,e){
+  if(!s||!e)return 0;
+  const[sh,sm]=s.split(':').map(Number);let[eh,em]=e.split(':').map(Number);
+  let a=sh*60+sm,b=eh*60+em;
+  if(e==='0:00'||e==='00:00')b=1440;
+  if(b<=a)b+=1440;
+  return Math.round((b-a)/60*100)/100;
+}
+function dayName(ds){return['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(ds+'T00:00:00').getDay()];}
+function mkName(ds){const d=new Date(ds+'T00:00:00');return`${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]}`;}
+function localDateStr(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return`${y}-${m}-${day}`;}
+const TODAY=localDateStr(new Date());
+const START_DATE='2026-07-09';
+
+function addDays(ds,n){const d=new Date(ds+'T00:00:00');d.setDate(d.getDate()+n);return localDateStr(d);}
+function diffDays(a,b){return Math.round((new Date(a+'T00:00:00')-new Date(b+'T00:00:00'))/86400000);}
+
+const STORE_KEY='days100_v1';
+function loadStore(){
+  try{
+    const r=localStorage.getItem(STORE_KEY);
+    if(r){const d=JSON.parse(r);d.startDate=START_DATE;if(!d.events)d.events=[];return d;}
+  }catch(e){}
+  return{startDate:START_DATE,events:[]};
+}
+function saveStore(s){try{localStorage.setItem(STORE_KEY,JSON.stringify(s));}catch(e){}}
+
+/* ── 24H TIME INPUT ── */
+function TimeInput({value, onChange, placeholder='HH:MM', className}){
+  const[raw,setRaw]=useState(value||'');
+  useEffect(()=>{setRaw(value||'');},[value]);
+  function handleChange(e){
+    let v=e.target.value.replace(/[^0-9:]/g,'');
+    if(v.length===2&&raw.length===1&&!v.includes(':'))v=v+':';
+    if(v.length>5)return;
+    setRaw(v);
+    const m=v.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+    if(m){const hh=m[1].padStart(2,'0'),mm=m[2];onChange(`${hh}:${mm}`);}
+    else if(v===''){onChange('');}
+  }
+  function handleBlur(){
+    const m=raw.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+    if(m){const fixed=`${m[1].padStart(2,'0')}:${m[2]}`;setRaw(fixed);onChange(fixed);}
+    else if(raw&&!raw.match(/^([01]?\d|2[0-3]):([0-5]\d)$/)){setRaw('');onChange('');}
+  }
+  function handleKeyDown(e){if(e.key==='Backspace'&&raw.endsWith(':'))setRaw(raw.slice(0,-1));}
+  return(
+    <input className={className} type="text" inputMode="numeric" placeholder={placeholder}
+      value={raw} onChange={handleChange} onBlur={handleBlur} onKeyDown={handleKeyDown}
+      maxLength={5} autoComplete="off"/>
+  );
+}
+
+/* ── EVENT MODAL ── */
+function EventModal({event, onSave, onDelete, onClose}){
+  const isNew=!event.id;
+  const[date,setDate]=useState(event.date);
+  const[s0,setS0]=useState(event.start||'');
+  const[e0,setE0]=useState(event.end||'');
+  const[type,setType]=useState(event.type||'Gym');
+  const[note,setNote]=useState(event.note||'');
+  const single=isSingle(type);
+  const pH=single?0:calcH(s0,e0);
+  const canSave=single?!!s0:(s0&&e0&&calcH(s0,e0)>0);
+  function doSave(){
+    if(!canSave)return;
+    if(single){
+      onSave({...event,id:event.id||uid(),date,start:s0,end:'',type,hours:0,note});
+    }else{
+      const h=calcH(s0,e0);
+      onSave({...event,id:event.id||uid(),date,start:s0,end:e0,type,hours:h,note});
+    }
+  }
+  return(
+    <div className="mo" onClick={onClose}>
+      <div className="mdl" onClick={e=>e.stopPropagation()}>
+        <div className="mdl-t">{isNew?'ADD EVENT':'EDIT EVENT'}</div>
+        <div className="mdl-s">{isNew?`${dayName(date)} · ${+date.slice(8)} ${mkName(date)}`:'Update the details below'}</div>
+
+        <div className="mdl-box">
+          <div className="mdl-l">DATE</div>
+          <input className="mdl-i-sm" type="date" value={date} onChange={e=>setDate(e.target.value)}/>
+        </div>
+
+        <div className="mdl-box">
+          <div className="mdl-l">EVENT</div>
+          <div className="mdl-egrid">
+            {TYPES.map(t=>(
+              <button key={t} className={`mdl-ebtn ${type===t?'sel':''}`}
+                style={type===t?{borderColor:TCOL[t],color:TCOL[t]}:{}}
+                onClick={()=>setType(t)}>
+                <span className="eic">{TICO[t]}</span>{t}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mdl-box">
+          <div className="mdl-l">{single?'TIME (SINGLE)':'TIME'}</div>
+          {single?(
+            <TimeInput className="mdl-i-sm" value={s0} onChange={setS0} placeholder="22:30"/>
+          ):(<>
+            <div className="mdl-trow">
+              <TimeInput className="mdl-i-sm" value={s0} onChange={setS0} placeholder="09:00"/>
+              <div className="mdl-tsep">→</div>
+              <TimeInput className="mdl-i-sm" value={e0} onChange={setE0} placeholder="17:00"/>
+            </div>
+            {s0&&e0&&calcH(s0,e0)>0&&<div style={{marginTop:'.35rem',fontFamily:'var(--font-m)',fontSize:'.63rem',color:'var(--accent)'}}>{fmtH(pH)}</div>}
+          </>)}
+        </div>
+
+        <div className="mdl-box">
+          <div className="mdl-l">NOTES</div>
+          <textarea className="mdl-notes" rows="2" placeholder="Optional note..." value={note} onChange={e=>setNote(e.target.value)}/>
+        </div>
+
+        <button className="mdl-save" disabled={!canSave} onClick={doSave}>{isNew?'ADD':'SAVE'}</button>
+        {!isNew&&<button className="mdl-del" onClick={()=>onDelete(event.id)}>DELETE</button>}
+      </div>
+    </div>
+  );
+}
+
+function EvRow({ev,onClick}){
+  const single=isSingle(ev.type);
+  return(
+    <div className="ev-row" onClick={onClick}>
+      <div className="ev-bar" style={{background:TCOL[ev.type]}}/>
+      <div className="ev-info">
+        <div className="ev-line">
+          <span className="ev-time">{single?ev.start:`${ev.start}–${ev.end}`}</span>
+          <span className="ev-ico">{TICO[ev.type]}</span>
+          <span className="ev-type" style={{color:TCOL[ev.type]}}>{ev.type}</span>
+        </div>
+        {ev.note&&<div className="ev-note">📝 {ev.note}</div>}
+      </div>
+      {!single&&<div className="ev-right"><div className="ev-hrs">{fmtH(ev.hours)}</div></div>}
+    </div>
+  );
+}
+
+function nowTimeStr(){const d=new Date();return`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;}
+
+function App(){
+  const[store,setStore]=useState(loadStore);
+  const[tab,setTab]=useState('today');
+  const[selDay,setSelDay]=useState(null); // date string
+  const[editEvent,setEditEvent]=useState(null);
+  const[saveFlash,setSaveFlash]=useState(false);
+
+  useEffect(()=>{saveStore(store);},[store]);
+
+  const flash=()=>{setSaveFlash(true);setTimeout(()=>setSaveFlash(false),650);};
+
+  function upsertEvent(ev){
+    setStore(s=>{
+      const exists=s.events.some(e=>e.id===ev.id);
+      const events=exists?s.events.map(e=>e.id===ev.id?ev:e):[...s.events,ev];
+      return{...s,events};
+    });
+    setEditEvent(null);
+    flash();
+  }
+  function delEvent(id){
+    setStore(s=>({...s,events:s.events.filter(e=>e.id!==id)}));
+    setEditEvent(null);
+  }
+
+  // day numbers 1..100
+  const dayList=useMemo(()=>{
+    const arr=[];
+    for(let i=0;i<100;i++){
+      const date=addDays(store.startDate,i);
+      arr.push({n:i+1,date});
+    }
+    return arr;
+  },[store.startDate]);
+
+  const eventsByDate=useMemo(()=>{
+    const m={};
+    store.events.forEach(e=>{(m[e.date]=m[e.date]||[]).push(e);});
+    Object.values(m).forEach(list=>list.sort((a,b)=>a.start.localeCompare(b.start)));
+    return m;
+  },[store.events]);
+
+  const elapsed=Math.min(Math.max(diffDays(TODAY,store.startDate)+1,0),100);
+  const daysComplete=dayList.filter(d=>eventsByDate[d.date]&&eventsByDate[d.date].length>0).length;
+
+  const streaks=useMemo(()=>{
+    let cur=0;
+    for(let i=elapsed;i>=1;i--){
+      const d=dayList[i-1];
+      if(d&&eventsByDate[d.date]&&eventsByDate[d.date].length>0)cur++;else break;
+    }
+    let longest=0,run=0;
+    dayList.forEach(d=>{
+      if(eventsByDate[d.date]&&eventsByDate[d.date].length>0){run++;longest=Math.max(longest,run);}
+      else run=0;
+    });
+    return{cur,longest};
+  },[dayList,eventsByDate,elapsed]);
+
+  const totalHours=store.events.reduce((a,e)=>a+e.hours,0);
+  const totalEvents=store.events.length;
+  const avgHrsPerActiveDay=daysComplete>0?totalHours/daysComplete:0;
+
+  const byType=useMemo(()=>{
+    const m={};TYPES.forEach(t=>m[t]={hours:0,count:0});
+    store.events.forEach(e=>{if(m[e.type]){m[e.type].hours+=e.hours;m[e.type].count++;}});
+    return m;
+  },[store.events]);
+
+  const pastDayList=useMemo(()=>dayList.filter(d=>d.date<TODAY),[dayList]);
+  const selDate=(selDay&&pastDayList.some(d=>d.date===selDay))?selDay:(pastDayList.length?pastDayList[pastDayList.length-1].date:TODAY);
+  const selInRange=dayList.find(d=>d.date===selDate);
+  const selEvents=eventsByDate[selDate]||[];
+  const selDayNum=selInRange?selInRange.n:(diffDays(selDate,store.startDate)+1);
+
+  const todayEvents=eventsByDate[TODAY]||[];
+  const todayDayNum=diffDays(TODAY,store.startDate)+1;
+
+  const sleepData=useMemo(()=>{
+    const relevant=store.events
+      .filter(e=>e.type==='Sleep'||e.type==='Wake Up')
+      .map(e=>({...e,dt:new Date(`${e.date}T${e.start}:00`)}))
+      .sort((a,b)=>a.dt-b.dt);
+    const sessions=[];
+    let pending=null;
+    relevant.forEach(e=>{
+      if(e.type==='Sleep'){pending=e;}
+      else if(e.type==='Wake Up'){
+        if(pending){
+          const hours=Math.round((e.dt-pending.dt)/36000)/100;
+          if(hours>0)sessions.push({sleepAt:pending,wakeAt:e,hours});
+          pending=null;
+        }
+      }
+    });
+    return{sessions,pending};
+  },[store.events]);
+  const lastSession=sleepData.sessions.length?sleepData.sessions[sleepData.sessions.length-1]:null;
+  const avgSleep=sleepData.sessions.length?sleepData.sessions.reduce((a,s)=>a+s.hours,0)/sleepData.sessions.length:0;
+
+  function quickLogNow(type){
+    upsertEvent({id:uid(),date:TODAY,start:nowTimeStr(),end:'',type,hours:0,note:''});
+  }
+
+  function openAdd(dateForNew,type){
+    setEditEvent({date:dateForNew||selDate,type});
+  }
+
+  return(<>
+    <div className="app">
+      <div className="topbar"><div className="tb-inner">
+        <div className="title">100<span>DAYS</span></div>
+      </div></div>
+
+      <div className="screen">
+        {tab==='today'&&<div className="t-wrap">
+          <div className="hero">
+            <div className="hero-row">
+              <div>
+                <div className="hero-lbl">TODAY</div>
+                <div className="hero-val">DAY {todayDayNum}</div>
+              </div>
+              <div className="hero-sub">{dayName(TODAY)}<br/>{+TODAY.slice(8)} {mkName(TODAY)}</div>
+            </div>
+            <div className="hero-bar"><div className="hero-fill" style={{width:`${Math.min(Math.max(todayDayNum,0),100)}%`}}/></div>
+          </div>
+
+          <div className="qadd">
+            {TYPES.map(t=>(
+              <div key={t} className="qbtn" style={{borderColor:TCOL[t]}} onClick={()=>isSingle(t)?quickLogNow(t):openAdd(TODAY,t)}>
+                <span className="qic">{TICO[t]}</span>{t}
+              </div>
+            ))}
+          </div>
+
+          {(lastSession||sleepData.pending)&&<div className="sleepcard">
+            <div>
+              <div className="sleepcard-l">{sleepData.pending?'SLEEPING SINCE':'LAST SLEEP'}</div>
+              {sleepData.pending?(
+                <div className="sleepcard-v">{sleepData.pending.start}</div>
+              ):(<>
+                <div className="sleepcard-v">{fmtH(lastSession.hours)}</div>
+                <div className="sleepcard-s">{lastSession.sleepAt.start} → {lastSession.wakeAt.start}</div>
+              </>)}
+            </div>
+            <div className="sleepcard-ico">😴</div>
+          </div>}
+
+          <div className="daypanel">
+            <div className="dph">
+              <div>
+                <div className="dph-d">LOGGED TODAY</div>
+                <div className="dph-n">{todayEvents.length} event{todayEvents.length!==1?'s':''}</div>
+              </div>
+              <button className="dph-add" onClick={()=>openAdd(TODAY)}>+ ADD</button>
+            </div>
+            {todayEvents.length===0&&<div className="empty-note">No events logged yet today.</div>}
+            {todayEvents.map(ev=>(<EvRow key={ev.id} ev={ev} onClick={()=>setEditEvent(ev)}/>))}
+          </div>
+        </div>}
+
+        {tab==='days'&&<div className="d-wrap">
+          <div className="hero">
+            <div className="hero-row">
+              <div>
+                <div className="hero-lbl">PROGRESS</div>
+                <div className="hero-val">{daysComplete}/100</div>
+              </div>
+              <div className="hero-sub">DAY {Math.max(elapsed,1)} OF 100<br/>{100-elapsed} DAYS LEFT</div>
+            </div>
+            <div className="hero-bar"><div className="hero-fill" style={{width:`${daysComplete}%`}}/></div>
+          </div>
+
+          {pastDayList.length===0&&<div className="empty-note">No past days yet — check back tomorrow.</div>}
+
+          {pastDayList.length>0&&<div className="grid100">
+            {pastDayList.map(d=>{
+              const has=eventsByDate[d.date]&&eventsByDate[d.date].length>0;
+              const isSel=d.date===selDate;
+              return(
+                <div key={d.date}
+                  className={`gcell ${has?'done':''} ${isSel?'sel':''}`}
+                  onClick={()=>setSelDay(d.date)}
+                  title={d.date}>
+                  {d.n}
+                </div>
+              );
+            })}
+          </div>}
+
+          {pastDayList.length>0&&<div className="daypanel">
+            <div className="dph">
+              <div>
+                <div className="dph-d">DAY {selDayNum}</div>
+                <div className="dph-n">{dayName(selDate)} · {+selDate.slice(8)} {mkName(selDate)}</div>
+              </div>
+              <button className="dph-add" onClick={()=>openAdd(selDate)}>+ ADD</button>
+            </div>
+            {selEvents.length===0&&<div className="empty-note">No events logged for this day.</div>}
+            {selEvents.map(ev=>(<EvRow key={ev.id} ev={ev} onClick={()=>setEditEvent(ev)}/>))}
+          </div>}
+        </div>}
+
+        {tab==='stats'&&<div className="st-wrap">
+          <div className="stg">
+            <div className="stc"><div className="stv" style={{color:'var(--accent)'}}>{daysComplete}/100</div><div className="stl">DAYS COMPLETE</div></div>
+            <div className="stc"><div className="stv" style={{color:'var(--gold)'}}>{streaks.cur}</div><div className="stl">CURRENT STREAK</div></div>
+            <div className="stc"><div className="stv" style={{color:'var(--green)'}}>{streaks.longest}</div><div className="stl">LONGEST STREAK</div></div>
+            <div className="stc"><div className="stv">{fmtH(totalHours)}</div><div className="stl">TOTAL HOURS</div></div>
+            <div className="stc"><div className="stv">{totalEvents}</div><div className="stl">TOTAL EVENTS</div></div>
+            <div className="stc"><div className="stv">{fmtH(avgHrsPerActiveDay)}</div><div className="stl">AVG / ACTIVE DAY</div></div>
+            <div className="stc"><div className="stv" style={{color:'#818cf8'}}>{sleepData.sessions.length?fmtH(avgSleep):'—'}</div><div className="stl">AVG SLEEP</div></div>
+          </div>
+
+          <div className="pb">
+            <div className="pb-t">CHALLENGE</div>
+            <div className="pb-r"><span className="pb-l">Days Elapsed</span><span className="pb-v">{Math.max(elapsed,0)}</span></div>
+            <div className="pb-r"><span className="pb-l">Days Remaining</span><span className="pb-v">{100-elapsed}</span></div>
+            <div className="pb-r"><span className="pb-l">Completion Rate</span><span className="pb-v">{daysComplete}%</span></div>
+          </div>
+
+          <div className="locs">
+            <div className="loc-t">BY EVENT TYPE</div>
+            {(()=>{
+              const mx=Math.max(1,...TYPES.map(t=>byType[t].hours));
+              const anyData=TYPES.some(t=>byType[t].count>0);
+              if(!anyData)return<div style={{fontFamily:'var(--font-m)',fontSize:'.68rem',color:'var(--muted)'}}>NO DATA YET</div>;
+              return TYPES.map(t=>{
+                const{hours,count}=byType[t];
+                const single=isSingle(t);
+                return(<div className="lr" key={t}>
+                  <span className="li">{TICO[t]}</span>
+                  <span className="ln" style={{color:TCOL[t]}}>{t}</span>
+                  <div className="lbw"><div className="lb" style={{width:`${single?(count>0?100:0):hours/mx*100}%`,background:TCOL[t]}}/></div>
+                  <span className="lv">{single?`${count} logged`:`${fmtH(hours)} · ${count}`}</span>
+                </div>);
+              });
+            })()}
+          </div>
+        </div>}
+      </div>
+
+      {tab==='days'&&pastDayList.length>0&&<button className="fab" onClick={()=>openAdd(selDate)}>+</button>}
+
+      <div className="bnav">
+        {[{id:'today',ico:'☀️',lbl:'TODAY'},{id:'days',ico:'🗓️',lbl:'DAYS'},{id:'stats',ico:'📊',lbl:'STATS'}].map(n=>(
+          <button key={n.id} className={`bni ${tab===n.id?'act':''}`} onClick={()=>setTab(n.id)}>
+            <span className="bni-ico">{n.ico}</span>{n.lbl}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    {editEvent&&<EventModal event={editEvent} onSave={upsertEvent} onDelete={delEvent} onClose={()=>setEditEvent(null)}/>}
+
+    {saveFlash&&<div style={{position:'fixed',inset:0,display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,pointerEvents:'none'}}>
+      <div className="save-flash" style={{background:'var(--green)',color:'#fff',fontFamily:'var(--font-d)',fontSize:'1.4rem',letterSpacing:'.1em',padding:'.6rem 1.5rem',borderRadius:'8px',boxShadow:'0 0 30px rgba(29,185,84,.4)'}}>✓ SAVED</div>
+    </div>}
+  </>);
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
