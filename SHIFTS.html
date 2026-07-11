@@ -105,7 +105,14 @@ function localDateStr(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padSta
 const TODAY=localDateStr(new Date());
 
 const STORE_KEY='shifts_v4';
-function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.actualPay)d.actualPay={};if(!d.investment)d.investment={};return d;}}catch(e){}return{shifts:[],weeklyTarget:0,actualPay:{},investment:{}};}
+function pruneOldShifts(d){
+  // Delete any shift dated more than 7 days before today (permanent, on every load)
+  const cutoff=new Date();cutoff.setHours(0,0,0,0);cutoff.setDate(cutoff.getDate()-7);
+  const cutoffStr=localDateStr(cutoff);
+  if(d.shifts)d.shifts=d.shifts.filter(s=>s.date>=cutoffStr);
+  return d;
+}
+function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.actualPay)d.actualPay={};if(!d.investment)d.investment={};pruneOldShifts(d);saveStore(d);return d;}}catch(e){}return{shifts:[],weeklyTarget:0,actualPay:{},investment:{}};}
 function saveStore(s){try{localStorage.setItem(STORE_KEY,JSON.stringify(s));}catch(e){}}
 
 function calDays(mk){
