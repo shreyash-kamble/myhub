@@ -109,16 +109,6 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
       <div class="card-arrow">→</div>
     </a>
 
-    <a class="card card-active" href="100DAYS.html" style="--card-color:#ffd600;animation-delay:0.35s">
-      <div class="card-icon">🔥</div>
-      <div class="card-body">
-        <div class="card-title">100 DAYS</div>
-        <div class="card-desc">CHALLENGE TRACKER</div>
-        <div class="card-live" id="100days-live" style="color:#ffd600;"></div>
-      </div>
-      <div class="card-arrow">→</div>
-    </a>
-
   </div>
 
   <div class="footer-row">
@@ -344,38 +334,6 @@ function loadStats() {
       }
     }
   } catch(e) {}
-  // 100 DAYS
-  try {
-    const d100 = JSON.parse(localStorage.getItem('days100_v1') || 'null');
-    if (d100 && d100.events) {
-      const START_DATE = '2026-07-09';
-      const addDays = (ds, n) => { const d = new Date(ds + 'T00:00:00'); d.setDate(d.getDate() + n); return localDateStr(d); };
-      const diffDays = (a, b) => Math.round((new Date(a + 'T00:00:00') - new Date(b + 'T00:00:00')) / 86400000);
-      const today = localDateStr(new Date());
-      const startDate = d100.startDate || START_DATE;
-      const elapsed = Math.min(Math.max(diffDays(today, startDate) + 1, 0), 100);
-
-      const eventsByDate = {};
-      d100.events.forEach(e => { (eventsByDate[e.date] = eventsByDate[e.date] || []).push(e); });
-
-      const dayList = [];
-      for (let i = 0; i < 100; i++) dayList.push({ n: i + 1, date: addDays(startDate, i) });
-      const daysComplete = dayList.filter(d => eventsByDate[d.date] && eventsByDate[d.date].length > 0).length;
-
-      let curStreak = 0;
-      for (let i = elapsed; i >= 1; i--) {
-        const d = dayList[i - 1];
-        if (d && eventsByDate[d.date] && eventsByDate[d.date].length > 0) curStreak++; else break;
-      }
-
-      if (elapsed >= 1 && elapsed <= 100) {
-        const streakTxt = curStreak > 0 ? ` · 🔥 ${curStreak}-day streak` : '';
-        setLive('100days-live', `Day ${elapsed}/100 · ${daysComplete} logged${streakTxt}`, '#ffd600', true);
-      } else {
-        setLive('100days-live', '', '', false);
-      }
-    }
-  } catch(e) {}
 }
 
 // ─────────────────────────────────────────────
@@ -391,8 +349,7 @@ function gatherAllData() {
 
   const modules = {
     gym: 'pplbeast_v3',
-    shifts: 'shifts_v4',
-    days100: 'days100_v1'
+    shifts: 'shifts_v4'
   };
 
   for (const [name, key] of Object.entries(modules)) {
@@ -419,7 +376,7 @@ function runExport(isMidnight) {
     try {
       const data = gatherAllData();
       let n = 0;
-      const groups = { gym: ['gym'], shifts: ['shifts'], days100: ['days100'] };
+      const groups = { gym: ['gym'], shifts: ['shifts'] };
       for (const [fileLabel, names] of Object.entries(groups)) {
         const payload = {};
         let has = false;
@@ -451,7 +408,7 @@ document.getElementById('import-input').addEventListener('change', function(e) {
       const data = JSON.parse(ev.target.result);
       if (!data.sources) throw 0;
       let n = 0;
-      for (const [name, key] of Object.entries({gym:'pplbeast_v3',shifts:'shifts_v4',days100:'days100_v1'}))
+      for (const [name, key] of Object.entries({gym:'pplbeast_v3',shifts:'shifts_v4'}))
         if (data.sources[name] != null) { localStorage.setItem(key, JSON.stringify(data.sources[name])); n++; }
       loadStats(); showToast(`✓ RESTORED ${n} MODULE${n!==1?'S':''} FROM ${data.exportedDate||'BACKUP'}`);
     } catch(e) { showToast('✗ INVALID BACKUP FILE','err'); }
