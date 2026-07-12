@@ -98,6 +98,16 @@ function calcH(s,e){
 }
 function wkNum(ds){const d=new Date(ds);d.setHours(0,0,0,0);d.setDate(d.getDate()+3-(d.getDay()+6)%7);const w1=new Date(d.getFullYear(),0,4);return 1+Math.round(((d-w1)/86400000-(3-(w1.getDay()+6)%7))/7);}
 function isoWkYear(ds){const d=new Date(ds);d.setHours(0,0,0,0);d.setDate(d.getDate()+3-(d.getDay()+6)%7);return d.getFullYear();}
+
+/* ── FIXED CUSTOM PERIOD (replaces tax-year) ──
+   Weeks are counted from PERIOD_START in 7-day blocks, not calendar/ISO weeks. */
+const PERIOD_START='2026-11-09';
+const PERIOD_END='2027-11-07';
+function daysBetween(a,b){return Math.round((new Date(b)-new Date(a))/86400000);}
+const PERIOD_TOTAL_WEEKS=Math.floor((daysBetween(PERIOD_START,PERIOD_END)+1)/7); // 52
+function inPeriod(ds){return ds>=PERIOD_START&&ds<=PERIOD_END;}
+// which period-week (1-based) a date falls into, relative to PERIOD_START
+function periodWeekNum(ds){return Math.floor(daysBetween(PERIOD_START,ds)/7)+1;}
 function mkKey(ds){return ds.slice(0,7);}
 function mkName(mk){const[y,m]=mk.split('-');return`${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]} ${y}`;}
 function dayName(ds){return['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(ds).getDay()];}
@@ -105,14 +115,7 @@ function localDateStr(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padSta
 const TODAY=localDateStr(new Date());
 
 const STORE_KEY='shifts_v4';
-function pruneOldShifts(d){
-  // Delete any shift dated more than 7 days before today (permanent, on every load)
-  const cutoff=new Date();cutoff.setHours(0,0,0,0);cutoff.setDate(cutoff.getDate()-7);
-  const cutoffStr=localDateStr(cutoff);
-  if(d.shifts)d.shifts=d.shifts.filter(s=>s.date>=cutoffStr);
-  return d;
-}
-function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.actualPay)d.actualPay={};if(!d.investment)d.investment={};pruneOldShifts(d);saveStore(d);return d;}}catch(e){}return{shifts:[],weeklyTarget:0,actualPay:{},investment:{}};}
+function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.actualPay)d.actualPay={};if(!d.investment)d.investment={};return d;}}catch(e){}return{shifts:[],weeklyTarget:0,actualPay:{},investment:{}};}
 function saveStore(s){try{localStorage.setItem(STORE_KEY,JSON.stringify(s));}catch(e){}}
 
 function calDays(mk){
@@ -917,61 +920,41 @@ function App(){
       {tab==='stats'&&<div className="screen"><div className="st-wrap">
 
         {(()=>{
-          // Build tax years from allM
-          const taxYearOf=k=>{const[y,mo]=k.split('-').map(Number);return mo>=4?y:y-1;};
-          const tyMap={};
-          allM.forEach(m=>{
-            const ty=taxYearOf(m.k);
-            if(!tyMap[ty])tyMap[ty]={ty,hours:0,pay:0,shifts:0,months:[]};
-            tyMap[ty].hours+=m.hours;tyMap[ty].pay+=m.pay;tyMap[ty].shifts+=m.shifts;tyMap[ty].months.push(m);
+          // ── FIXED CUSTOM PERIOD: 9 Nov 2026 → 7 Nov 2027 (replaces tax-year grouping) ──
+          const tyShifts=shifts.filter(s=>inPeriod(s.date));
+
+          // Build calendar-month buckets, but only for months that have shifts inside the period
+          const monMap={};
+          tyShifts.forEach(s=>{
+            const k=mkKey(s.date);
+            if(!monMap[k])monMap[k]={k,hours:0,shifts:0,pay:0};
+            monMap[k].hours+=s.hours;monMap[k].shifts++;monMap[k].pay+=shiftPay(s);
           });
-          const taxYears=Object.values(tyMap).sort((a,b)=>b.ty-a.ty);
+          const months=Object.values(monMap).sort((a,b)=>a.k.localeCompare(b.k));
 
-          // Determine active tax year
-          const now=new Date();
-          const curTY=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
-          const activeTY=selTY!==null?selTY:(taxYears.length>0?taxYears[0].ty:curTY);
-          const activeTYData=tyMap[activeTY]||{ty:activeTY,hours:0,pay:0,shifts:0,months:[]};
+          const activeTYData={
+            hours:tyShifts.reduce((a,s)=>a+s.hours,0),
+            pay:tyShifts.reduce((a,s)=>a+shiftPay(s),0),
+            shifts:tyShifts.length,
+            months
+          };
+          const taxYears=months.length>0?[1]:[]; // kept only as a "has data" flag for markup below
 
-          // Shifts belonging to the active tax year
-          const tyStart=new Date(activeTY,3,6);
-          const tyEnd=new Date(activeTY+1,3,5);
-          const tyShifts=shifts.filter(s=>{const d=new Date(s.date);return d>=tyStart&&d<=tyEnd;});
-          // AVG/WEEK: always divide by full FY weeks (6 Apr → 5 Apr), same for current and past years
-          const fyWeeks=Math.round((new Date(activeTY+1,3,5)-new Date(activeTY,3,6))/(7*86400000));
+          // AVG/WEEK: always divide by the full fixed period (52 weeks), same throughout
+          const fyWeeks=PERIOD_TOTAL_WEEKS;
           const avgPerWeek=fyWeeks>0?activeTYData.hours/fyWeeks:0;
-          // AVG/WEEK for upcoming weeks: current week (Mon) through last week of the FY, inclusive
-          const currentWkKey=wkNum(TODAY)+'-'+isoWkYear(TODAY);
-          const mondayOfCurWk=(()=>{const d=new Date(TODAY);d.setHours(0,0,0,0);const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);return d;})();
-          const weeksElapsedBeforeCur=Math.round((mondayOfCurWk-tyStart)/(7*86400000));
-          const remainingWeeks=Math.max(1,fyWeeks-weeksElapsedBeforeCur);
-          const mondayOfCurWkStr=localDateStr(mondayOfCurWk);
-          const upcomingHours=tyShifts.filter(s=>s.date>=mondayOfCurWkStr).reduce((a,s)=>a+s.hours,0);
-          const workedWeeks=remainingWeeks;
-          const avgWorkedWeek=remainingWeeks>0?upcomingHours/remainingWeeks:0;
+          // AVG/WEEK for past weeks only (weeks with at least one shift), excluding the current in-progress week
+          const currentWkKey=inPeriod(TODAY)?periodWeekNum(TODAY):null;
+          const workedWeekSet=new Set(tyShifts.filter(s=>s.date<TODAY&&periodWeekNum(s.date)!==currentWkKey).map(s=>periodWeekNum(s.date)));
+          const workedWeeks=workedWeekSet.size;
+          const avgWorkedWeek=workedWeeks>0?tyShifts.filter(s=>s.date<TODAY&&periodWeekNum(s.date)!==currentWkKey).reduce((a,s)=>a+s.hours,0)/workedWeeks:0;
 
-          const isCurrentTY=activeTY===curTY;
-
-          const tyLabel=ty=>`${ty}/${String(ty+1).slice(2)}`;
+          const tyLabel=()=>'9 NOV 2026 – 7 NOV 2027';
 
           return(<>
-            {/* FINANCIAL YEAR SELECTOR */}
-            {taxYears.length>0&&<div style={{marginBottom:'.75rem'}}>
-              <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.1em',marginBottom:'.4rem'}}>FINANCIAL YEAR</div>
-              <div style={{display:'flex',gap:'.4rem',flexWrap:'wrap'}}>
-                {taxYears.map(ty=>{
-                  const isAct=ty.ty===activeTY;
-                  return(<button key={ty.ty} onClick={()=>setSelTY(ty.ty)}
-                    style={{fontFamily:'var(--font-d)',fontSize:'1rem',letterSpacing:'.06em',padding:'.35rem .75rem',border:`1px solid ${isAct?'var(--accent)':'var(--border2)'}`,background:isAct?'rgba(0,229,255,.12)':'var(--s2)',color:isAct?'var(--accent)':'var(--muted)',cursor:'pointer',borderRadius:'5px',transition:'all .15s',whiteSpace:'nowrap'}}>
-                    {tyLabel(ty.ty)}{isAct&&isCurrentTY&&<span style={{fontFamily:'var(--font-m)',fontSize:'.45rem',marginLeft:'.4rem',background:'var(--accent)',color:'#000',padding:'.05rem .3rem',borderRadius:'3px',verticalAlign:'middle',letterSpacing:'.06em'}}>NOW</span>}
-                  </button>);
-                })}
-              </div>
-            </div>}
-
             {/* SUMMARY CARDS */}
             <div style={{fontFamily:'var(--font-m)',fontSize:'.55rem',color:'var(--muted)',letterSpacing:'.1em',marginBottom:'.4rem'}}>
-              {tyLabel(activeTY)} OVERVIEW
+              {tyLabel()} OVERVIEW
             </div>
             <div className="stg" style={{marginBottom:'.65rem'}}>
               <div className="stc" style={{borderTop:'2px solid var(--accent)',textAlign:'center'}}><div className="stv" style={{color:'var(--accent)'}}>{fmtH(activeTYData.hours)}</div><div className="stl">TOTAL HRS</div></div>
@@ -989,7 +972,7 @@ function App(){
               <div className="stc" style={{borderTop:'2px solid var(--purple)',display:'flex',padding:0,overflow:'hidden'}}>
                 <div style={{flex:1,padding:'.9rem',borderRight:'1px solid var(--border)',textAlign:'center'}}>
                   <div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem',textAlign:'center'}}>{workedWeeks>0?fmtH(avgWorkedWeek):'—'}</div>
-                  <div className="stl" style={{textAlign:'center'}}>{workedWeeks>0?`AVG/WK (${workedWeeks} LEFT)`:'AVG UPCOMING'}</div>
+                  <div className="stl" style={{textAlign:'center'}}>{workedWeeks>0?`AVG (${workedWeeks} WKS)`:'AVG WORKED'}</div>
                 </div>
                 <div style={{flex:1,padding:'.9rem',textAlign:'center'}}>
                   <div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem',textAlign:'center'}}>{activeTYData.hours>0?fmtH(avgPerWeek):'—'}</div>
@@ -1072,7 +1055,7 @@ function App(){
 
             {/* Location breakdown for selected year */}
             <div className="locs">
-              <div className="loc-t">BY LOCATION · {tyLabel(activeTY)}</div>
+              <div className="loc-t">BY LOCATION · {tyLabel()}</div>
               {(()=>{
                 const lt={};const lp={};
                 tyShifts.forEach(s=>{lt[s.loc]=(lt[s.loc]||0)+s.hours;lp[s.loc]=(lp[s.loc]||0)+shiftPay(s);});
