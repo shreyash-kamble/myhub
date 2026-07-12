@@ -940,11 +940,15 @@ function App(){
           // AVG/WEEK: always divide by full FY weeks (6 Apr → 5 Apr), same for current and past years
           const fyWeeks=Math.round((new Date(activeTY+1,3,5)-new Date(activeTY,3,6))/(7*86400000));
           const avgPerWeek=fyWeeks>0?activeTYData.hours/fyWeeks:0;
-          // AVG/WEEK for past weeks only (weeks with at least one shift), excluding current week
+          // AVG/WEEK for upcoming weeks: current week (Mon) through last week of the FY, inclusive
           const currentWkKey=wkNum(TODAY)+'-'+isoWkYear(TODAY);
-          const workedWeekSet=new Set(tyShifts.filter(s=>s.date<TODAY&&(wkNum(s.date)+'-'+isoWkYear(s.date))!==currentWkKey).map(s=>wkNum(s.date)+'-'+isoWkYear(s.date)));
-          const workedWeeks=workedWeekSet.size;
-          const avgWorkedWeek=workedWeeks>0?tyShifts.filter(s=>s.date<TODAY&&(wkNum(s.date)+'-'+isoWkYear(s.date))!==currentWkKey).reduce((a,s)=>a+s.hours,0)/workedWeeks:0;
+          const mondayOfCurWk=(()=>{const d=new Date(TODAY);d.setHours(0,0,0,0);const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);return d;})();
+          const weeksElapsedBeforeCur=Math.round((mondayOfCurWk-tyStart)/(7*86400000));
+          const remainingWeeks=Math.max(1,fyWeeks-weeksElapsedBeforeCur);
+          const mondayOfCurWkStr=localDateStr(mondayOfCurWk);
+          const upcomingHours=tyShifts.filter(s=>s.date>=mondayOfCurWkStr).reduce((a,s)=>a+s.hours,0);
+          const workedWeeks=remainingWeeks;
+          const avgWorkedWeek=remainingWeeks>0?upcomingHours/remainingWeeks:0;
 
           const isCurrentTY=activeTY===curTY;
 
@@ -985,7 +989,7 @@ function App(){
               <div className="stc" style={{borderTop:'2px solid var(--purple)',display:'flex',padding:0,overflow:'hidden'}}>
                 <div style={{flex:1,padding:'.9rem',borderRight:'1px solid var(--border)',textAlign:'center'}}>
                   <div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem',textAlign:'center'}}>{workedWeeks>0?fmtH(avgWorkedWeek):'—'}</div>
-                  <div className="stl" style={{textAlign:'center'}}>{workedWeeks>0?`AVG (${workedWeeks} WKS)`:'AVG WORKED'}</div>
+                  <div className="stl" style={{textAlign:'center'}}>{workedWeeks>0?`AVG/WK (${workedWeeks} LEFT)`:'AVG UPCOMING'}</div>
                 </div>
                 <div style={{flex:1,padding:'.9rem',textAlign:'center'}}>
                   <div className="stv" style={{color:'var(--purple)',fontSize:'1.4rem',textAlign:'center'}}>{activeTYData.hours>0?fmtH(avgPerWeek):'—'}</div>
