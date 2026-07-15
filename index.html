@@ -99,16 +99,6 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
       <div class="card-arrow">→</div>
     </a>
 
-    <a class="card card-active" href="SHIFTS.html" style="--card-color:#00e5ff;animation-delay:0.25s">
-      <div class="card-icon">⏱️</div>
-      <div class="card-body">
-        <div class="card-title">SHIFTS</div>
-        <div class="card-desc">WORK SCHEDULE · TIME TRACKING</div>
-        <div class="card-live" id="shifts-live" style="color:#00e5ff;"></div>
-      </div>
-      <div class="card-arrow">→</div>
-    </a>
-
   </div>
 
   <div class="footer-row">
@@ -297,43 +287,6 @@ function loadStats() {
                : setLive('gym-live', '', '', false);
     }
   } catch(e) {}
-  // SHIFTS
-  try {
-    const s = JSON.parse(localStorage.getItem('shifts_v4') || 'null');
-    if (s && s.shifts) {
-      const now = new Date(), today = localDateStr(now);
-      const nowMins = now.getHours() * 60 + now.getMinutes();
-      const card = document.querySelector('a[href="SHIFTS.html"]');
-      const active = s.shifts.find(x => {
-        if (x.date !== today) return false;
-        const sm = parseMins(x.start);
-        let em = parseMins(x.end);
-        if (x.end === '0:00' || x.end === '00:00') em = 1440;
-        if (em <= sm) em += 1440;
-        return nowMins >= sm && nowMins < em;
-      });
-      if (active) {
-        setLive('shifts-live', `<span class="pulse-dot"></span>ON SHIFT · ends ${active.end}${active.loc ? ' · ' + active.loc : ''}`, '#39d98a', true);
-        if (card) card.style.setProperty('--card-color', '#39d98a');
-      } else {
-        if (card) card.style.setProperty('--card-color', '#00e5ff');
-        const upcoming = s.shifts.filter(x => {
-          if (x.date > today) return true; if (x.date < today) return false;
-          return parseMins(x.start) > nowMins;
-        }).sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
-        if (upcoming.length > 0) {
-          const ts = upcoming.filter(x => x.date === today), fs = upcoming.filter(x => x.date !== today);
-          let parts = [];
-          if (ts.length > 0) parts.push('Today ' + ts.map(x => '(' + x.start + '–' + x.end + (x.loc ? ' ' + x.loc : '') + ')').join(' | '));
-          else if (fs.length > 0) {
-            const x = fs[0], dow = DAYS[new Date(x.date + 'T12:00:00').getDay()];
-            parts.push('Next ' + dow + ' ' + +x.date.slice(8) + ' ' + MONTHS[+x.date.slice(5,7)-1] + ': ' + x.start + '–' + x.end + (x.loc ? ' · ' + x.loc : ''));
-          }
-          setLive('shifts-live', parts.join('  |  '), '#00e5ff', true);
-        } else setLive('shifts-live', '', '', false);
-      }
-    }
-  } catch(e) {}
 }
 
 // ─────────────────────────────────────────────
@@ -348,8 +301,7 @@ function gatherAllData() {
   };
 
   const modules = {
-    gym: 'pplbeast_v3',
-    shifts: 'shifts_v4'
+    gym: 'pplbeast_v3'
   };
 
   for (const [name, key] of Object.entries(modules)) {
@@ -376,7 +328,7 @@ function runExport(isMidnight) {
     try {
       const data = gatherAllData();
       let n = 0;
-      const groups = { gym: ['gym'], shifts: ['shifts'] };
+      const groups = { gym: ['gym'] };
       for (const [fileLabel, names] of Object.entries(groups)) {
         const payload = {};
         let has = false;
@@ -408,7 +360,7 @@ document.getElementById('import-input').addEventListener('change', function(e) {
       const data = JSON.parse(ev.target.result);
       if (!data.sources) throw 0;
       let n = 0;
-      for (const [name, key] of Object.entries({gym:'pplbeast_v3',shifts:'shifts_v4'}))
+      for (const [name, key] of Object.entries({gym:'pplbeast_v3'}))
         if (data.sources[name] != null) { localStorage.setItem(key, JSON.stringify(data.sources[name])); n++; }
       loadStats(); showToast(`✓ RESTORED ${n} MODULE${n!==1?'S':''} FROM ${data.exportedDate||'BACKUP'}`);
     } catch(e) { showToast('✗ INVALID BACKUP FILE','err'); }
