@@ -99,6 +99,16 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
       <div class="card-arrow">→</div>
     </a>
 
+    <a class="card card-active" href="SHIFTS.html" style="--card-color:#00c8ff;animation-delay:0.25s">
+      <div class="card-icon">🗓️</div>
+      <div class="card-body">
+        <div class="card-title">SHIFTS</div>
+        <div class="card-desc">WORK SCHEDULE · PAY TRACKER</div>
+        <div class="card-live" id="shifts-live" style="color:#00c8ff;"></div>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
   </div>
 
   <div class="footer-row">
@@ -287,6 +297,24 @@ function loadStats() {
                : setLive('gym-live', '', '', false);
     }
   } catch(e) {}
+
+  // SHIFTS
+  try {
+    const s = JSON.parse(localStorage.getItem('shifts_v4') || 'null');
+    if (s && Array.isArray(s.shifts)) {
+      const today = localDateStr(new Date());
+      const upcoming = s.shifts.filter(sh => sh.date >= today).sort((a,b) => a.date.localeCompare(b.date) || (a.start||'').localeCompare(b.start||''));
+      if (upcoming.length) {
+        const next = upcoming[0];
+        const d = new Date(next.date + 'T00:00:00');
+        const label = next.date === today ? 'Today' : `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+        const timeStr = next.start ? ` · ${next.start}` : '';
+        setLive('shifts-live', `Next: ${label}${timeStr}`, '#00c8ff', true);
+      } else {
+        setLive('shifts-live', '', '', false);
+      }
+    }
+  } catch(e) {}
 }
 
 // ─────────────────────────────────────────────
@@ -301,7 +329,8 @@ function gatherAllData() {
   };
 
   const modules = {
-    gym: 'pplbeast_v3'
+    gym: 'pplbeast_v3',
+    shifts: 'shifts_v4'
   };
 
   for (const [name, key] of Object.entries(modules)) {
@@ -328,7 +357,7 @@ function runExport(isMidnight) {
     try {
       const data = gatherAllData();
       let n = 0;
-      const groups = { gym: ['gym'] };
+      const groups = { gym: ['gym'], shifts: ['shifts'] };
       for (const [fileLabel, names] of Object.entries(groups)) {
         const payload = {};
         let has = false;
@@ -360,7 +389,7 @@ document.getElementById('import-input').addEventListener('change', function(e) {
       const data = JSON.parse(ev.target.result);
       if (!data.sources) throw 0;
       let n = 0;
-      for (const [name, key] of Object.entries({gym:'pplbeast_v3'}))
+      for (const [name, key] of Object.entries({gym:'pplbeast_v3', shifts:'shifts_v4'}))
         if (data.sources[name] != null) { localStorage.setItem(key, JSON.stringify(data.sources[name])); n++; }
       loadStats(); showToast(`✓ RESTORED ${n} MODULE${n!==1?'S':''} FROM ${data.exportedDate||'BACKUP'}`);
     } catch(e) { showToast('✗ INVALID BACKUP FILE','err'); }
