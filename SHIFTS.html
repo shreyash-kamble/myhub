@@ -32,9 +32,9 @@ input::-webkit-inner-spin-button{-webkit-appearance:none;}
 <script type="text/babel">
 const {useState,useCallback,useMemo,useRef,useEffect}=React;
 
-const LOCS=['Oseyo','Other'];
-const LCOL={'Oseyo':'#38bdf8','Other':'#f472b6'};
-const LICO={'Oseyo':'🍜','Other':'📍'};
+const LOCS=['Oseyo',"McDonald's",'Other'];
+const LCOL={'Oseyo':'#38bdf8',"McDonald's":'#facc15','Other':'#f472b6'};
+const LICO={'Oseyo':'🍜',"McDonald's":'🍟','Other':'📍'};
 
 // Generate a consistent color for custom venues not in LCOL
 const OTHER_PALETTE=['#f472b6','#a78bfa','#34d399','#fb923c','#38bdf8','#e879f9','#facc15','#4ade80','#f87171','#60a5fa','#c084fc','#2dd4bf'];
