@@ -111,6 +111,52 @@ function oseyoHours(ds){
   if(day===4)return{start:'09:00',end:'20:15'};
   return{start:'09:00',end:'19:15'};
 }
+function fmtDateUK(ds){const[y,m,d]=ds.split('-');return`${d}/${m}/${y}`;}
+function fmtTime12(t){
+  if(!t)return'';
+  let[h,m]=t.split(':').map(Number);
+  const ap=h>=12?'PM':'AM';
+  let hh=h%12;if(hh===0)hh=12;
+  return`${hh}:${String(m).padStart(2,'0')} ${ap}`;
+}
+function exportOseyoTimesheet(shifts,monthKey,name,staffNumber){
+  const rows=[...shifts].sort((a,b)=>a.date.localeCompare(b.date));
+  const total=rows.reduce((s,r)=>s+r.hours,0);
+  const rowsHtml=rows.map(r=>`
+    <tr>
+      <td style="border:1px solid #000;padding:5px 8px;">${fmtDateUK(r.date)}</td>
+      <td style="border:1px solid #000;padding:5px 8px;">${fmtTime12(r.start)}</td>
+      <td style="border:1px solid #000;padding:5px 8px;">${fmtTime12(r.end)}</td>
+      <td style="border:1px solid #000;padding:5px 8px;">Oseyo - Newcastle</td>
+      <td style="border:1px solid #000;padding:5px 8px;text-align:center;">${fmtH(r.hours)}</td>
+    </tr>`).join('');
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Timesheet</title>
+<style>
+  body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#000;}
+  table{border-collapse:collapse;width:100%;margin-bottom:14px;}
+  td,th{border:1px solid #000;padding:5px 8px;font-size:11pt;text-align:left;}
+  th{background:#f2f2f2;}
+  .title{font-size:22pt;font-weight:bold;text-align:center;margin-bottom:16px;letter-spacing:2px;}
+</style></head>
+<body>
+<div class="title">TIME SHEET</div>
+<table>
+  <tr><td style="width:12%;"><b>Name:</b></td><td style="width:38%;">${name||''}</td><td style="width:20%;"><b>Staff Number:</b></td><td style="width:30%;">${staffNumber||''}</td></tr>
+</table>
+<table>
+  <tr><th>Date</th><th>Time In</th><th>Time Out</th><th>Site</th><th>Hours</th></tr>
+  ${rowsHtml}
+  <tr><td colspan="4" style="text-align:right;"><b>Total Hours:</b></td><td style="text-align:center;"><b>${fmtH(total)}</b></td></tr>
+</table>
+</body></html>`;
+  const blob=new Blob(['\ufeff',html],{type:'application/msword'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`Oseyo_Timesheet_${monthKey}.doc`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
 function wkNum(ds){const d=new Date(ds);d.setHours(0,0,0,0);d.setDate(d.getDate()+3-(d.getDay()+6)%7);const w1=new Date(d.getFullYear(),0,4);return 1+Math.round(((d-w1)/86400000-(3-(w1.getDay()+6)%7))/7);}
 
 /* ── FIXED CUSTOM PERIOD (replaces tax-year) ──
@@ -129,7 +175,7 @@ function localDateStr(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padSta
 const TODAY=localDateStr(new Date());
 
 const STORE_KEY='shifts_v4';
-function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.actualPay)d.actualPay={};if(!d.investment)d.investment={};if(!d.application)d.application={};return d;}}catch(e){}return{shifts:[],weeklyTarget:0,actualPay:{},investment:{},application:{}};}
+function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.actualPay)d.actualPay={};if(!d.investment)d.investment={};if(!d.application)d.application={};if(d.profileName==null)d.profileName='';if(d.profileStaff==null)d.profileStaff='';return d;}}catch(e){}return{shifts:[],weeklyTarget:0,actualPay:{},investment:{},application:{},profileName:'',profileStaff:''};}
 function saveStore(s){try{localStorage.setItem(STORE_KEY,JSON.stringify(s));}catch(e){}}
 
 function calDays(mk){
@@ -379,6 +425,44 @@ const CSS=`
 `;
 
 /* ── EDIT MODAL ── */
+function ExportModal({shifts,monthKey,monthLabel,name,staffNumber,onSave,onClose}){
+  const[n,setN]=useState(name||'');
+  const[sn,setSn]=useState(staffNumber||'');
+  const rows=[...shifts].sort((a,b)=>a.date.localeCompare(b.date));
+  const total=rows.reduce((s,r)=>s+r.hours,0);
+  function doExport(){
+    onSave(n,sn);
+    exportOseyoTimesheet(rows,monthKey,n,sn);
+    onClose();
+  }
+  return(
+    <div className="mo" onClick={onClose}>
+      <div className="mdl" onClick={e=>e.stopPropagation()}>
+        <div className="mdl-t">EXPORT TIMESHEET</div>
+        <div className="mdl-s">Oseyo · {monthLabel} · {rows.length} shift{rows.length!==1?'s':''} · {fmtH(total)}</div>
+
+        <div className="mdl-box">
+          <div className="mdl-l">NAME</div>
+          <input className="mdl-i-sm" style={{width:'100%'}} type="text" value={n} onChange={e=>setN(e.target.value)} placeholder="Your full name" autoFocus/>
+        </div>
+
+        <div className="mdl-box">
+          <div className="mdl-l">STAFF NUMBER</div>
+          <input className="mdl-i-sm" style={{width:'100%'}} type="text" value={sn} onChange={e=>setSn(e.target.value)} placeholder="e.g. CG123"/>
+        </div>
+
+        <div style={{background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'6px',padding:'.6rem .75rem',marginBottom:'.75rem',maxHeight:'160px',overflowY:'auto'}}>
+          {rows.map(r=><div key={r.id} style={{display:'flex',justifyContent:'space-between',fontFamily:'var(--font-m)',fontSize:'.62rem',color:'var(--muted)',padding:'.15rem 0'}}>
+            <span>{fmtDateUK(r.date)}</span><span>{fmtTime12(r.start)} – {fmtTime12(r.end)}</span><span style={{color:'var(--sky)'}}>{fmtH(r.hours)}</span>
+          </div>)}
+        </div>
+
+        <button className="mdl-save" onClick={doExport}>DOWNLOAD .DOC</button>
+      </div>
+    </div>
+  );
+}
+
 function EditModal({shift, onSave, onDelete, onClose}){
   const isNew=!shift.id;
   const[date,setDate]=useState(shift.date);
@@ -604,6 +688,7 @@ function App(){
   const[showWkBreak,setShowWkBreak]=useState(false);
   const[showActualPay,setShowActualPay]=useState(false);
   const[showInvestment,setShowInvestment]=useState(false);
+  const[showExport,setShowExport]=useState(false);
 
   const shifts=store.shifts,weeklyTarget=store.weeklyTarget||0;
   // Shifts with no venue selected are just calendar "events" — exclude them from all hours/shift-count totals.
@@ -880,6 +965,8 @@ function App(){
           ))}
           {Object.keys(mLoc).length===0&&<div style={{fontFamily:'var(--font-m)',fontSize:'.68rem',color:'var(--muted)'}}>NO DATA</div>}
         </div>
+
+        {mWorkShifts.some(s=>s.loc==='Oseyo')&&<button onClick={()=>setShowExport(true)} style={{width:'100%',background:'var(--s1)',border:'1px solid var(--sky)',color:'var(--sky)',fontFamily:'var(--font-d)',fontSize:'.95rem',letterSpacing:'.06em',padding:'.7rem',borderRadius:'7px',cursor:'pointer',marginTop:'.6rem'}}>📄 EXPORT OSEYO TIMESHEET</button>}
       </div></div>}
 
       {/* STATS */}
@@ -1075,6 +1162,17 @@ function App(){
 
     {/* EDIT SHIFT MODAL */}
     {editShift&&<EditModal shift={editShift} onSave={saveEdit} onDelete={delShift} onClose={()=>setEditShift(null)}/>}
+
+    {/* EXPORT TIMESHEET MODAL */}
+    {showExport&&<ExportModal
+      shifts={mWorkShifts.filter(s=>s.loc==='Oseyo')}
+      monthKey={vm}
+      monthLabel={mkName(vm)}
+      name={store.profileName}
+      staffNumber={store.profileStaff}
+      onSave={(n,sn)=>up(st=>{st.profileName=n;st.profileStaff=sn;})}
+      onClose={()=>setShowExport(false)}
+    />}
 
     {/* SAVE FLASH */}
     {saveFlash&&<div style={{position:'fixed',inset:0,display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,pointerEvents:'none'}}>
