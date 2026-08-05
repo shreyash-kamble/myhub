@@ -744,17 +744,6 @@ function App(){
           const d=new Date(updated.date);
           const day=d.getDay();
           if(day===1){// Monday (0=Sunday, 1=Monday)
-            // Add Sunday shift (1 day before)
-            const sunDate=new Date(d);sunDate.setDate(sunDate.getDate()-1);
-            const sunDateStr=localDateStr(sunDate);
-            const sunHours=tescoHours(sunDateStr);
-            if(sunHours){
-              const sunShift={
-                id:uid(),date:sunDateStr,loc:'Tesco',start:sunHours.start,end:sunHours.end,
-                hours:applyBreak('Tesco',calcH(sunHours.start,sunHours.end)),note:''
-              };
-              if(!st.shifts.some(x=>x.date===sunDateStr&&x.loc==='Tesco'))st.shifts.push(sunShift);
-            }
             // Add Friday shift (4 days later)
             const friDate=new Date(d);friDate.setDate(friDate.getDate()+4);
             const friDateStr=localDateStr(friDate);
@@ -765,6 +754,17 @@ function App(){
                 hours:applyBreak('Tesco',calcH(friHours.start,friHours.end)),note:''
               };
               if(!st.shifts.some(x=>x.date===friDateStr&&x.loc==='Tesco'))st.shifts.push(friShift);
+            }
+            // Add next Sunday shift (6 days later)
+            const sunDate=new Date(d);sunDate.setDate(sunDate.getDate()+6);
+            const sunDateStr=localDateStr(sunDate);
+            const sunHours=tescoHours(sunDateStr);
+            if(sunHours){
+              const sunShift={
+                id:uid(),date:sunDateStr,loc:'Tesco',start:sunHours.start,end:sunHours.end,
+                hours:applyBreak('Tesco',calcH(sunHours.start,sunHours.end)),note:''
+              };
+              if(!st.shifts.some(x=>x.date===sunDateStr&&x.loc==='Tesco'))st.shifts.push(sunShift);
             }
           }
         }
