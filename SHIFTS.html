@@ -27,20 +27,21 @@ html,body{height:100%;overflow:hidden;background:#2b2b2b;}
 ::-webkit-scrollbar{width:2px;}
 ::-webkit-scrollbar-thumb{background:var(--dim);}
 input::-webkit-inner-spin-button{-webkit-appearance:none;}
+.text-muted{font-family:var(--font-m);font-size:.68rem;color:var(--muted);}
+.text-dim{font-family:var(--font-m);font-size:.65rem;color:var(--dim);transition:color .15s;}
+.text-mono-small{font-family:var(--font-m);font-size:.62rem;color:var(--muted);margin-top:1px;}
+.expand-btn{color:var(--dim);font-size:.8rem;transition:color .15s;}
 </style>
 </head>
 <body><div id="root"></div>
 <script type="text/babel">
 const {useState,useCallback,useMemo,useRef,useEffect}=React;
 
-const LOCS=['Oseyo',"McDonald's",'Tesco','Other'];
-const LCOL={'Oseyo':'#ff8c00',"McDonald's":'#facc15','Tesco':'#3b82f6','Other':'#f472b6'};
-const LICO={'Oseyo':'🍜',"McDonald's":'🍟','Tesco':'🛒','Other':'📍'};
-
-// Generate a consistent color for custom venues not in LCOL
+const VENUE_DATA={'Oseyo':{color:'#ff8c00',icon:'🍜'},"McDonald's":{color:'#facc15',icon:'🍟'},'Tesco':{color:'#3b82f6',icon:'🛒'}};
+const LOCS=Object.keys(VENUE_DATA);
 const OTHER_PALETTE=['#f472b6','#a78bfa','#34d399','#fb923c','#38bdf8','#e879f9','#facc15','#4ade80','#f87171','#60a5fa','#c084fc','#2dd4bf'];
 function venueColor(name){
-  if(LCOL[name])return LCOL[name];
+  if(VENUE_DATA[name])return VENUE_DATA[name].color;
   let h=0;for(let i=0;i<name.length;i++){h=(h*31+name.charCodeAt(i))>>>0;}
   return OTHER_PALETTE[h%OTHER_PALETTE.length];
 }
@@ -49,8 +50,7 @@ const uid=()=>crypto.randomUUID();
 
 function useSwipeRef(onLeft,onRight){
   const cbL=useRef(onLeft),cbR=useRef(onRight);
-  useEffect(()=>{cbL.current=onLeft;},[onLeft]);
-  useEffect(()=>{cbR.current=onRight;},[onRight]);
+  useEffect(()=>{cbL.current=onLeft;cbR.current=onRight;},[onLeft,onRight]);
   const cleanupRef=useRef(null);
   const ref=useCallback(el=>{
     if(cleanupRef.current){cleanupRef.current();cleanupRef.current=null;}
@@ -88,6 +88,24 @@ const fmtH=h=>{const w=Math.floor(h),m=Math.round((h-w)*60);return m?`${w}h ${m}
 const fmtP=n=>`£${n.toFixed(2)}`;
 const RATE=11;
 const shiftPay=s=>s.hours*RATE;
+
+// Calculate monthly statistics for a given data type
+function calculateMonthlyStats(months,storeData){
+  const total=months.reduce((sum,m)=>{
+    const value=storeData?.[m.k];
+    if(value!=null){const parsed=parseFloat(value);if(!isNaN(parsed))return sum+parsed;}
+    return sum;
+  },0);
+  const filledCount=months.filter(m=>{
+    const value=storeData?.[m.k];
+    return value!=null&&!isNaN(parseFloat(value));
+  }).length;
+  return {total,filledCount};
+}
+
+// Get tax year sort order (UK tax year: Apr-Mar)
+const getTaxYearOrder=k=>{const[y,mo]=k.split('-').map(Number);return mo>=4?y*100+mo:(y-1)*100+mo+12;};
+const sortByTaxYear=(a,b)=>getTaxYearOrder(a.k)-getTaxYearOrder(b.k);
 function calcH(s,e){
   if(!s||!e)return 0;
   const[sh,sm]=s.split(':').map(Number);let[eh,em]=e.split(':').map(Number);
@@ -96,36 +114,18 @@ function calcH(s,e){
   if(b<=a)b+=1440;
   return Math.round((b-a)/60*100)/100;
 }
+const BREAK_DEDUCTION={'Oseyo':h=>h>9?1:0.5,"McDonald's":h=>h>6?0.75:0.5,'Tesco':()=>0.5};
 function applyBreak(loc,h){
-  if(loc==='Oseyo'&&h>0){
-    return h>9?h-1:h-0.5;
-  }
-  if(loc==="McDonald's"&&h>0){
-    return h>6?h-0.75:h-0.5;
-  }
-  if(loc==='Tesco'&&h>0){
-    return h-0.5;
-  }
-  return h;
+  if(h<=0)return h;
+  const deduction=BREAK_DEDUCTION[loc]?.(h)??0;
+  return h-deduction;
 }
-function oseyoHours(ds){
-  if(!ds)return null;
-  const day=new Date(ds).getDay();
-  if(day===0)return{start:'11:00',end:'17:15'};
-  if(day===4)return{start:'09:00',end:'20:15'};
-  return{start:'09:00',end:'19:15'};
-}
-function tescoHours(ds){
-  if(!ds)return null;
-  const day=new Date(ds).getDay();
-  if(day===1||day===0)return{start:'06:00',end:'12:00'};
-  if(day===5)return{start:'16:00',end:'22:00'};
-  return null;
-}
+const VENUE_HOURS={'Oseyo':{0:{start:'11:00',end:'17:15'},4:{start:'09:00',end:'20:15'},default:{start:'09:00',end:'19:15'}},'Tesco':{0:{start:'06:00',end:'12:00'},1:{start:'06:00',end:'12:00'},5:{start:'16:00',end:'22:00'},default:{start:'06:00',end:'12:00'}}};
 function defaultHoursFor(loc,ds){
-  if(loc==='Oseyo')return oseyoHours(ds);
-  if(loc==='Tesco')return tescoHours(ds);
-  return null;
+  if(!ds||!VENUE_HOURS[loc])return null;
+  const day=new Date(ds).getDay();
+  const hours=VENUE_HOURS[loc];
+  return hours[day]??hours.default;
 }
 function fmtDateUK(ds){const[y,m,d]=ds.split('-');return`${d}/${m}/${y}`;}
 function fmtTime12(t){
@@ -544,7 +544,7 @@ function EditModal({shift, onSave, onDelete, onClose}){
           <div className="mdl-lgrid">
             {LOCS.map(l=>{
               const isSel=loc===l;
-              const col=LCOL[l]||LCOL['Other'];
+              const col=VENUE_DATA[l]?.color??venueColor(l);
               return(
               <div key={l} className={`mdl-lbtn ${isSel?'sel':''}`}
                 style={isSel?{borderColor:col,color:col}:{}}
@@ -555,7 +555,7 @@ function EditModal({shift, onSave, onDelete, onClose}){
                     if(l==='Oseyo'||l==='Tesco'){const oh=defaultHoursFor(l,date);if(oh){setS0(oh.start);setE0(oh.end);}}
                   }
                 }}>
-                <span>{LICO[l]}</span>{l}
+                <span>{VENUE_DATA[l]?.icon??'📍'}</span>{l}
               </div>);
             })}
           </div>
@@ -602,7 +602,7 @@ function ShiftRow({s, onEdit}){
           <div className="sr-line">
             <span className="sr-time">{fmt24(s.start)} – {fmt24(s.end)}</span>
             <span className="sr-dot">·</span>
-            <span className="sr-ico">{isEvent?'📌':LICO[s.loc]}</span>
+            <span className="sr-ico">{isEvent?'📌':(VENUE_DATA[s.loc]?.icon??'📍')}</span>
             <span className="sr-venue" style={{color:col}}>{isEvent?(s.note||'EVENT'):s.loc}</span>
           </div>
           {s.note&&!isEvent&&<div className="sr-note">📝 {s.note}</div>}
@@ -1018,7 +1018,7 @@ function App(){
           <div className="loc-t">BY LOCATION</div>
           {Object.entries(mLoc).sort((a,b)=>b[1]-a[1]).map(([l,h])=>(
             <div key={l} className="lr">
-              <span className="li">{LICO[l]}</span>
+              <span className="li">{VENUE_DATA[l]?.icon??'📍'}</span>
               <span className="ln" style={{color:venueColor(l)}}>{l}</span>
               <div className="lbw"><div className="lb" style={{width:`${h/maxLH*100}%`,background:venueColor(l)}}/></div>
               <span className="lv">{fmtH(h)}</span>
@@ -1094,24 +1094,17 @@ function App(){
               <button onClick={()=>setShowActualPay(v=>!v)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',padding:0,marginBottom:showActualPay?'.65rem':0}}>
                 <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--sky)'}}>SALARY</div>
                 <div style={{display:'flex',alignItems:'center',gap:'.65rem'}}>
-                  {(()=>{const totalActualHdr=activeTYData.months.reduce((sum,m)=>{const v=store.actualPay&&store.actualPay[m.k]!=null?parseFloat(store.actualPay[m.k]):null;return v!=null&&!isNaN(v)?sum+v:sum;},0);const filledHdr=activeTYData.months.filter(m=>store.actualPay&&store.actualPay[m.k]!=null&&!isNaN(parseFloat(store.actualPay[m.k]))).length;return filledHdr>0?(<div style={{textAlign:'right'}}><div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:'var(--sky)'}}>{fmtP(totalActualHdr)}</div><div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--muted)'}}>{filledHdr} month{filledHdr!==1?'s':''} logged</div></div>):null;})()}
+                  {(()=>{const {total:totalActualHdr,filledCount:filledHdr}=calculateMonthlyStats(activeTYData.months,store.actualPay);return filledHdr>0?(<div style={{textAlign:'right'}}><div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:'var(--sky)'}}>{fmtP(totalActualHdr)}</div><div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--muted)'}}>{filledHdr} month{filledHdr!==1?'s':''} logged</div></div>):null;})()}
                   <span style={{color:'var(--sky)',fontSize:'.8rem'}}>{showActualPay?'▴':'▾'}</span>
                 </div>
               </button>
-              {showActualPay&&<>{[...activeTYData.months].sort((a,b)=>{
-                const taxOrd=k=>{const[y,mo]=k.split('-').map(Number);return mo>=4?y*100+mo:(y-1)*100+mo+12;};
-                return taxOrd(a.k)-taxOrd(b.k);
-              }).map(m=>{
+              {showActualPay&&<>{[...activeTYData.months].sort(sortByTaxYear).map(m=>{
                 const actual=store.actualPay&&store.actualPay[m.k]!=null?store.actualPay[m.k]:'';
                 const isPastMonth=m.k<TODAY.slice(0,7);
                 return <SalaryRow key={m.k} m={m} actual={actual} isPastMonth={isPastMonth} up={up}/>;
               })}
               {(()=>{
-                const totalActual=activeTYData.months.reduce((sum,m)=>{
-                  const v=store.actualPay&&store.actualPay[m.k]!=null?parseFloat(store.actualPay[m.k]):null;
-                  return v!=null&&!isNaN(v)?sum+v:sum;
-                },0);
-                const filledMonths=activeTYData.months.filter(m=>store.actualPay&&store.actualPay[m.k]!=null&&!isNaN(parseFloat(store.actualPay[m.k]))).length;
+                const {total:totalActual,filledCount:filledMonths}=calculateMonthlyStats(activeTYData.months,store.actualPay);
                 if(filledMonths===0)return null;
                 return(
                   <div style={{borderTop:'1px solid var(--border)',paddingTop:'.55rem'}}>
@@ -1129,24 +1122,17 @@ function App(){
               <button onClick={()=>setShowInvestment(v=>!v)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',padding:0,marginBottom:showInvestment?'.65rem':0}}>
                 <div style={{fontFamily:'var(--font-d)',fontSize:'1.05rem',letterSpacing:'.06em',color:'var(--green)'}}>INVESTMENT</div>
                 <div style={{display:'flex',alignItems:'center',gap:'.65rem'}}>
-                  {(()=>{const totalInvHdr=activeTYData.months.reduce((sum,m)=>{const v=store.investment&&store.investment[m.k]!=null?parseFloat(store.investment[m.k]):null;return v!=null&&!isNaN(v)?sum+v:sum;},0);const filledInvHdr=activeTYData.months.filter(m=>store.investment&&store.investment[m.k]!=null&&!isNaN(parseFloat(store.investment[m.k]))).length;return filledInvHdr>0?(<div style={{textAlign:'right'}}><div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:'var(--green)'}}>{fmtP(totalInvHdr)}</div><div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--muted)'}}>{filledInvHdr} month{filledInvHdr!==1?'s':''} logged</div></div>):null;})()}
+                  {(()=>{const {total:totalInvHdr,filledCount:filledInvHdr}=calculateMonthlyStats(activeTYData.months,store.investment);return filledInvHdr>0?(<div style={{textAlign:'right'}}><div style={{fontFamily:'var(--font-d)',fontSize:'1.1rem',color:'var(--green)'}}>{fmtP(totalInvHdr)}</div><div style={{fontFamily:'var(--font-m)',fontSize:'.58rem',color:'var(--muted)'}}>{filledInvHdr} month{filledInvHdr!==1?'s':''} logged</div></div>):null;})()}
                   <span style={{color:'var(--green)',fontSize:'.8rem'}}>{showInvestment?'▴':'▾'}</span>
                 </div>
               </button>
-              {showInvestment&&<>{[...activeTYData.months].sort((a,b)=>{
-                const taxOrd=k=>{const[y,mo]=k.split('-').map(Number);return mo>=4?y*100+mo:(y-1)*100+mo+12;};
-                return taxOrd(a.k)-taxOrd(b.k);
-              }).map(m=>{
+              {showInvestment&&<>{[...activeTYData.months].sort(sortByTaxYear).map(m=>{
                 const invest=store.investment&&store.investment[m.k]!=null?store.investment[m.k]:'';
                 const isPastMonth=m.k<TODAY.slice(0,7);
                 return <InvestmentRow key={m.k} m={m} invest={invest} isPastMonth={isPastMonth} up={up}/>;
               })}
               {(()=>{
-                const totalInv=activeTYData.months.reduce((sum,m)=>{
-                  const v=store.investment&&store.investment[m.k]!=null?parseFloat(store.investment[m.k]):null;
-                  return v!=null&&!isNaN(v)?sum+v:sum;
-                },0);
-                const filledInv=activeTYData.months.filter(m=>store.investment&&store.investment[m.k]!=null&&!isNaN(parseFloat(store.investment[m.k]))).length;
+                const {total:totalInv,filledCount:filledInv}=calculateMonthlyStats(activeTYData.months,store.investment);
                 if(filledInv===0)return null;
                 return(
                   <div style={{borderTop:'1px solid var(--border)',paddingTop:'.55rem'}}>
@@ -1165,26 +1151,26 @@ function App(){
             <div className="locs">
               <div className="loc-t">BY LOCATION · {tyLabel()}</div>
               {(()=>{
-                const lt={};const lp={};
-                tyShifts.forEach(s=>{lt[s.loc]=(lt[s.loc]||0)+s.hours;lp[s.loc]=(lp[s.loc]||0)+shiftPay(s);});
-                const mx=Math.max(1,...Object.values(lt));
-                if(Object.keys(lt).length===0)return<div style={{fontFamily:'var(--font-m)',fontSize:'.68rem',color:'var(--muted)'}}>NO DATA</div>;
-                return Object.entries(lt).sort((a,b)=>b[1]-a[1]).map(([l,h])=>{
+                const locationTotals={};const locationPayments={};
+                tyShifts.forEach(s=>{locationTotals[s.loc]=(locationTotals[s.loc]||0)+s.hours;locationPayments[s.loc]=(locationPayments[s.loc]||0)+shiftPay(s);});
+                const maxHours=Math.max(1,...Object.values(locationTotals));
+                if(Object.keys(locationTotals).length===0)return<div style={{fontFamily:'var(--font-m)',fontSize:'.68rem',color:'var(--muted)'}}>NO DATA</div>;
+                return Object.entries(locationTotals).sort((a,b)=>b[1]-a[1]).map(([l,h])=>{
                   const isSel=selLoc===l;
                   const locShifts=tyShifts.filter(s=>s.loc===l).sort((a,b)=>b.date.localeCompare(a.date)||b.start.localeCompare(a.start));
                   const col=venueColor(l);
                   return(<div key={l}>
                     <div className="lr" style={{cursor:'pointer',padding:'.3rem .2rem',borderRadius:'5px',transition:'background .1s'}} onClick={()=>setSelLoc(isSel?null:l)}>
-                      <span className="li">{LICO[l]}</span>
+                      <span className="li">{VENUE_DATA[l]?.icon??'📍'}</span>
                       <span className="ln" style={{color:col}}>{l}</span>
-                      <div className="lbw"><div className="lb" style={{width:`${h/mx*100}%`,background:col}}/></div>
+                      <div className="lbw"><div className="lb" style={{width:`${h/maxHours*100}%`,background:col}}/></div>
                       <span className="lv">{fmtH(h)}</span>
                       <span style={{fontFamily:'var(--font-m)',fontSize:'.65rem',color:isSel?col:'var(--dim)',marginLeft:'.3rem',transition:'color .15s'}}>{isSel?'▴':'▾'}</span>
                     </div>
                     {isSel&&<div style={{background:'var(--bg)',border:`1px solid ${col}33`,borderRadius:'6px',marginBottom:'.5rem',overflow:'hidden'}}>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'.5rem .75rem',background:`${col}11`,borderBottom:`1px solid ${col}22`}}>
                         <span style={{fontFamily:'var(--font-b)',fontSize:'.85rem',fontWeight:700,color:col}}>{locShifts.length} SHIFTS</span>
-                        <span style={{fontFamily:'var(--font-d)',fontSize:'1rem',color:'var(--green)'}}>{fmtP(lp[l])}</span>
+                        <span style={{fontFamily:'var(--font-d)',fontSize:'1rem',color:'var(--green)'}}>{fmtP(locationPayments[l])}</span>
                       </div>
                       {locShifts.map(s=>{
                         return(<div key={s.id} style={{display:'flex',alignItems:'center',gap:'.6rem',padding:'.5rem .75rem',borderBottom:'1px solid var(--border)',cursor:'pointer',transition:'background .1s'}}
