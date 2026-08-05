@@ -34,7 +34,7 @@ input::-webkit-inner-spin-button{-webkit-appearance:none;}
 const {useState,useCallback,useMemo,useRef,useEffect}=React;
 
 const LOCS=['Oseyo',"McDonald's",'Tesco','Other'];
-const LCOL={'Oseyo':'#38bdf8',"McDonald's":'#facc15','Tesco':'#3b82f6','Other':'#f472b6'};
+const LCOL={'Oseyo':'#ff8c00',"McDonald's":'#facc15','Tesco':'#3b82f6','Other':'#f472b6'};
 const LICO={'Oseyo':'🍜',"McDonald's":'🍟','Tesco':'🛒','Other':'📍'};
 
 // Generate a consistent color for custom venues not in LCOL
@@ -738,6 +738,36 @@ function App(){
         st.shifts=st.shifts.map(x=>x.id===updated.id?updated:x);
       } else {
         st.shifts=[...st.shifts,updated];
+        
+        // Auto-add Sunday & Friday shifts for Tesco Monday
+        if(updated.loc==='Tesco'){
+          const d=new Date(updated.date);
+          const day=d.getDay();
+          if(day===1){// Monday (0=Sunday, 1=Monday)
+            // Add Sunday shift (1 day before)
+            const sunDate=new Date(d);sunDate.setDate(sunDate.getDate()-1);
+            const sunDateStr=localDateStr(sunDate);
+            const sunHours=tescoHours(sunDateStr);
+            if(sunHours){
+              const sunShift={
+                id:uid(),date:sunDateStr,loc:'Tesco',start:sunHours.start,end:sunHours.end,
+                hours:applyBreak('Tesco',calcH(sunHours.start,sunHours.end)),note:''
+              };
+              if(!st.shifts.some(x=>x.date===sunDateStr&&x.loc==='Tesco'))st.shifts.push(sunShift);
+            }
+            // Add Friday shift (4 days later)
+            const friDate=new Date(d);friDate.setDate(friDate.getDate()+4);
+            const friDateStr=localDateStr(friDate);
+            const friHours=tescoHours(friDateStr);
+            if(friHours){
+              const friShift={
+                id:uid(),date:friDateStr,loc:'Tesco',start:friHours.start,end:friHours.end,
+                hours:applyBreak('Tesco',calcH(friHours.start,friHours.end)),note:''
+              };
+              if(!st.shifts.some(x=>x.date===friDateStr&&x.loc==='Tesco'))st.shifts.push(friShift);
+            }
+          }
+        }
       }
       st.shifts=st.shifts.sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
     });
