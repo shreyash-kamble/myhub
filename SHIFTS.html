@@ -114,13 +114,13 @@ function calcH(s,e){
   if(b<=a)b+=1440;
   return Math.round((b-a)/60*100)/100;
 }
-const BREAK_DEDUCTION={'Oseyo':h=>h>9?1:0.5,"McDonald's":h=>h>6?0.75:0.5,'Tesco':()=>0.5};
+const BREAK_DEDUCTION={'Oseyo':h=>h>9?1:0.5,"McDonald's":h=>h>6?0.75:0.5,'Tesco':h=>{if(h>6)return 1;if(h>=4)return 0.5;return 0;}};
 function applyBreak(loc,h){
   if(h<=0)return h;
   const deduction=BREAK_DEDUCTION[loc]?.(h)??0;
   return h-deduction;
 }
-const VENUE_HOURS={'Oseyo':{0:{start:'11:00',end:'17:15'},4:{start:'09:00',end:'20:15'},default:{start:'09:00',end:'19:15'}},'Tesco':{0:{start:'06:00',end:'12:00'},1:{start:'06:00',end:'12:00'},5:{start:'16:00',end:'22:00'},default:{start:'06:00',end:'12:00'}}};
+const VENUE_HOURS={'Oseyo':{0:{start:'11:00',end:'17:15'},4:{start:'09:00',end:'20:15'},default:{start:'09:00',end:'19:15'}},'Tesco':{0:{start:'06:00',end:'09:45'},1:{start:'06:00',end:'12:00'},5:{start:'14:00',end:'22:15'},default:{start:'06:00',end:'12:00'}}};
 function defaultHoursFor(loc,ds){
   if(!ds||!VENUE_HOURS[loc])return null;
   const day=new Date(ds).getDay();
