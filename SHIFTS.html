@@ -114,7 +114,7 @@ function calcH(s,e){
   if(b<=a)b+=1440;
   return Math.round((b-a)/60*100)/100;
 }
-const BREAK_DEDUCTION={'Oseyo':h=>h>9?1:0.5,'Tesco':h=>{if(h>6)return 1;if(h>=4)return 0.5;return 0;}};
+const BREAK_DEDUCTION={'Oseyo':h=>h>9?1:0.5,'Tesco':h=>{if(h>8)return 1;if(h>=4)return 0.5;return 0;}};
 function applyBreak(loc,h){
   if(h<=0)return h;
   const deduction=BREAK_DEDUCTION[loc]?.(h)??0;
@@ -509,7 +509,7 @@ function EditModal({shift, onSave, onDelete, onClose}){
   const[customBreak,setCustomBreak]=useState(shift.customBreak??null);
   const finalLoc=loc==='Other'?(otherName.trim()||'Other'):(loc||'');
   const totalHours=calcH(s0,e0);
-  const getDefaultBreak=loc=>{if(loc==='Oseyo'){return totalHours>9?1:0.5;}if(loc==='Tesco'){return totalHours>6?1:totalHours>=4?0.5:0;}return 0.5;};
+  const getDefaultBreak=loc=>{if(loc==='Oseyo'){return totalHours>9?1:0.5;}if(loc==='Tesco'){return totalHours>8?1:totalHours>=4?0.5:0;}return 0.5;};
   const breakDeduction=customBreak!==null?customBreak:getDefaultBreak(finalLoc);
   const pH=totalHours-breakDeduction,pP=pH*RATE;
   function doSave(){
@@ -539,7 +539,7 @@ function EditModal({shift, onSave, onDelete, onClose}){
             <div className="mdl-tsep">→</div>
             <TimeInput className="mdl-i-sm" value={e0} onChange={setE0} placeholder="17:00"/>
           </div>
-          {s0&&e0&&totalHours>0&&(editingBreak?<div style={{marginTop:'.35rem',display:'flex',alignItems:'center',gap:'.5rem'}}><input type="number" min="0" step="0.25" value={customBreak??getDefaultBreak(finalLoc)} onChange={e=>setCustomBreak(parseFloat(e.target.value)||0)} placeholder="Break hours" style={{width:'60px',background:'var(--s3)',border:'1px solid var(--accent)',color:'var(--text)',fontFamily:'var(--font-m)',fontSize:'.63rem',padding:'.35rem .4rem',borderRadius:'4px',outline:'none'}} autoFocus/><span style={{fontFamily:'var(--font-m)',fontSize:'.63rem',color:'var(--muted)'}}>hours</span><button onClick={()=>setEditingBreak(false)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--accent)',fontFamily:'var(--font-m)',fontSize:'.63rem'}}>✓</button></div>:<div onClick={()=>setEditingBreak(true)} style={{marginTop:'.35rem',fontFamily:'var(--font-m)',fontSize:'.63rem',color:'var(--accent)',cursor:'pointer'}}>{fmtH(pH)} · {fmtP(pP)}{finalLoc==='Oseyo'&&<span style={{color:'var(--muted)'}}> ({totalHours>9?'60':'30'}m unpaid break{customBreak!==null?' (custom)':''})</span>}{finalLoc==='Tesco'&&<span style={{color:'var(--muted)'}}> ({totalHours>6?'60':totalHours>=4?'30':'no'}m unpaid break{customBreak!==null?' (custom)':''})</span>}</div>)}
+          {s0&&e0&&totalHours>0&&(editingBreak?<div style={{marginTop:'.35rem',display:'flex',alignItems:'center',gap:'.5rem'}}><input type="number" min="0" step="0.25" value={customBreak??getDefaultBreak(finalLoc)} onChange={e=>setCustomBreak(parseFloat(e.target.value)||0)} placeholder="Break hours" style={{width:'60px',background:'var(--s3)',border:'1px solid var(--accent)',color:'var(--text)',fontFamily:'var(--font-m)',fontSize:'.63rem',padding:'.35rem .4rem',borderRadius:'4px',outline:'none'}} autoFocus/><span style={{fontFamily:'var(--font-m)',fontSize:'.63rem',color:'var(--muted)'}}>hours</span><button onClick={()=>setEditingBreak(false)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--accent)',fontFamily:'var(--font-m)',fontSize:'.63rem'}}>✓</button></div>:<div onClick={()=>setEditingBreak(true)} style={{marginTop:'.35rem',fontFamily:'var(--font-m)',fontSize:'.63rem',color:'var(--accent)',cursor:'pointer'}}>{fmtH(pH)} · {fmtP(pP)}{finalLoc==='Oseyo'&&<span style={{color:'var(--muted)'}}> ({totalHours>9?'60':'30'}m unpaid break{customBreak!==null?' (custom)':''})</span>}{finalLoc==='Tesco'&&<span style={{color:'var(--muted)'}}> ({totalHours>8?'60':totalHours>=4?'30':'no'}m unpaid break{customBreak!==null?' (custom)':''})</span>}</div>)}
         </div>
 
         {/* LOCATION box */}
@@ -1058,14 +1058,15 @@ function App(){
           };
           const taxYears=months.length>0?[1]:[]; // kept only as a "has data" flag for markup below
 
-          // AVG/WEEK: divide by the full period length
+          // AVG/WEEK: divide by the full period length (all weeks including current)
           const fyWeeks=PERIOD_TOTAL_WEEKS;
           const avgPerWeek=fyWeeks>0?activeTYData.hours/fyWeeks:0;
-          // AVG/WEEK for past weeks only (weeks with at least one shift), excluding the current in-progress week
+          // AVG WORKED: only past completed weeks (before today, excluding current in-progress week)
           const currentWkKey=inPeriod(TODAY)?periodWeekNum(TODAY):null;
-          const workedWeekSet=new Set(tyShifts.filter(s=>s.date<TODAY&&periodWeekNum(s.date)!==currentWkKey).map(s=>periodWeekNum(s.date)));
-          const workedWeeks=workedWeekSet.size;
-          const avgWorkedWeek=workedWeeks>0?tyShifts.filter(s=>s.date<TODAY).reduce((a,s)=>a+s.hours,0)/workedWeeks:0;
+          const pastWorkedWeekSet=new Set(tyShifts.filter(s=>s.date<TODAY&&periodWeekNum(s.date)!==currentWkKey).map(s=>periodWeekNum(s.date)));
+          const workedWeeks=pastWorkedWeekSet.size;
+          const pastWorkedHours=tyShifts.filter(s=>s.date<TODAY).reduce((a,s)=>a+s.hours,0);
+          const avgWorkedWeek=workedWeeks>0?pastWorkedHours/workedWeeks:0;
 
           // Total applications logged across the fixed period (weeks keyed by their Monday start date)
           const appTotal=store.application?Object.entries(store.application).reduce((sum,[wk,v])=>{
