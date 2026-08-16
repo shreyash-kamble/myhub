@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2b2b2b">
+<title>Protein Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@300;400;500;700&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:#2b2b2b;}
+:root{
+  --bg:#2b2b2b;--s1:#333333;--s2:#3d3d3d;--s3:#474747;
+  --border:#555555;--border2:#606060;
+  --accent:#34d399;--gold:#ffd600;--green:#41ab5d;--red:#ff5555;
+  --orange:#ff8c00;--purple:#c084fc;--pink:#f472b6;--sky:#38bdf8;
+  --text:#e8e8e8;--text2:#cccccc;--dim:#4a4a4a;--muted:#aaaaaa;
+  --font-d:'Bebas Neue',sans-serif;
+  --font-m:'JetBrains Mono',monospace;
+  --font-b:'Barlow Condensed',sans-serif;
+}
+#root{height:100%;display:flex;flex-direction:column;overflow:hidden;}
+::-webkit-scrollbar{width:2px;}
+::-webkit-scrollbar-thumb{background:var(--dim);}
+input::-webkit-inner-spin-button{-webkit-appearance:none;}
+
+body{display:flex;flex-direction:column;height:100%;font-family:var(--font-b);color:var(--text);}
+.app{display:flex;flex-direction:column;height:100%;overflow:hidden;}
+header{background:var(--s1);border-bottom:1px solid var(--border);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+h1{font-family:var(--font-d);font-size:32px;letter-spacing:2px;color:var(--text);margin:0;line-height:1;}
+.date{font-family:var(--font-m);font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+.header-eyebrow{font-family:var(--font-m);font-size:10px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;}
+
+.content{display:flex;flex-direction:column;flex:1;overflow:hidden;}
+.tabs{display:flex;gap:0;background:var(--s1);border-bottom:1px solid var(--border);padding:0;flex-shrink:0;}
+.tab{flex:1;border:0;border-right:1px solid var(--border);padding:12px 16px;border-radius:0;background:transparent;color:var(--muted);font-family:var(--font-m);font-size:11px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:color 0.2s,background 0.2s;}
+.tab:last-child{border-right:0;}
+.tab.active{background:rgba(52,211,153,0.1);color:var(--accent);}
+.tab:hover{background:rgba(52,211,153,0.05);}
+
+.scroll-container{flex:1;overflow-y:auto;padding:16px 20px;}
+.section{margin-bottom:20px;}
+.section.hidden{display:none;}
+
+.card{background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:16px;margin-bottom:12px;}
+.card-title{font-family:var(--font-d);font-size:18px;letter-spacing:1px;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.card-title::before{content:'//';color:var(--accent);}
+
+.hero{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center;}
+.ring-container{display:flex;justify-content:center;}
+.ring{width:140px;height:140px;border-radius:50%;display:grid;place-items:center;position:relative;background:conic-gradient(var(--accent) 0deg, var(--accent) 0deg, var(--dim) 0deg);}
+.ring::after{content:'';position:absolute;width:106px;height:106px;border-radius:50%;background:var(--s1);border:1px solid var(--border);}
+.ring-content{position:relative;z-index:1;text-align:center;}
+.ring-value{font-family:var(--font-d);font-size:32px;letter-spacing:1px;color:var(--text);}
+.ring-label{font-family:var(--font-m);font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.stat{background:var(--s2);border:1px solid var(--border);border-radius:4px;padding:12px;text-align:center;}
+.stat-value{font-family:var(--font-d);font-size:22px;line-height:1;color:var(--text);margin-bottom:3px;}
+.stat-label{font-family:var(--font-m);font-size:9px;color:var(--muted);letter-spacing:0.5px;text-transform:uppercase;}
+
+.form-group{margin-bottom:12px;}
+.form-group label{font-family:var(--font-m);font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px;}
+.form-row{display:grid;grid-template-columns:1fr 110px auto;gap:8px;align-items:flex-end;}
+input{width:100%;border:1px solid var(--border2);border-radius:4px;padding:10px;background:var(--s2);color:var(--text);outline:none;font-family:var(--font-m);font-size:12px;}
+input::placeholder{color:#666;}
+input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(52,211,153,0.15);}
+input[type="number"]{max-width:100%;}
+.btn{border:1px solid var(--accent);background:var(--accent);color:#071014;padding:10px 16px;border-radius:4px;font-family:var(--font-m);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:opacity 0.2s;}
+.btn:hover{opacity:0.85;}
+.btn:active{opacity:0.7;}
+
+.food-list{margin-top:12px;}
+.food-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);font-family:var(--font-m);font-size:11px;}
+.food-item:last-child{border-bottom:0;}
+.food-name{color:var(--text);font-weight:500;}
+.food-time{color:var(--muted);font-size:9px;margin-top:2px;}
+.food-protein{color:var(--accent);font-weight:700;}
+.food-delete{border:0;background:transparent;color:var(--dim);cursor:pointer;padding:4px 8px;transition:color 0.2s;}
+.food-delete:hover{color:var(--red);}
+
+.empty{color:var(--dim);text-align:center;padding:20px;font-family:var(--font-m);font-size:12px;}
+
+.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+.summary-card{background:var(--s2);border:1px solid var(--border);border-radius:4px;padding:12px;text-align:center;}
+.summary-number{font-family:var(--font-d);font-size:20px;line-height:1;color:var(--text);margin-bottom:3px;}
+.summary-label{font-family:var(--font-m);font-size:9px;color:var(--muted);letter-spacing:0.5px;text-transform:uppercase;}
+
+.history-table{width:100%;font-family:var(--font-m);font-size:11px;border-collapse:collapse;}
+.history-table th{background:var(--s2);border:1px solid var(--border);padding:8px;color:var(--muted);text-align:left;font-weight:500;letter-spacing:0.5px;}
+.history-table td{border:1px solid var(--border);padding:8px;color:var(--text);}
+.history-table tr:nth-child(odd) td{background:rgba(255,255,255,0.02);}
+
+.chart-item{margin-bottom:12px;}
+.chart-label{display:flex;justify-content:space-between;font-family:var(--font-m);font-size:10px;margin-bottom:4px;color:var(--muted);}
+.chart-bar-bg{height:8px;background:var(--dim);border-radius:4px;overflow:hidden;}
+.chart-bar-fill{height:100%;background:var(--accent);border-radius:4px;transition:width 0.2s;}
+
+@media (max-width:600px){
+  .hero{grid-template-columns:1fr;}
+  .form-row{grid-template-columns:1fr 80px;}
+  .summary-grid{grid-template-columns:1fr;}
+  .history-table{font-size:9px;}
+  .history-table th,.history-table td{padding:6px;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>PROTEIN</h1>
+      <div class="date" id="headerDate"></div>
+    </div>
+    <div class="header-eyebrow">DAILY TRACKER</div>
+  </header>
+
+  <div class="content">
+    <nav class="tabs">
+      <button class="tab active" data-tab="current">Current Day</button>
+      <button class="tab" data-tab="history">History</button>
+    </nav>
+
+    <div class="scroll-container">
+
+      <!-- CURRENT DAY TAB -->
+      <div class="section" id="currentTab">
+        <div class="card">
+          <div class="card-title">Today / Progress</div>
+          <div class="hero">
+            <div class="ring-container">
+              <div class="ring" id="ring">
+                <div class="ring-content">
+                  <div class="ring-value" id="consumed">0 g</div>
+                  <div class="ring-label">Consumed</div>
+                </div>
+              </div>
+            </div>
+            <div class="stats">
+              <div class="stat">
+                <div class="stat-value" id="goalDisplay">120 g</div>
+                <div class="stat-label">Goal</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value" id="remaining">120 g</div>
+                <div class="stat-label">Remaining</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value" id="percent">0%</div>
+                <div class="stat-label">Progress</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Log Entry</div>
+          <form id="proteinForm">
+            <div class="form-group">
+              <label>Food / Item</label>
+              <input type="text" id="foodName" placeholder="e.g., chicken breast" list="foodSuggestions" autocomplete="off">
+              <datalist id="foodSuggestions"></datalist>
+              <div id="foodHint" style="font-family:var(--font-m);font-size:9px;color:var(--accent);margin-top:4px;"></div>
+            </div>
+            <div class="form-group">
+              <label>Protein (grams)</label>
+              <div class="form-row">
+                <input type="number" id="proteinAmount" placeholder="0" min="0" step="0.1">
+                <input type="number" id="goalInput" placeholder="Goal" min="10" value="120">
+                <button type="submit" class="btn">+ Add</button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Log Entry</div>
+          <div id="foodList" class="food-list"></div>
+        </div>
+      </div>
+
+      <!-- HISTORY TAB -->
+      <div class="section hidden" id="historyTab">
+        <div class="card">
+          <div class="card-title">Last 7 Days / Stats</div>
+          <div class="summary-grid">
+            <div class="summary-card">
+              <div class="summary-number" id="avg7">0 g</div>
+              <div class="summary-label">Avg Daily</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-number" id="bestDay">0 g</div>
+              <div class="summary-label">Best Day</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-number" id="goalRate">0%</div>
+              <div class="summary-label">Goal Rate</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">7-Day Comparison</div>
+          <div id="chart"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Daily Log</div>
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Goal</th>
+                <th>Consumed</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody id="historyTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const KEY = "proteinTrackerDataV1";
+const defaultState = {
+  goal: 120,
+  days: {}
+};
+
+let state = JSON.parse(localStorage.getItem(KEY) || "null") || defaultState;
+const today = new Date();
+const dateKey = today.toISOString().slice(0,10);
+
+function save() {
+  localStorage.setItem(KEY, JSON.stringify(state));
+}
+
+function getToday() {
+  if (!state.days[dateKey]) state.days[dateKey] = { foods: [], goal: state.goal };
+  return state.days[dateKey];
+}
+
+function formatDate(key) {
+  return new Date(key + "T12:00:00").toLocaleDateString(undefined, {
+    weekday: "short", month: "short", day: "numeric"
+  });
+}
+
+function getSavedFoods() {
+  const map = {};
+  Object.values(state.days || {}).forEach(day => {
+    (day.foods || []).forEach(food => {
+      const name = String(food.name || "").trim();
+      const protein = Number(food.protein);
+      if (!name || !isFinite(protein)) return;
+      const key = name.toLowerCase();
+      map[key] = { name, protein };
+    });
+  });
+  return Object.values(map).sort((a,b) => a.name.localeCompare(b.name));
+}
+
+function updateFoodSuggestions() {
+  const datalist = document.getElementById("foodSuggestions");
+  const input = document.getElementById("foodName");
+  const hint = document.getElementById("foodHint");
+  if (!datalist || !input) return;
+
+  const foods = getSavedFoods();
+  datalist.innerHTML = foods.map(x =>
+    `<option value="${escapeHtml(x.name)}">${escapeHtml(String(x.protein))} g</option>`
+  ).join("");
+
+  const typed = input.value.trim().toLowerCase();
+  const match = foods.find(x => x.name.toLowerCase() === typed);
+  hint.textContent = match ? `SAVED: ${match.protein} G PROTEIN — AUTO-FILLED` : "";
+}
+
+function applySavedFood() {
+  const input = document.getElementById("foodName");
+  const amount = document.getElementById("proteinAmount");
+  if (!input || !amount) return;
+
+  const typed = input.value.trim().toLowerCase();
+  const match = getSavedFoods().find(x => x.name.toLowerCase() === typed);
+  if (match) {
+    amount.value = match.protein;
+    updateFoodSuggestions();
+  }
+}
+
+function renderCurrent() {
+  const day = getToday();
+  const consumed = day.foods.reduce((sum, x) => sum + Number(x.protein), 0);
+  const goal = Number(document.getElementById("goalInput").value || day.goal || state.goal || 120);
+  const pct = goal ? Math.round(consumed / goal * 100) : 0;
+  const capped = Math.min(pct, 100);
+
+  document.getElementById("headerDate").textContent = formatDate(dateKey);
+  document.getElementById("consumed").textContent = consumed.toFixed(1).replace(".0","") + " g";
+  document.getElementById("goalDisplay").textContent = goal + " g";
+  document.getElementById("remaining").textContent = Math.max(goal-consumed,0).toFixed(1).replace(".0","") + " g";
+  document.getElementById("percent").textContent = pct + "%";
+  document.getElementById("ring").style.background =
+    `conic-gradient(#34d399 0deg, #34d399 ${capped*3.6}deg, #4a4a4a ${capped*3.6}deg)`;
+
+  const list = document.getElementById("foodList");
+  if (!day.foods.length) {
+    list.innerHTML = '<div class="empty">No protein logged yet today.</div>';
+  } else {
+    list.innerHTML = day.foods.map((x,i) => `
+      <div class="food-item">
+        <div>
+          <div class="food-name">${escapeHtml(x.name)}</div>
+          <div class="food-time">${x.time}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="food-protein">${Number(x.protein).toFixed(1).replace(".0","")} g</span>
+          <button class="food-delete" onclick="removeFood(${i})" title="Remove">✕</button>
+        </div>
+      </div>`).join("");
+  }
+}
+
+function renderHistory() {
+  const entries = Object.entries(state.days)
+    .filter(([key]) => key !== dateKey || state.days[key].foods.length)
+    .map(([key, day]) => ({
+      key,
+      goal: Number(day.goal || state.goal),
+      consumed: day.foods.reduce((s,x)=>s+Number(x.protein),0)
+    }))
+    .sort((a,b)=>b.key.localeCompare(a.key));
+
+  const last7 = entries.slice(0,7);
+  const avg = last7.length ? last7.reduce((s,x)=>s+x.consumed,0)/last7.length : 0;
+  const best = last7.length ? Math.max(...last7.map(x=>x.consumed)) : 0;
+  const rate = last7.length ? last7.reduce((s,x)=>s+(x.goal ? x.consumed/x.goal*100 : 0),0)/last7.length : 0;
+
+  document.getElementById("avg7").textContent = avg.toFixed(1).replace(".0","") + " g";
+  document.getElementById("bestDay").textContent = best.toFixed(1).replace(".0","") + " g";
+  document.getElementById("goalRate").textContent = Math.round(rate) + "%";
+
+  document.getElementById("historyTable").innerHTML = last7.length
+    ? last7.map(x => `<tr><td>${formatDate(x.key)}</td><td>${x.goal} g</td><td>${x.consumed.toFixed(1).replace(".0","")} g</td><td>${Math.round(x.consumed/x.goal*100)}%</td></tr>`).join("")
+    : '<tr><td colspan="4" class="empty">Log some protein to see history.</td></tr>';
+
+  document.getElementById("chart").innerHTML = last7.length
+    ? last7.map(x => {
+        const pct = Math.min(x.consumed/x.goal*100,100);
+        return `<div class="chart-item">
+          <div class="chart-label"><span>${formatDate(x.key)}</span><strong>${x.consumed.toFixed(1).replace(".0","")} / ${x.goal} g</strong></div>
+          <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${pct}%"></div></div>
+        </div>`;
+      }).join("")
+    : '<div class="empty">Log protein for a few days to see your comparison.</div>';
+}
+
+function removeFood(index) {
+  getToday().foods.splice(index,1);
+  save(); renderCurrent(); renderHistory(); updateFoodSuggestions();
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+}
+
+document.getElementById("goalInput").addEventListener("change", () => {
+  const goal = Number(document.getElementById("goalInput").value);
+  if (goal > 0) {
+    getToday().goal = goal;
+    state.goal = goal;
+    save();
+    renderCurrent();
+    renderHistory();
+  }
+});
+
+document.getElementById("proteinForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const name = document.getElementById("foodName").value.trim();
+  const protein = Number(document.getElementById("proteinAmount").value);
+  if (!name || !protein || protein < 0) return;
+  getToday().foods.push({
+    name,
+    protein,
+    time: new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})
+  });
+  save();
+  e.target.reset();
+  renderCurrent();
+  renderHistory();
+  updateFoodSuggestions();
+});
+
+document.getElementById("foodName").addEventListener("input", () => {
+  updateFoodSuggestions();
+  applySavedFood();
+});
+document.getElementById("foodName").addEventListener("change", applySavedFood);
+document.getElementById("foodName").addEventListener("blur", applySavedFood);
+
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    btn.classList.add("active");
+    const current = btn.dataset.tab === "current";
+    document.getElementById("currentTab").classList.toggle("hidden", !current);
+    document.getElementById("historyTab").classList.toggle("hidden", current);
+    if (!current) renderHistory();
+  });
+});
+
+renderCurrent();
+renderHistory();
+updateFoodSuggestions();
+</script>
+</body>
+</html>
