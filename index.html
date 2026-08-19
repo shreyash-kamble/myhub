@@ -325,6 +325,22 @@ function loadStats() {
       }
     }
   } catch(e) {}
+
+  // PROTEIN
+  try {
+    const p = JSON.parse(localStorage.getItem('protein_tracker_v1') || 'null');
+    if (p && p.logs && Array.isArray(p.logs)) {
+      const today = localDateStr(new Date());
+      const todayLog = p.logs.find(log => log.date === today);
+      if (todayLog && todayLog.total > 0) {
+        const target = p.dailyTarget || 150;
+        const pct = Math.round((todayLog.total / target) * 100);
+        setLive('protein-live', `${todayLog.total}g / ${target}g (${pct}%)`, '#34d399', true);
+      } else {
+        setLive('protein-live', '', '', false);
+      }
+    }
+  } catch(e) {}
 }
 
 // ─────────────────────────────────────────────
@@ -340,7 +356,8 @@ function gatherAllData() {
 
   const modules = {
     gym: 'pplbeast_v3',
-    shifts: 'shifts_v4'
+    shifts: 'shifts_v4',
+    protein: 'protein_tracker_v1'
   };
 
   for (const [name, key] of Object.entries(modules)) {
@@ -366,23 +383,13 @@ function runExport(isMidnight) {
   setTimeout(() => {
     try {
       const data = gatherAllData();
-      let n = 0;
-      const groups = { gym: ['gym'], shifts: ['shifts'] };
-      for (const [fileLabel, names] of Object.entries(groups)) {
-        const payload = {};
-        let has = false;
-        for (const name of names) {
-          if (data.sources[name] != null) { payload[name] = data.sources[name]; has = true; }
-        }
-        if (!has) continue;
-        downloadJSON(
-          { exportedAt: data.exportedAt, exportedDate: data.exportedDate, sources: payload },
-          `${fileLabel}-backup-${data.exportedDate}.json`
-        );
-        n++;
-      }
+      // Export all data into a single file
+      downloadJSON(
+        data,
+        `hub-backup-${data.exportedDate}.json`
+      );
       const log = getBackupLog(); log.push({ts:data.exportedAt, date:data.exportedDate, auto:isMidnight}); saveBackupLog(log);
-      showToast(isMidnight ? '✓ MIDNIGHT BACKUP SAVED' : `✓ ${n} BACKUP FILE${n!==1?'S':''} SAVED`);
+      showToast(isMidnight ? '✓ MIDNIGHT BACKUP SAVED' : '✓ BACKUP SAVED');
     } catch(e) { showToast('✗ EXPORT FAILED','err'); }
     sub.classList.remove('exporting'); updateBackupUI();
   }, 300);
@@ -399,7 +406,7 @@ document.getElementById('import-input').addEventListener('change', function(e) {
       const data = JSON.parse(ev.target.result);
       if (!data.sources) throw 0;
       let n = 0;
-      for (const [name, key] of Object.entries({gym:'pplbeast_v3', shifts:'shifts_v4'}))
+      for (const [name, key] of Object.entries({gym:'pplbeast_v3', shifts:'shifts_v4', protein:'protein_tracker_v1'}))
         if (data.sources[name] != null) { localStorage.setItem(key, JSON.stringify(data.sources[name])); n++; }
       loadStats(); showToast(`✓ RESTORED ${n} MODULE${n!==1?'S':''} FROM ${data.exportedDate||'BACKUP'}`);
     } catch(e) { showToast('✗ INVALID BACKUP FILE','err'); }
