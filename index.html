@@ -109,16 +109,6 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
       <div class="card-arrow">→</div>
     </a>
 
-    <a class="card card-active" href="protein_tracker.html" style="--card-color:#34d399;animation-delay:0.35s">
-      <div class="card-icon">🥛</div>
-      <div class="card-body">
-        <div class="card-title">PROTEIN</div>
-        <div class="card-desc">NUTRITION TRACKER · DAILY LOG</div>
-        <div class="card-live" id="protein-live" style="color:#34d399;"></div>
-      </div>
-      <div class="card-arrow">→</div>
-    </a>
-
   </div>
 
   <div class="footer-row">
@@ -313,12 +303,21 @@ function loadStats() {
     const s = JSON.parse(localStorage.getItem('shifts_v4') || 'null');
     if (s && Array.isArray(s.shifts)) {
       const today = localDateStr(new Date());
-      const upcoming = s.shifts.filter(sh => sh.date >= today).sort((a,b) => a.date.localeCompare(b.date) || (a.start||'').localeCompare(b.start||''));
+      const now = new Date();
+      const currentTime = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+      
+      // Filter shifts: today's shifts that haven't ended, or future shifts
+      let upcoming = s.shifts.filter(sh => {
+        if (sh.date > today) return true;
+        if (sh.date === today && sh.end && sh.end > currentTime) return true;
+        return false;
+      }).sort((a,b) => a.date.localeCompare(b.date) || (a.start||'').localeCompare(b.start||''));
+      
       if (upcoming.length) {
         const next = upcoming[0];
         const d = new Date(next.date + 'T00:00:00');
         const label = next.date === today ? 'Today' : `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
-        const timeStr = next.start || next.end ? ` · ${next.start || ''}${next.start && next.end ? ' - ' : ''}${next.end || ''}` : '';
+        const timeStr = (next.start || next.end) ? ` · ${next.start ? next.start : ''}${(next.start && next.end) ? ' - ' : (next.start ? '' : '')}${next.end ? next.end : ''}` : '';
         setLive('shifts-live', `Next: ${label}${timeStr}`, '#00c8ff', true);
       } else {
         setLive('shifts-live', '', '', false);
@@ -326,21 +325,7 @@ function loadStats() {
     }
   } catch(e) {}
 
-  // PROTEIN
-  try {
-    const p = JSON.parse(localStorage.getItem('protein_tracker_v1') || 'null');
-    if (p && p.logs && Array.isArray(p.logs)) {
-      const today = localDateStr(new Date());
-      const todayLog = p.logs.find(log => log.date === today);
-      if (todayLog && todayLog.total > 0) {
-        const target = p.dailyTarget || 150;
-        const pct = Math.round((todayLog.total / target) * 100);
-        setLive('protein-live', `${todayLog.total}g / ${target}g (${pct}%)`, '#34d399', true);
-      } else {
-        setLive('protein-live', '', '', false);
-      }
-    }
-  } catch(e) {}
+
 }
 
 // ─────────────────────────────────────────────
@@ -356,8 +341,7 @@ function gatherAllData() {
 
   const modules = {
     gym: 'pplbeast_v3',
-    shifts: 'shifts_v4',
-    protein: 'protein_tracker_v1'
+    shifts: 'shifts_v4'
   };
 
   for (const [name, key] of Object.entries(modules)) {
@@ -406,7 +390,7 @@ document.getElementById('import-input').addEventListener('change', function(e) {
       const data = JSON.parse(ev.target.result);
       if (!data.sources) throw 0;
       let n = 0;
-      for (const [name, key] of Object.entries({gym:'pplbeast_v3', shifts:'shifts_v4', protein:'protein_tracker_v1'}))
+      for (const [name, key] of Object.entries({gym:'pplbeast_v3', shifts:'shifts_v4'}))
         if (data.sources[name] != null) { localStorage.setItem(key, JSON.stringify(data.sources[name])); n++; }
       loadStats(); showToast(`✓ RESTORED ${n} MODULE${n!==1?'S':''} FROM ${data.exportedDate||'BACKUP'}`);
     } catch(e) { showToast('✗ INVALID BACKUP FILE','err'); }
