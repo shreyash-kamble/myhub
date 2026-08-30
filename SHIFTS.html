@@ -84,10 +84,18 @@ function useSwipeRef(onLeft,onRight){
   },[]);
   return ref;
 }
-const fmtH=h=>{const w=Math.floor(h),m=Math.round((h-w)*60);return m?`${w}h ${m}m`:`${w}h`;};
+const fmtH=h=>{
+  const totalMinutes=Math.round(Number(h)*60);
+  const w=Math.floor(totalMinutes/60);
+  const m=totalMinutes%60;
+  return m?`${w}h ${m}m`:`${w}h`;
+};
 const fmtP=n=>`£${n.toFixed(2)}`;
 const RATE=11;
-const shiftPay=s=>s.hours*RATE;
+// Keep all shift-hour totals on whole minutes to prevent 1-minute floating-point errors.
+const shiftMinutes=s=>Math.round(Number(s.hours||0)*60);
+const sumShiftHours=arr=>arr.reduce((total,s)=>total+shiftMinutes(s),0)/60;
+const shiftPay=s=>shiftMinutes(s)/60*RATE;
 
 // Calculate monthly statistics for a given data type
 function calculateMonthlyStats(months,storeData){
@@ -157,7 +165,7 @@ const CONIFER_LOGO='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASIAAACLCAYAAA
 async function exportOseyoTimesheet(shifts,monthKey,name,staffNumber){
   const{Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,ImageRun,WidthType,AlignmentType,BorderStyle,ShadingType,VerticalAlign}=docx;
   const rows=[...shifts].sort((a,b)=>a.date.localeCompare(b.date));
-  const total=rows.reduce((s,r)=>s+r.hours,0);
+  const total=rows.reduce((s,r)=>s+shiftMinutes(r),0)/60;
 
   const b64=CONIFER_LOGO.split(',')[1];
   const bin=atob(b64);
@@ -807,23 +815,23 @@ function App(){
 
   const wShifts=useMemo(()=>shifts.filter(s=>wDates.includes(s.date)),[shifts,wDates]);
   const wWorkShifts=useMemo(()=>workShifts.filter(s=>wDates.includes(s.date)),[workShifts,wDates]);
-  const wHours=useMemo(()=>wWorkShifts.reduce((a,s)=>a+s.hours,0),[wWorkShifts]);
+  const wHours=useMemo(()=>sumShiftHours(wWorkShifts),[wWorkShifts]);
   const wPay=useMemo(()=>wWorkShifts.reduce((a,s)=>a+shiftPay(s),0),[wWorkShifts]);
   const wByDay=useMemo(()=>{const m={};wDates.forEach(d=>{m[d]=wShifts.filter(s=>s.date===d);});return m;},[wDates,wShifts]);
 
   const mShifts=useMemo(()=>shifts.filter(s=>s.date.startsWith(vm)),[shifts,vm]);
   const mWorkShifts=useMemo(()=>workShifts.filter(s=>s.date.startsWith(vm)),[workShifts,vm]);
-  const mHours=useMemo(()=>mWorkShifts.reduce((a,s)=>a+s.hours,0),[mWorkShifts]);
+  const mHours=useMemo(()=>sumShiftHours(mWorkShifts),[mWorkShifts]);
   const mPay=useMemo(()=>mWorkShifts.reduce((a,s)=>a+shiftPay(s),0),[mWorkShifts]);
 
   const mByWeek=useMemo(()=>{
     const m={};
-    mWorkShifts.forEach(s=>{const w=wkNum(s.date);if(!m[w])m[w]={w,hours:0,shifts:[],dates:[],pay:0};m[w].hours+=s.hours;m[w].pay+=shiftPay(s);m[w].shifts.push(s);if(!m[w].dates.includes(s.date))m[w].dates.push(s.date);});
+    mWorkShifts.forEach(s=>{const w=wkNum(s.date);if(!m[w])m[w]={w,hours:0,shifts:[],dates:[],pay:0};m[w].hours+=shiftMinutes(s)/60;m[w].pay+=shiftPay(s);m[w].shifts.push(s);if(!m[w].dates.includes(s.date))m[w].dates.push(s.date);});
     return Object.values(m).sort((a,b)=>a.w-b.w);
   },[mWorkShifts]);
   const maxWH=useMemo(()=>Math.max(1,...mByWeek.map(w=>w.hours)),[mByWeek]);
 
-  const mLoc=useMemo(()=>{const m={};mWorkShifts.forEach(s=>{m[s.loc]=(m[s.loc]||0)+s.hours;});return m;},[mWorkShifts]);
+  const mLoc=useMemo(()=>{const m={};mWorkShifts.forEach(s=>{m[s.loc]=(m[s.loc]||0)+shiftMinutes(s)/60;});return m;},[mWorkShifts]);
   const maxLH=useMemo(()=>Math.max(1,...Object.values(mLoc)),[mLoc]);
 
   function chMon(d){
@@ -840,7 +848,7 @@ function App(){
   const cDays=useMemo(()=>calDays(vm),[vm]);
   const sByDate=useMemo(()=>{const m={};shifts.forEach(s=>{if(!m[s.date])m[s.date]=[];m[s.date].push(s);});return m;},[shifts]);
   const selS=sel?(sByDate[sel]||[]):[];
-  const selH=selS.reduce((a,s)=>a+(s.loc?s.hours:0),0);
+  const selH=selS.reduce((a,s)=>a+(s.loc?shiftMinutes(s):0),0)/60;
 
   return(<>
     <style dangerouslySetInnerHTML={{__html:CSS}}/>
@@ -874,7 +882,7 @@ function App(){
           const wn=wkNum(s.date);
           const key=wkStart;
           if(!pastWkMap[key])pastWkMap[key]={key,wn,wkStart,hours:0};
-          pastWkMap[key].hours+=s.hours;
+          pastWkMap[key].hours+=shiftMinutes(s)/60;
         });
         const pastWks=Object.values(pastWkMap).sort((a,b)=>b.wkStart.localeCompare(a.wkStart));
         return(
@@ -941,7 +949,7 @@ function App(){
           if(!aP&&bP)return -1;
           return a.localeCompare(b);
         }).map(d=>{
-          const ds=wByDay[d]||[],dh=ds.reduce((a,s)=>a+(s.loc?s.hours:0),0),has=ds.length>0,isT=d===TODAY,isPast=d<TODAY;
+          const ds=wByDay[d]||[],dh=ds.reduce((a,s)=>a+(s.loc?shiftMinutes(s):0),0)/60,has=ds.length>0,isT=d===TODAY,isPast=d<TODAY;
           if(isPast&&!has)return null;
           return<div key={d} className={`db${isT?' td':''}`}>
             <div className="dbh" style={{cursor:'pointer'}} onClick={()=>isPast?null:setEditShift({date:d,start:'',end:'',loc:'',note:''})}>
@@ -1062,12 +1070,12 @@ function App(){
           tyShifts.forEach(s=>{
             const k=mkKey(s.date);
             if(!monMap[k])monMap[k]={k,hours:0,shifts:0,pay:0};
-            monMap[k].hours+=s.hours;monMap[k].shifts++;monMap[k].pay+=shiftPay(s);
+            monMap[k].hours+=shiftMinutes(s)/60;monMap[k].shifts++;monMap[k].pay+=shiftPay(s);
           });
           const months=Object.values(monMap).sort((a,b)=>a.k.localeCompare(b.k));
 
           const activeTYData={
-            hours:tyShifts.reduce((a,s)=>a+s.hours,0),
+            hours:sumShiftHours(tyShifts),
             pay:tyShifts.reduce((a,s)=>a+shiftPay(s),0),
             shifts:tyShifts.length,
             months
@@ -1082,7 +1090,7 @@ function App(){
           const pastWorkedShifts=tyShifts.filter(s=>s.date<TODAY&&periodWeekNum(s.date)!==currentWkKey);
           const pastWorkedWeekSet=new Set(pastWorkedShifts.map(s=>periodWeekNum(s.date)));
           const workedWeeks=pastWorkedWeekSet.size;
-          const pastWorkedHours=pastWorkedShifts.reduce((a,s)=>a+s.hours,0);
+          const pastWorkedHours=sumShiftHours(pastWorkedShifts);
           const avgWorkedWeek=workedWeeks>0?pastWorkedHours/workedWeeks:0;
 
           // Total applications logged across the fixed period (weeks keyed by their Monday start date)
@@ -1174,7 +1182,7 @@ function App(){
               <div className="loc-t">BY LOCATION · {tyLabel()}</div>
               {(()=>{
                 const locationTotals={};const locationPayments={};
-                tyShifts.forEach(s=>{locationTotals[s.loc]=(locationTotals[s.loc]||0)+s.hours;locationPayments[s.loc]=(locationPayments[s.loc]||0)+shiftPay(s);});
+                tyShifts.forEach(s=>{locationTotals[s.loc]=(locationTotals[s.loc]||0)+shiftMinutes(s)/60;locationPayments[s.loc]=(locationPayments[s.loc]||0)+shiftPay(s);});
                 const maxHours=Math.max(1,...Object.values(locationTotals));
                 if(Object.keys(locationTotals).length===0)return<div style={{fontFamily:'var(--font-m)',fontSize:'.68rem',color:'var(--muted)'}}>NO DATA</div>;
                 return Object.entries(locationTotals).sort((a,b)=>b[1]-a[1]).map(([l,h])=>{
