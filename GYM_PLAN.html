@@ -108,6 +108,9 @@ const DAYS = [
 ];
 
 const TYPE_COLOR={push:'var(--push)',pull:'var(--pull)',legs:'var(--legs)',abs:'var(--abs)'};
+// Exercises that get a longer 3-min rest timer instead of the 90s/60s default.
+// Single source of truth — used for both the actual timer duration and its tooltip.
+const COMPOUND_EXERCISES=['Barbell Bench Press','Overhead Barbell Press','Incline Barbell Press','Back Squats','Front Squats / Hack Squats','Deadlifts','Romanian Deadlifts','Barbell Rows','T-Bar Row / Chest-Supported Row','Weighted Pull-Ups / Lat Pulldown','Leg Press','Hip Thrusts'];
 const TYPE_HEX={push:'#ff6b3d',pull:'#29e6ff',legs:'#b2ff59',abs:'#ffd600'};
 const TYPE_BG={push:'rgba(255,107,61,0.08)',pull:'rgba(41,230,255,0.07)',legs:'rgba(178,255,89,0.07)',abs:'rgba(255,214,0,0.08)'};
 
@@ -305,7 +308,6 @@ const CSS=`
 
 /* DAY HERO */
 .day-hero{padding:0.85rem 1rem 0.65rem;border-bottom:1px solid var(--border);margin-bottom:0.6rem;}
-.day-hero-row{display:flex;align-items:center;gap:0.75rem;margin-bottom:0.2rem;}
 .day-hero-title{font-family:var(--font-display);font-size:1.9rem;letter-spacing:0.04em;line-height:1;}
 .type-badge{font-family:var(--font-mono);font-size:0.58rem;padding:0.18rem 0.5rem;font-weight:700;letter-spacing:0.08em;border-radius:3px;}
 .day-focus{font-family:var(--font-body);font-size:0.9rem;color:#b8b8c8;font-weight:400;}
@@ -330,7 +332,6 @@ const CSS=`
 .ex-sets-box{font-family:var(--font-mono);font-size:0.82rem;padding:0.15rem 0.45rem;background:var(--s3);color:#fff;font-weight:700;letter-spacing:0.04em;border-right:1px solid var(--border2);}
 .ex-sets-reps{font-family:var(--font-mono);font-size:0.82rem;padding:0.15rem 0.45rem;color:#c8c8d8;letter-spacing:0.04em;}
 
-.ex-target{font-family:var(--font-mono);font-size:0.65rem;color:#c8c8d8;}
 .dropset-tag{font-family:var(--font-mono);font-size:0.48rem;color:var(--push);border:1px solid var(--push);padding:0.08rem 0.3rem;letter-spacing:0.06em;border-radius:2px;}
 .pr-badge{font-family:var(--font-mono);font-size:0.5rem;background:rgba(255,214,0,0.15);color:var(--abs);border:1px solid rgba(255,214,0,0.4);padding:0.1rem 0.35rem;border-radius:2px;animation:popIn 0.3s ease;}
 
@@ -339,13 +340,6 @@ const CSS=`
 .ex-spark-label{font-family:var(--font-mono);font-size:0.52rem;color:var(--muted);flex-shrink:0;}
 .ex-spark-val{font-family:var(--font-mono);font-size:0.7rem;font-weight:700;margin-left:auto;white-space:nowrap;}
 
-/* QUICK FILL */
-.quick-fill-row{display:flex;gap:0.3rem;padding:0.35rem 0.85rem;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--border);background:rgba(0,0,0,0.2);}
-.quick-fill-row::-webkit-scrollbar{display:none;}
-.qf-label{font-family:var(--font-mono);font-size:0.5rem;color:var(--muted);display:flex;align-items:center;margin-right:0.2rem;white-space:nowrap;flex-shrink:0;}
-.qf-chip{flex-shrink:0;font-family:var(--font-mono);font-size:0.6rem;padding:0.25rem 0.5rem;border:1px solid var(--border2);background:var(--s3);color:#d0d0e0;cursor:pointer;border-radius:3px;transition:all 0.15s;}
-.qf-chip:active{border-color:var(--push);color:var(--push);transform:scale(0.94);}
-
 .set-header{display:grid;grid-template-columns:32px 1fr 1fr 40px 44px;gap:0.3rem;padding:0.25rem 0.85rem;background:var(--s2);border-bottom:1px solid var(--border);}
 .set-header-lbl{font-family:var(--font-mono);font-size:0.55rem;color:var(--label);text-align:center;}
 
@@ -353,7 +347,6 @@ const CSS=`
 .sets-table{width:100%;}
 .set-row{display:grid;grid-template-columns:32px 1fr 1fr 40px 44px;gap:0.3rem;padding:0.35rem 0.85rem;border-bottom:1px solid var(--border);align-items:center;transition:background 0.2s;}
 .set-row:last-child{border-bottom:none;}
-.set-row.set-done-row{background:rgba(178,255,89,0.04);}
 .set-row.pr-row{animation:prFlash 1.2s ease;}
 .set-num{font-family:var(--font-mono);font-size:0.82rem;color:#c0c0d0;font-weight:500;}
 
@@ -385,13 +378,6 @@ const CSS=`
 .finish-btn{width:100%;font-family:var(--font-display);font-size:1.4rem;letter-spacing:0.1em;padding:0.9rem;border:none;cursor:pointer;transition:all 0.2s;background:var(--push);color:#fff;border-radius:6px;}
 .finish-btn.is-done{background:var(--legs);color:#000;}
 .finish-btn:active{transform:scale(0.98);}
-
-/* WORKOUT SUMMARY */
-.summary-bar{display:flex;gap:0.5rem;padding:0.6rem 0.75rem;overflow-x:auto;scrollbar-width:none;}
-.summary-bar::-webkit-scrollbar{display:none;}
-.summary-chip{flex-shrink:0;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.7rem;text-align:center;}
-.summary-chip .sv{font-family:var(--font-display);font-size:1.1rem;letter-spacing:0.04em;}
-.summary-chip .sl{font-family:var(--font-mono);font-size:0.48rem;color:var(--muted);letter-spacing:0.06em;margin-top:1px;}
 
 /* CONDITIONING */
 .cond-wrap{padding:0 0.75rem 0.5rem;}
@@ -694,7 +680,7 @@ function App(){
     if(!v)return false;
     const allPrev=[];
     activeWeekNums.forEach(wn=>{
-      if(wn===week)return;
+      if(wn===viewWeek)return;
       DAYS.forEach((d,di)=>{
         d.exercises.forEach((ex,ei)=>{
           if(ex.name!==exName)return;
@@ -703,7 +689,7 @@ function App(){
       });
     });
     return v>0&&(allPrev.length===0||v>Math.max(...allPrev));
-  },[store,weekNums,week]);
+  },[store,weekNums,viewWeek]);
 
   // Show toast helper
   const showToast=useCallback((msg)=>{
@@ -727,10 +713,9 @@ function App(){
     });
     // Start timer only when marking AS done AND it is NOT the last set of this exercise
     if(!wasAlreadyDone&&!isLastSetOfExercise){
-      const compoundEx=['Barbell Bench Press','Overhead Barbell Press','Incline Barbell Press','Back Squats','Front Squats / Hack Squats','Deadlifts','Romanian Deadlifts','Barbell Rows','T-Bar Row / Chest-Supported Row','Weighted Pull-Ups / Lat Pulldown','Leg Press','Hip Thrusts'];
       const dayType=DAYS[dayIdx].type;
       const exName=DAYS[dayIdx].exercises[ei]?.name;
-      timer.start(dayType==='abs'?60:compoundEx.includes(exName)?180:90);
+      timer.start(dayType==='abs'?60:COMPOUND_EXERCISES.includes(exName)?180:90);
     }
   },[dayIdx,update,timer]);
 
@@ -1111,11 +1096,11 @@ function App(){
                                 value={s.reps} onChange={e=>updateSet(ei,si,'reps',e.target.value)}/>
                               <button className="step-btn" onMouseDown={e=>{e.preventDefault();updateSet(ei,si,'reps',String((parseInt(s.reps)||0)+1));}}>+</button>
                             </div>
-                            <button className="timer-btn" title={ex.sets<=3&&!['Barbell Bench Press','Overhead Barbell Press','Back Squats','Deadlifts','Romanian Deadlifts'].includes(ex.name)?'60s isolation':'compound: 3min'} onClick={()=>{
-                              const compound=['Barbell Bench Press','Overhead Barbell Press','Incline Barbell Press','Back Squats','Front Squats / Hack Squats','Deadlifts','Romanian Deadlifts','Barbell Rows','T-Bar Row / Chest-Supported Row','Weighted Pull-Ups / Lat Pulldown','Leg Press','Hip Thrusts'];
-                              const secs=day.type==='abs'?60:compound.includes(ex.name)?180:90;
-                              timer.start(secs);
-                            }}>⏱</button>
+                            {(()=>{
+                              const secs=day.type==='abs'?60:COMPOUND_EXERCISES.includes(ex.name)?180:90;
+                              const label=secs===180?'compound: 3min':`${secs}s isolation`;
+                              return <button className="timer-btn" title={label} onClick={()=>timer.start(secs)}>⏱</button>;
+                            })()}
                             <div className={`check-btn ${s.done?'checked':''}`} style={s.done?{}:{borderColor:hex+'88'}} onClick={()=>toggleSet(ei,si)}>✓</div>
                           </div>
                         );
