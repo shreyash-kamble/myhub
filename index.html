@@ -26,7 +26,6 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
 @keyframes cardIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 @keyframes slideUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
-@keyframes pulseDot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.5;transform:scale(0.7);}}
 @keyframes exppulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
 
 .container{position:relative;z-index:1;width:100%;max-width:480px;padding:32px 20px;display:flex;flex-direction:column;align-items:center;gap:32px;}
@@ -58,7 +57,6 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
 .card-live{font-family:var(--font-m);font-size:9px;letter-spacing:0.5px;margin-top:5px;padding:2px 7px;border-radius:2px;display:none;background:rgba(255,255,255,0.04)!important;border:1px solid currentColor;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
 .card-arrow{font-family:var(--font-m);font-size:14px;color:var(--dim);transition:color 0.2s,transform 0.2s;flex-shrink:0;}
 .card:hover .card-arrow{color:var(--card-color,var(--blue));transform:translateX(4px);}
-.pulse-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:5px;vertical-align:middle;animation:pulseDot 1.2s ease-in-out infinite;}
 
 /* FOOTER */
 .footer-row{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;animation:fadeIn 0.6s ease both 0.6s;opacity:0;}
@@ -265,6 +263,10 @@ function saveBackupLog(log) {
   try { localStorage.setItem(BACKUP_LOG_KEY, JSON.stringify(log.slice(-30))); } catch(e) {}
 }
 
+// Single source of truth for module name → localStorage key, used by
+// loadStats, gatherAllData, and the import handler.
+const MODULES = { gym: 'pplbeast_v3', shifts: 'shifts_v4' };
+
 // ─────────────────────────────────────────────
 // STATS
 // ─────────────────────────────────────────────
@@ -276,11 +278,6 @@ function localDateStr(d) {
   return `${y}-${m}-${day}`;
 }
 
-function parseMins(t) {
-  const p = (t || '').split(':');
-  return parseInt(p[0] || 0) * 60 + parseInt(p[1] || 0);
-}
-
 function setLive(id, html, color, show) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -290,7 +287,7 @@ function setLive(id, html, color, show) {
 function loadStats() {
   // GYM
   try {
-    const g = JSON.parse(localStorage.getItem('pplbeast_v3') || 'null');
+    const g = JSON.parse(localStorage.getItem(MODULES.gym) || 'null');
     if (g && g.weeks && g.currentWeek) {
       const wd = g.weeks[g.currentWeek] || [], done = wd.filter(d => d.done).length;
       done > 0 ? setLive('gym-live', `${done}/${wd.length} days done · Week ${g.currentWeek}`, '#b2ff59', true)
@@ -300,7 +297,7 @@ function loadStats() {
 
   // SHIFTS
   try {
-    const s = JSON.parse(localStorage.getItem('shifts_v4') || 'null');
+    const s = JSON.parse(localStorage.getItem(MODULES.shifts) || 'null');
     if (s && Array.isArray(s.shifts)) {
       const today = localDateStr(new Date());
       const now = new Date();
@@ -317,7 +314,7 @@ function loadStats() {
         const next = upcoming[0];
         const d = new Date(next.date + 'T00:00:00');
         const label = next.date === today ? 'Today' : `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
-        const timeStr = (next.start || next.end) ? ` · ${next.start ? next.start : ''}${(next.start && next.end) ? ' - ' : (next.start ? '' : '')}${next.end ? next.end : ''}` : '';
+        const timeStr = (next.start || next.end) ? ` · ${next.start || ''}${(next.start && next.end) ? ' - ' : ''}${next.end || ''}` : '';
         setLive('shifts-live', `Next: ${label}${timeStr}`, '#00c8ff', true);
       } else {
         setLive('shifts-live', '', '', false);
@@ -339,12 +336,7 @@ function gatherAllData() {
     sources: {}
   };
 
-  const modules = {
-    gym: 'pplbeast_v3',
-    shifts: 'shifts_v4'
-  };
-
-  for (const [name, key] of Object.entries(modules)) {
+  for (const [name, key] of Object.entries(MODULES)) {
     try {
       const data = localStorage.getItem(key);
       snap.sources[name] = data ? JSON.parse(data) : null;
@@ -390,7 +382,7 @@ document.getElementById('import-input').addEventListener('change', function(e) {
       const data = JSON.parse(ev.target.result);
       if (!data.sources) throw 0;
       let n = 0;
-      for (const [name, key] of Object.entries({gym:'pplbeast_v3', shifts:'shifts_v4'}))
+      for (const [name, key] of Object.entries(MODULES))
         if (data.sources[name] != null) { localStorage.setItem(key, JSON.stringify(data.sources[name])); n++; }
       loadStats(); showToast(`✓ RESTORED ${n} MODULE${n!==1?'S':''} FROM ${data.exportedDate||'BACKUP'}`);
     } catch(e) { showToast('✗ INVALID BACKUP FILE','err'); }
