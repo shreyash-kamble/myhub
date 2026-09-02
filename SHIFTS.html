@@ -123,15 +123,15 @@ function calcH(s,e){
   const diffMinutes=b-a;const roundedMinutes=Math.round(diffMinutes/5)*5;return roundedMinutes/60;
 }
 // BREAK DEDUCTION RULES
-// Tesco: <6h=0min, 6-7:59h=30min, 8+=1h
+// Tesco: <6h=0min, 6h-7h45=30min, 8h-8h45=60min, 9h+=90min
 // Oseyo: 10+h=1h, <10h=30min  
 // Other: no breaks
 function getBreakDeduction(location, hours) {
   if (location === 'Tesco') {
     if (hours < 6) return 0;
-    if (hours >= 6 && hours < 8) return 0.5;
-    if (hours >= 8) return 1;
-    return 0;
+    if (hours < 8) return 0.5;
+    if (hours < 9) return 1;
+    return 1.5;
   }
   if (location === 'Oseyo') {
     if (hours >= 10) return 1;
@@ -269,6 +269,7 @@ function mkName(mk){const[y,m]=mk.split('-');return`${['Jan','Feb','Mar','Apr','
 function dayName(ds){return['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(ds).getDay()];}
 function localDateStr(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return`${y}-${m}-${day}`;}
 const TODAY=localDateStr(new Date());
+const CURRENT_MONTH=TODAY.slice(0,7); // local month, not UTC — keeps "this month" checks in sync with TODAY near midnight
 
 const STORE_KEY='shifts_v4';
 function loadStore(){try{const r=localStorage.getItem(STORE_KEY);if(r){const d=JSON.parse(r);if(!d.weeklyTarget)d.weeklyTarget=0;if(!d.actualPay)d.actualPay={};if(!d.investment)d.investment={};if(!d.application)d.application={};if(!d.profileName)d.profileName='Shreyash Kamble';if(!d.profileStaff)d.profileStaff='CG1013';return d;}}catch(e){}return{shifts:[],weeklyTarget:0,actualPay:{},investment:{},application:{},profileName:'Shreyash Kamble',profileStaff:'CG1013'};}
@@ -373,11 +374,6 @@ const CSS=`
 
 /* WEEK */
 .w-wrap{padding:.85rem .85rem 0;animation:up .2s ease;}
-.wnav{display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;}
-.wnbtn{background:var(--s2);border:1px solid var(--border2);color:var(--text2);font-size:1rem;padding:.3rem .65rem;cursor:pointer;border-radius:4px;}
-.wnbtn:active{border-color:var(--accent);color:var(--accent);}
-.wntit{font-family:var(--font-d);font-size:1.5rem;letter-spacing:.06em;flex:1;text-align:center;color:var(--text);}
-.wnsub{font-family:var(--font-m);font-size:.6rem;color:var(--muted);text-align:center;margin-top:1px;}
 .who{display:flex;background:var(--s1);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin-bottom:.65rem;}
 .wc{flex:1;min-width:0;padding:.65rem .4rem;text-align:center;}
 .wc+.wc{border-left:1px solid var(--border);}
@@ -391,7 +387,6 @@ const CSS=`
 .dbh:active{background:var(--s3);}
 .db.td .dbh{background:rgba(0,229,255,.07);}
 .dbh-d{font-family:var(--font-d);font-size:1.2rem;letter-spacing:.06em;color:var(--text2);}
-.dbh-n{color:var(--text2);font-size:.95rem;font-weight:600;}
 .dbh-t{font-family:var(--font-d);font-size:1.2rem;color:var(--accent);}
 .tdtag{font-family:var(--font-m);font-size:.52rem;background:var(--accent);color:#000;padding:.12rem .38rem;letter-spacing:.08em;font-weight:700;margin-left:.45rem;border-radius:3px;vertical-align:middle;}
 
@@ -400,7 +395,6 @@ const CSS=`
 .sr-wrap:last-child{border-bottom:none;}
 .sr{display:flex;align-items:center;gap:.7rem;padding:.82rem .9rem;animation:up .15s ease;background:var(--bg);position:relative;user-select:none;cursor:pointer;transition:background .1s;}
 .sr:active{background:var(--s2);}
-.sr.pressing{animation:lpress .4s ease;}
 .sr-bar{width:3px;min-height:40px;border-radius:2px;flex-shrink:0;align-self:stretch;}
 .sr-info{flex:1;min-width:0;}
 .sr-line{display:flex;align-items:center;gap:.5rem;flex-wrap:nowrap;overflow:hidden;}
@@ -416,15 +410,6 @@ const CSS=`
 
 /* MONTH */
 .m-wrap{padding:.85rem .85rem 0;animation:up .2s ease;}
-.mnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:.65rem;}
-.mtit{font-family:var(--font-d);font-size:1.7rem;letter-spacing:.06em;color:var(--text);}
-.mnbtn{background:var(--s2);border:1px solid var(--border2);color:var(--text2);font-size:1rem;padding:.3rem .65rem;cursor:pointer;border-radius:4px;}
-.mnbtn:active{border-color:var(--accent);color:var(--accent);}
-.mhero{background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--gold);padding:1rem;margin-bottom:.6rem;border-radius:7px;}
-.mh-row{display:flex;justify-content:space-between;align-items:flex-start;}
-.mh-lbl{font-family:var(--font-m);font-size:.65rem;color:var(--gold);letter-spacing:.1em;margin-bottom:.15rem;}
-.mh-val{font-family:var(--font-d);font-size:2.4rem;color:var(--text);line-height:1;}
-.mh-pay{font-family:var(--font-d);font-size:1.9rem;color:var(--green);line-height:1;margin-top:.2rem;}
 
 /* CALENDAR — EXPENSES style */
 .cal{background:var(--s1);border:1px solid var(--border);margin-bottom:.6rem;overflow:hidden;border-radius:8px;padding:.6rem;}
@@ -476,11 +461,8 @@ const CSS=`
 .stv{font-family:var(--font-d);font-size:1.8rem;letter-spacing:.04em;color:var(--text);line-height:1;}
 .stl{font-family:var(--font-m);font-size:.58rem;color:var(--muted);margin-top:.25rem;letter-spacing:.07em;}
 .pb{background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--green);padding:1rem;margin-bottom:.65rem;border-radius:7px;}
-.pb-t{font-family:var(--font-d);font-size:1.05rem;letter-spacing:.06em;color:var(--muted);margin-bottom:.6rem;}
 .pb-r{display:flex;justify-content:space-between;align-items:center;padding:.38rem 0;border-bottom:1px solid var(--border);}
 .pb-r:last-child{border-bottom:none;}
-.pb-l{font-family:var(--font-b);font-size:.95rem;font-weight:700;color:var(--text2);}
-.pb-v{font-family:var(--font-d);font-size:1.15rem;color:var(--green);}
 
 
 /* weekly target progress */
@@ -533,8 +515,7 @@ function EditModal({shift, onSave, onDelete, onClose}){
   const[note,setNote]=useState(shift.note||'');
   const finalLoc=loc==='Other'?(otherName.trim()||'Other'):(loc||'');
   const totalHours=calcH(s0,e0);
-  const getDefaultBreak=loc=>{if(loc==='Tesco'){if(totalHours<6)return 0;if(totalHours>=6&&totalHours<8)return 0.5;if(totalHours>=8)return 1;return 0;}if(loc==='Oseyo'){if(totalHours>=10)return 1;return 0.5;}return 0;};
-  const breakDeduction=getDefaultBreak(finalLoc);
+  const breakDeduction=getBreakDeduction(finalLoc,totalHours);
   const pH=totalHours-breakDeduction,pP=pH*RATE;
   function doSave(){
     if(!s0||!e0||totalHours<=0)return;
@@ -740,7 +721,7 @@ function App(){
   const[tab,setTab]=useState('week');
   function switchTab(id){setTab(id);}
   const[wOff,setWOff]=useState(0);
-  const[vm,setVm]=useState(()=>new Date().toISOString().slice(0,7));
+  const[vm,setVm]=useState(()=>CURRENT_MONTH);
   const[sel,setSel]=useState(null);
   const[editShift,setEditShift]=useState(null);
   const[saveFlash,setSaveFlash]=useState(false);
@@ -860,8 +841,8 @@ function App(){
           {tab==='week'&&<div onClick={wOff!==0?()=>setWOff(0):undefined} style={{position:'absolute',left:'50%',transform:'translateX(-50%)',textAlign:'center',cursor:wOff!==0?'pointer':'default',userSelect:'none'}}>
             <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',letterSpacing:'.06em',color:wOff<0?'var(--accent)':wOff>0?'var(--sky)':'var(--text)',lineHeight:1,textAlign:'center'}}>{wOff<0?'PAST WEEKS':wOff===0?'THIS WEEK':`${wOff} WK${wOff>1?'S':''} AHEAD`}</div>
           </div>}
-          {tab==='monthly'&&<div onClick={vm!==new Date().toISOString().slice(0,7)?()=>{setVm(new Date().toISOString().slice(0,7));setSel(null);}:undefined} style={{position:'absolute',left:'50%',transform:'translateX(-50%)',textAlign:'center',cursor:vm!==new Date().toISOString().slice(0,7)?'pointer':'default',userSelect:'none'}}>
-            <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',letterSpacing:'.06em',color:vm!==new Date().toISOString().slice(0,7)?'var(--gold)':'var(--text)',lineHeight:1,transition:'color .2s',textAlign:'center'}}>{mkName(vm)}</div>
+          {tab==='monthly'&&<div onClick={vm!==CURRENT_MONTH?()=>{setVm(CURRENT_MONTH);setSel(null);}:undefined} style={{position:'absolute',left:'50%',transform:'translateX(-50%)',textAlign:'center',cursor:vm!==CURRENT_MONTH?'pointer':'default',userSelect:'none'}}>
+            <div style={{fontFamily:'var(--font-d)',fontSize:'1.2rem',letterSpacing:'.06em',color:vm!==CURRENT_MONTH?'var(--gold)':'var(--text)',lineHeight:1,transition:'color .2s',textAlign:'center'}}>{mkName(vm)}</div>
           </div>}
 
         </div>
