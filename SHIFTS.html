@@ -513,13 +513,18 @@ function EditModal({shift, onSave, onDelete, onClose}){
   const[loc,setLoc]=useState(!shift.loc?'':(knownLoc?shift.loc:'Other'));
   const[otherName,setOtherName]=useState(knownLoc||!shift.loc?'':(shift.loc||''));
   const[note,setNote]=useState(shift.note||'');
+  // Custom Tesco break: any combination of 15 / 30 / 45 min, summed. Empty = use default rules.
+  const[brk,setBrk]=useState(Array.isArray(shift.brk)?shift.brk:[]);
   const finalLoc=loc==='Other'?(otherName.trim()||'Other'):(loc||'');
   const totalHours=calcH(s0,e0);
-  const breakDeduction=getBreakDeduction(finalLoc,totalHours);
+  const customBrk=finalLoc==='Tesco'&&brk.length>0;
+  const customBrkMins=brk.reduce((a,b)=>a+b,0);
+  const breakDeduction=customBrk?Math.min(customBrkMins/60,totalHours):getBreakDeduction(finalLoc,totalHours);
   const pH=totalHours-breakDeduction,pP=pH*RATE;
+  function toggleBrk(m){setBrk(b=>b.includes(m)?b.filter(x=>x!==m):[...b,m].sort((x,y)=>x-y));}
   function doSave(){
     if(!s0||!e0||totalHours<=0)return;
-    onSave({...shift,id:shift.id||uid(),date,start:s0,end:e0,loc:finalLoc,hours:pH,note});
+    onSave({...shift,id:shift.id||uid(),date,start:s0,end:e0,loc:finalLoc,hours:pH,note,brk:customBrk?brk:undefined});
   }
   return(
     <div className="mo" onClick={onClose}>
@@ -558,6 +563,7 @@ function EditModal({shift, onSave, onDelete, onClose}){
               <div key={l} className={`mdl-lbtn ${isSel?'sel':''}`}
                 style={isSel?{borderColor:col,color:col}:{}}
                 onClick={()=>{
+                  setBrk([]);
                   if(l==='Other'){setLoc('Other');setOtherName('');}
                   else{
                     setLoc(l);setOtherName('');
@@ -568,6 +574,17 @@ function EditModal({shift, onSave, onDelete, onClose}){
               </div>);
             })}
           </div>
+          {loc==='Tesco'&&<div style={{marginTop:'.55rem'}}>
+            <div className="mdl-l" style={{marginBottom:'.35rem'}}>BREAK (MINS) · {customBrk?`${customBrkMins}m custom`:'DEFAULT'}</div>
+            <div className="mdl-lgrid">
+              {[15,30,45].map(m=>{
+                const on=brk.includes(m);const col=VENUE_DATA.Tesco.color;
+                return(<div key={m} className={`mdl-lbtn ${on?'sel':''}`}
+                  style={{justifyContent:'center',...(on?{borderColor:col,color:col}:{})}}
+                  onClick={()=>toggleBrk(m)}>{m}</div>);
+              })}
+            </div>
+          </div>}
           {loc==='Other'&&<input
             className="mdl-i-sm"
             style={{marginTop:'.5rem',width:'100%'}}
