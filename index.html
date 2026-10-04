@@ -289,39 +289,43 @@ function loadStats() {
   try {
     const g = JSON.parse(localStorage.getItem(MODULES.gym) || 'null');
     if (g && g.weeks && g.currentWeek) {
-      const wd = g.weeks[g.currentWeek] || [], done = wd.filter(d => d.done).length;
+      const wd = g.weeks[g.currentWeek] || [], done = wd.filter(d => d.done && !d.skipped).length;
       done > 0 ? setLive('gym-live', `${done}/${wd.length} days done · Week ${g.currentWeek}`, '#b2ff59', true)
                : setLive('gym-live', '', '', false);
     }
   } catch(e) {}
 
-  // SHIFTS
+  // SHIFTS — next upcoming work shift (venue set; no-venue entries are just calendar events).
+  // A shift ending at 00:00 or earlier than its start time finishes the following day.
   try {
     const s = JSON.parse(localStorage.getItem(MODULES.shifts) || 'null');
     if (s && Array.isArray(s.shifts)) {
-      const today = localDateStr(new Date());
-      const now = new Date();
-      const currentTime = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
-      
-      // Filter shifts: today's shifts that haven't ended, or future shifts
-      let upcoming = s.shifts.filter(sh => {
-        if (sh.date > today) return true;
-        if (sh.date === today && sh.end && sh.end > currentTime) return true;
-        return false;
-      }).sort((a,b) => a.date.localeCompare(b.date) || (a.start||'').localeCompare(b.start||''));
-      
+      const now = new Date(), nowTs = now.getTime(), today = localDateStr(now);
+      const toMin = t => { if (!t) return null; const [h, m] = String(t).split(':').map(Number); return (isNaN(h) || isNaN(m)) ? null : h * 60 + m; };
+      const dayTs = ds => new Date(ds + 'T00:00:00').getTime();
+      const span = sh => {
+        const st = toMin(sh.start), stM = st === null ? 0 : st;
+        let en = toMin(sh.end);
+        if (en === null) en = 1440; else if (en === 0 || en <= stM) en += 1440;
+        return { startTs: dayTs(sh.date) + stM * 60000, endTs: dayTs(sh.date) + en * 60000 };
+      };
+      const upcoming = s.shifts
+        .filter(sh => sh.loc && sh.date)
+        .map(sh => ({ sh, ...span(sh) }))
+        .filter(x => x.endTs > nowTs)
+        .sort((a, b) => a.startTs - b.startTs);
+
       if (upcoming.length) {
-        const next = upcoming[0];
+        const { sh: next, startTs } = upcoming[0];
         const d = new Date(next.date + 'T00:00:00');
-        const label = next.date === today ? 'Today' : `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+        const label = startTs <= nowTs ? 'Now' : next.date === today ? 'Today' : `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
         const timeStr = (next.start || next.end) ? ` · ${next.start || ''}${(next.start && next.end) ? ' - ' : ''}${next.end || ''}` : '';
-        setLive('shifts-live', `Next: ${label}${timeStr}`, '#00c8ff', true);
+        setLive('shifts-live', `${label === 'Now' ? '' : 'Next: '}${label}${timeStr} · ${next.loc}`, '#00c8ff', true);
       } else {
         setLive('shifts-live', '', '', false);
       }
     }
   } catch(e) {}
-
 
 }
 
@@ -380,10 +384,18 @@ document.getElementById('import-input').addEventListener('change', function(e) {
   reader.onload = ev => {
     try {
       const data = JSON.parse(ev.target.result);
-      if (!data.sources) throw 0;
-      let n = 0;
-      for (const [name, key] of Object.entries(MODULES))
-        if (data.sources[name] != null) { localStorage.setItem(key, JSON.stringify(data.sources[name])); n++; }
+      if (!data || typeof data !== 'object' || !data.sources) throw 0;
+      // Only restore modules whose data has the expected shape, so a bad file can't corrupt the apps.
+      const VALID = {
+        gym:    v => v && typeof v === 'object' && v.weeks && typeof v.weeks === 'object',
+        shifts: v => v && Array.isArray(v.shifts)
+      };
+      const ready = Object.entries(MODULES).filter(([name]) => data.sources[name] != null && (!VALID[name] || VALID[name](data.sources[name])));
+      if (!ready.length) throw 0;
+      const names = ready.map(([name]) => name.toUpperCase()).join(' + ');
+      if (!confirm(`Restore ${names} from ${data.exportedDate || 'this backup'}?\n\nThis replaces the data currently saved on this device.`)) return;
+      ready.forEach(([name, key]) => localStorage.setItem(key, JSON.stringify(data.sources[name])));
+      const n = ready.length;
       loadStats(); showToast(`✓ RESTORED ${n} MODULE${n!==1?'S':''} FROM ${data.exportedDate||'BACKUP'}`);
     } catch(e) { showToast('✗ INVALID BACKUP FILE','err'); }
   };
@@ -425,6 +437,10 @@ function showToast(msg, type) {
 // ─────────────────────────────────────────────
 loadStats(); updateBackupUI(); scheduleMidnightExport();
 setInterval(loadStats, 60000);
+window.addEventListener('pageshow', e => {
+  // Back/forward cache restores the page without re-running scripts, which would leave stale stats.
+  if (e.persisted) { scheduleMidnightExport(); updateBackupUI(); loadStats(); }
+});
 let _vt = null;
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
