@@ -75,7 +75,7 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
 
 <canvas id="space-canvas"></canvas>
 <div class="toast hidden" id="toast"></div>
-<input type="file" id="import-input" accept=".json" multiple>
+<input type="file" id="import-input" accept=".json">
 
 <div class="container">
 
@@ -363,11 +363,11 @@ function runExport(isMidnight) {
   setTimeout(() => {
     try {
       const data = gatherAllData();
-      // Export each module into its own file (staggered so browsers don't block the 2nd download)
-      Object.keys(MODULES).forEach((name, i) => {
-        const part = { exportedAt: data.exportedAt, exportedDate: data.exportedDate, sources: { [name]: data.sources[name] } };
-        setTimeout(() => downloadJSON(part, `hub-${name}-backup-${data.exportedDate}.json`), i * 500);
-      });
+      // Export all data into a single file
+      downloadJSON(
+        data,
+        `hub-backup-${data.exportedDate}.json`
+      );
       const log = getBackupLog(); log.push({ts:data.exportedAt, date:data.exportedDate, auto:isMidnight}); saveBackupLog(log);
       showToast(isMidnight ? '✓ MIDNIGHT BACKUP SAVED' : '✓ BACKUP SAVED');
     } catch(e) { showToast('✗ EXPORT FAILED','err'); }
@@ -379,35 +379,27 @@ function runExport(isMidnight) {
 // IMPORT
 // ─────────────────────────────────────────────
 document.getElementById('import-input').addEventListener('change', function(e) {
-  const files = Array.from(e.target.files || []); if (!files.length) return;
-  this.value = '';
-  const readFile = f => new Promise((res, rej) => {
-    const r = new FileReader(); r.onload = ev => res(ev.target.result); r.onerror = rej; r.readAsText(f);
-  });
-  Promise.all(files.map(readFile)).then(texts => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
     try {
-      // Merge the sources from every selected file (works with the two separate files or an old combined one).
-      const sources = {}; let date = '';
-      texts.forEach(t => {
-        const d = JSON.parse(t);
-        if (!d || typeof d !== 'object' || !d.sources) return;
-        Object.assign(sources, Object.fromEntries(Object.entries(d.sources).filter(([, v]) => v != null)));
-        if (d.exportedDate) date = d.exportedDate;
-      });
+      const data = JSON.parse(ev.target.result);
+      if (!data || typeof data !== 'object' || !data.sources) throw 0;
       // Only restore modules whose data has the expected shape, so a bad file can't corrupt the apps.
       const VALID = {
         gym:    v => v && typeof v === 'object' && v.weeks && typeof v.weeks === 'object',
         shifts: v => v && Array.isArray(v.shifts)
       };
-      const ready = Object.entries(MODULES).filter(([name]) => sources[name] != null && (!VALID[name] || VALID[name](sources[name])));
+      const ready = Object.entries(MODULES).filter(([name]) => data.sources[name] != null && (!VALID[name] || VALID[name](data.sources[name])));
       if (!ready.length) throw 0;
       const names = ready.map(([name]) => name.toUpperCase()).join(' + ');
-      if (!confirm(`Restore ${names} from ${date || 'this backup'}?\n\nThis replaces the data currently saved on this device.`)) return;
-      ready.forEach(([name, key]) => localStorage.setItem(key, JSON.stringify(sources[name])));
+      if (!confirm(`Restore ${names} from ${data.exportedDate || 'this backup'}?\n\nThis replaces the data currently saved on this device.`)) return;
+      ready.forEach(([name, key]) => localStorage.setItem(key, JSON.stringify(data.sources[name])));
       const n = ready.length;
-      loadStats(); showToast(`✓ RESTORED ${n} MODULE${n!==1?'S':''} FROM ${date||'BACKUP'}`);
-    } catch(err) { showToast('✗ INVALID BACKUP FILE','err'); }
-  }).catch(() => showToast('✗ INVALID BACKUP FILE','err'));
+      loadStats(); showToast(`✓ RESTORED ${n} MODULE${n!==1?'S':''} FROM ${data.exportedDate||'BACKUP'}`);
+    } catch(e) { showToast('✗ INVALID BACKUP FILE','err'); }
+  };
+  reader.readAsText(file); this.value = '';
 });
 
 // ─────────────────────────────────────────────
